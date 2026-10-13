@@ -21,9 +21,13 @@ Usage: bammatrix [options] Files
       Default: LOG
       Possible Values: [LINEAR, LOG]
     -d, --distance
-      Don't evaluate a point if the distance between the regions is lower than 
-      'd'. Negative: don't consider distance.
+      Don't evaluate a point if the distance between the regions on X and Y is 
+      lower than 'd'. Negative: don't consider distance.
       Default: -1
+    --flags
+      just compare pairs of reads with the following configuration
+      Default: any
+      Possible Values: [any, proper_pair, non_proper_pair]
     --gtf, -g
       Optional gtf file to draw the exons. A GTF (General Transfer Format) 
       file. See https://www.ensembl.org/info/website/upload/gff.html . Please 
@@ -46,16 +50,13 @@ Usage: bammatrix [options] Files
       the read name. "Chromium barcode sequence that is error-corrected and 
       confirmed against a list of known-good barcode sequences.". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam
       Default: READ_NAME
-      Possible Values: [READ_NAME, BX, MI]
+      Possible Values: [READ_NAME, BX, MI, TRUEPATH_PHASE1, TRUEPATH_PHASE2]
     --no-coverage
       Don't print coverage
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --pixel
-      pixel size. Each dot at intersection will have the following size
-      Default: 1
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, -r1, --region, --region1
@@ -65,11 +66,8 @@ Usage: bammatrix [options] Files
       "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
     -r2, --region2
-      2nd region. Default: use first region. An interval as the following 
-      syntax : "chrom:start-end". Some jvarkit programs also allow the 
-      following syntax : "chrom:middle+extend"  or "chrom:start-end+extend" or 
-      "chrom:start-end+extend-percent%".A program might use a Reference 
-      sequence to fix the chromosome name (e.g: 1->chr1)
+      2nd region. Default: use first region. syntax: chrom:pos (starting of 
+      second region length of region1 will be added
     -sa, --sa
       Use other canonical alignements from the 'SA:Z:*' attribute
       Default: false

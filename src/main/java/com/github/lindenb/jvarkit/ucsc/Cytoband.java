@@ -40,6 +40,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
  *
  */
 public interface Cytoband extends ExtendedLocatable,HasName {
+	public static final String OPT_DESC="Cytoband URI. tab delimited file. no header. chrom/chromStart/chromEnd/name/gieStain.";
+	
 	public String getStain();
 	
 	public default boolean isCentromere() {

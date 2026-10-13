@@ -24,12 +24,17 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.illumina;
 
+import com.github.lindenb.jvarkit.log.Logger;
+
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
 
 /** constants for illumina */
 public class IlluminaConstants {
+	private static final Logger LOG = Logger.of(IlluminaConstants.class);
 	/* https://help.dragen.illumina.com/dragen-v4.5-trupath/product-guides/dragen-v4.5/dragen-trupath-pipeline */
-
+	public static enum TruePathPhase { Phase_1, Phase_2, Phase_undefined };
+	
 	/** Phasing probability in Phred-scale  */
 	public static final String TRUEPATH_PP = "pp";
 	/** Haplotype tag for all reads where abs(pp)>=10 often 1 or 2: HP:i:1 HP:i:2 */
@@ -44,5 +49,24 @@ public class IlluminaConstants {
 				.map(PG->PG.getCommandLine())
 				.anyMatch(CL->CL!=null && CL.contains("dragen") && CL.contains("--enable-proximity true"));
 		
-	}
+		}
+	
+	/** extract truepath Phase from SamRecord */
+	public static TruePathPhase getTruePathPhase(final SAMRecord rec) {
+		 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+		if(hp_tag==null ) {
+			return TruePathPhase.Phase_undefined;
+			}
+		if( !(hp_tag instanceof Number)) {
+			LOG.warn("unexpected phase (NaN) in "+rec);
+			return TruePathPhase.Phase_undefined;
+			}
+		
+		final int hp_phase= Number.class.cast(hp_tag).intValue();
+		switch(hp_phase) {
+			case 1: return TruePathPhase.Phase_1;
+			case 2: return TruePathPhase.Phase_2;
+			default: LOG.warn("unexpected phase in "+rec); return TruePathPhase.Phase_undefined;
+			}
+		}
 }

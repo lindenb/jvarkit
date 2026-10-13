@@ -128,16 +128,6 @@ $ java -jar dist/bam2svg.jar \
     file.list
 ```
 
-## Gallery
-
-https://twitter.com/yokofakun/status/523031098541232128
-
-![bam2svg](https://pbs.twimg.com/media/B0IuAw2IgAAYfNM.jpg)
-
-https://twitter.com/yokofakun/status/522415314425090048
-
-![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
-
 
 
 

@@ -96,7 +96,7 @@ private static final Logger LOG = Logger.of(CytobandToSvg.class);
 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private File outputFile = null;
-@Parameter(names={"-C","--cytobands"},description="Cytoband URI. tab delimited file. no header. chrom/chromStart/chromEnd/name/gieStain. '-'=stdin")
+@Parameter(names={"-C","--cytobands"},description=Cytoband.OPT_DESC+" '-'=stdin")
 private String cytobandsUri = "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz";
 @Parameter(names={"-t","--title"},description="title")
 private String title = "";

@@ -494,24 +494,16 @@ public class SwingBamCov extends Launcher
 							 if(cigar==null || cigar.isEmpty()) continue;
 							 final int phase_idx;
 							 if(is_phased) {
-								 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
-									if(hp_tag==null || !(hp_tag instanceof Number)) {
-										phase_idx = 1;
-										}
-									else
-										{
-										final int hp_phase= Number.class.cast(hp_tag).intValue();
-										switch(hp_phase) {
-											case 1: phase_idx = 0; break;//top
-											case 2: phase_idx = 2; break;//bottom
-											default: phase_idx= 1 ;break;//middle
-											}
-										}
-									}
-								else
-									{
-									phase_idx = 0;
-									}
+								 switch(IlluminaConstants.getTruePathPhase(rec)) {
+								 	case Phase_1: phase_idx = 0; break;//top
+								 	case Phase_2: phase_idx = 2; break;//bottom
+								 	default: phase_idx = 1; break;//middle
+								 	}
+							 	}
+							 else
+								{
+								phase_idx = 0;
+								}
 							 final HaplotypePileup hap=hapData.get(phase_idx);
 							 hap.pileup.add(rec);
 							 hap.got_read=true;

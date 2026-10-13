@@ -20,6 +20,7 @@ public class BamMatrixTest {
 		final Path out = support.createTmpPath(".png");
 		Assert.assertEquals(new BamMatrix().instanceMain(new String[] {
 			"-o",out.toString(),
+			"-R",support.resource("rotavirus_rf.fa"),
 			"-r","RF01:1-1000",
 			support.resource("S1.bam")
 			}),0);
