@@ -256,6 +256,14 @@ public Element clipPath() {
 	return this.element("clipPath");
 	}
 
+public Element path() {
+	return this.element("path");
+	}
+public Element path(final Map<String,Object> atts) {
+	return this.element("path",atts);
+	}
+
+
 public Element polyline(final Map<String,Object> atts) {
 	return this.element("polyline",null,atts);
 	}
@@ -359,8 +367,8 @@ public class Shape implements Supplier<Element> {
 		}
 
 	
-	public Element make(Map<String,Object> atts) {
-		final Element e= SVGDocument.this.element("path",atts);
+	public Element make(final Map<String,Object> atts) {
+		final Element e= SVGDocument.this.path(atts);
 		e.setAttribute("d", sb.toString());
 		return e;
 		}

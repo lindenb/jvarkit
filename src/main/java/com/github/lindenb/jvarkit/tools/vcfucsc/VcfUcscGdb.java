@@ -50,8 +50,8 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.iterator.LineIterators;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.jexl.JexlPredicate;
-import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionToString;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -467,10 +467,10 @@ public class VcfUcscGdb extends Launcher {
 								throw new RuntimeIOException("Duplicate remote resource: "+hash);
 								}
 							if(hash.containsKey("accept")) {
-								bf.accept = new JexlPredicate(hash.get("accept"));
+								bf.accept = new JexlExpressionPredicate(hash.get("accept"));
 								}
 							if(hash.containsKey("tostring")) {
-								bf.converter = new JexlToString(hash.get("tostring"));
+								bf.converter = new JexlExpressionToString(hash.get("tostring"));
 								}
 							if(hash.containsKey("desc")) {
 								bf.description = hash.get("desc");

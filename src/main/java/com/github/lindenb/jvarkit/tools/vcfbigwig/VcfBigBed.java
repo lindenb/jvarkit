@@ -50,7 +50,7 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
-import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionToString;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
@@ -222,7 +222,7 @@ public class VcfBigBed extends OnePassVcfLauncher {
 	private Double min_overlap_vcf_fraction=  null;	
 	@Parameter(names={"-mofb","--min-overlap-bed-fraction"},description="Minimum overlap required as a fraction of BIGBED record. "+FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private Double min_overlap_bed_fraction=  null;	
-	@Parameter(names={"-e","--expr","--jexl","--format"},description="A JEXL Expression returning a string " + JexlToString.OPT_WHAT_IS_JEXL +". "
+	@Parameter(names={"-e","--expr","--jexl","--format"},description="A JEXL Expression returning a string " + JexlExpressionToString.OPT_WHAT_IS_JEXL +". "
 			+ "The variable 'bed' is the current observed Bed Line. It implements java.util.List<String> and Locatable."
 			+ " The variable 'ctx' or 'variant' is the current observed variant."
 			+ " The variable 'line' is the original bed line"
@@ -264,7 +264,7 @@ public class VcfBigBed extends OnePassVcfLauncher {
 				
 				
 				
-				this.bedJexlToString = new JexlToString(this.formatPattern);
+				this.bedJexlToString = new JexlExpressionToString(this.formatPattern);
 
 				
 				return 0;

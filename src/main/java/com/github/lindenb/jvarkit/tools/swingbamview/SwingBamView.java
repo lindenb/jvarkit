@@ -153,7 +153,7 @@ END_DOC
 description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
-modificationDate="20230427",
+modificationDate="20261008",
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )

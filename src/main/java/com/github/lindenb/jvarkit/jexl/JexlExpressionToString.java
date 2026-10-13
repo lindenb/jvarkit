@@ -28,10 +28,10 @@ import java.util.function.Function;
 
 import org.apache.commons.jexl2.JexlContext;
 
-public class JexlToString extends BaseJexlHandler
+public class JexlExpressionToString extends BaseJexlExpressionHandler
 	implements Function<JexlContext,String>
 	{
-	public JexlToString(final String expr) {
+	public JexlExpressionToString(final String expr) {
 		super(expr);
 		}
 	@Override

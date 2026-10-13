@@ -24,21 +24,35 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jexl;
 
-import java.util.function.Predicate;
-
+import org.apache.commons.jexl2.Expression;
 import org.apache.commons.jexl2.JexlContext;
+import org.apache.commons.jexl2.JexlException;
 
+import htsjdk.variant.variantcontext.VariantContextUtils;
 
-public class JexlPredicate extends BaseJexlHandler implements Predicate<JexlContext>
-	{
-	public JexlPredicate(final String expr) {
-		super(expr);
+public class BaseJexlExpressionHandler {
+	public static final String OPT_WHAT_IS_JEXL="JEXL stands for Java EXpression Language.  See https://commons.apache.org/proper/commons-jexl/reference/syntax.html ";
+	/** compiled expression */
+	private final Expression jexlExpr;
+	protected BaseJexlExpressionHandler(final String exprStr) {
+		this.jexlExpr = VariantContextUtils.engine.get().createExpression(exprStr);
+		}
+	/** declared expression */
+	public String getExpression() {
+		return this.jexlExpr.getExpression();
+		}
+	
+	/** eval the context or throw on error */
+	protected Object eval(final JexlContext ctx) {
+		try {
+			return this.jexlExpr.evaluate(ctx);
+			}
+		catch(final JexlException err) {
+			throw new RuntimeException("Cannot evaluate JEXL expression \""+this.getExpression()+"\".",err);
+			}	
 		}
 	@Override
-	public boolean test(final JexlContext t) {
-		final Object o = eval(t);
-		if(o==null) throw new RuntimeException("JEXL expression \""+this.getExpression()+"\" returned false");
-		if(!(o instanceof Boolean)) throw new RuntimeException("JEXL expression \""+this.getExpression()+"\" returned something that is not a boolean.");
-		return Boolean.class.cast(o);
+	public String toString() {
+		return getClass().getName()+" "+this.getExpression();
 		}
 	}

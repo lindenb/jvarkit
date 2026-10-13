@@ -46,7 +46,7 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
-import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionToString;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
@@ -149,7 +149,7 @@ public class VCFBed extends OnePassVcfLauncher
 
 	private static final Logger LOG = Logger.of(VCFBed.class);
 
-	@Parameter(names={"-e","--expr","--jexl","--format"},description="[20180124]A JEXL Expression returning a string " + JexlToString.OPT_WHAT_IS_JEXL +". "
+	@Parameter(names={"-e","--expr","--jexl","--format"},description="[20180124]A JEXL Expression returning a string " + JexlExpressionToString.OPT_WHAT_IS_JEXL +". "
 			+ "The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java ). "
 			+ " The variable 'ctx' or 'variant' is the current observed variant."
 			+ " The variable 'line' is the original bed line"
@@ -469,7 +469,7 @@ public class VCFBed extends OnePassVcfLauncher
 		if(!StringUtils.isBlank(mutual_Compararor_expr)) {
 			this.overlap_comparator  = OverlapComparator.parse(this.mutual_Compararor_expr);
 			}
-		this.bedJexlToString = new JexlToString(this.formatPattern);
+		this.bedJexlToString = new JexlExpressionToString(this.formatPattern);
 
 			
 		if(!this.in_memory) {

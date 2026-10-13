@@ -47,9 +47,9 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
-import com.github.lindenb.jvarkit.jexl.JexlPredicate;
-import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.jexl.BaseJexlExpressionHandler;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionToString;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -123,9 +123,9 @@ public class VcfUcsc extends OnePassVcfLauncher {
 	private Predicate<JexlContext> acceptRowFunc = ROW->true;
 
 	
-	@Parameter(names={"-e","--expression"},description="JEXL expression used to convert a row to String. Empty=default. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
+	@Parameter(names={"-e","--expression"},description="JEXL expression used to convert a row to String. Empty=default. See the manual. " + BaseJexlExpressionHandler.OPT_WHAT_IS_JEXL)
 	private String convertToStrExpr ="";
-	@Parameter(names={"-a","--accept"},description="JEXL expression used to accept a result set. Must return a boolean. Empty=defaul/accept all. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
+	@Parameter(names={"-a","--accept"},description="JEXL expression used to accept a result set. Must return a boolean. Empty=defaul/accept all. See the manual. " + BaseJexlExpressionHandler.OPT_WHAT_IS_JEXL)
 	private String acceptExpr="";
 	@Parameter(names={"-L","--limit"},description="Limit number of items after filtration. Negative = no-limit")
 	private int limit_item_numbers = -1;
@@ -386,10 +386,10 @@ public class VcfUcsc extends OnePassVcfLauncher {
 				}
 			
 			if(!StringUtil.isBlank(this.acceptExpr)) {
-				this.acceptRowFunc = new JexlPredicate(this.acceptExpr);
+				this.acceptRowFunc = new JexlExpressionPredicate(this.acceptExpr);
 			}
 			if(!StringUtil.isBlank(this.convertToStrExpr)) {
-				this.toStringFunc = new JexlToString(this.convertToStrExpr);
+				this.toStringFunc = new JexlExpressionToString(this.convertToStrExpr);
 			}
 
 			}

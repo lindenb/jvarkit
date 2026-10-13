@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.gtf.GTFLine;
 import com.github.lindenb.jvarkit.hershey.Hershey;
+import com.github.lindenb.jvarkit.illumina.IlluminaConstants;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -90,7 +91,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -120,16 +120,6 @@ $ java -jar dist/bam2svg.jar \
     -o output.zip
     file.list
 ```
-
-## Gallery
-
-https://twitter.com/yokofakun/status/523031098541232128
-
-![bam2svg](https://pbs.twimg.com/media/B0IuAw2IgAAYfNM.jpg)
-
-https://twitter.com/yokofakun/status/522415314425090048
-
-![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
 
 
 
@@ -1041,6 +1031,7 @@ public class BamToSVG extends Launcher {
 			
 			try(SamReader samReader = sfrf.open(path)) {
 				final SAMFileHeader header= samReader.getFileHeader();
+				final boolean is_phased = IlluminaConstants.isDragenProximityEnabled(header);
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 				SequenceUtil.assertSequenceDictionariesEqual(dict, this.referenceDict);
 				context.sampleName = header.getReadGroups().stream().
@@ -1058,6 +1049,9 @@ public class BamToSVG extends Launcher {
 						{
 						final SAMRecord rec = iter.next();
 						if(rec.getReadUnmappedFlag()) continue;
+						if(is_phased) {
+							
+							}
 						
 						//if( this.samRecordFilter.filterOut(rec)) continue;
 						if(!SAMRecordDefaultFilter.accept(rec, this.mappingQuality)) continue;
@@ -1277,7 +1271,14 @@ public class BamToSVG extends Launcher {
 				}
 			finally
 				{
-				CloserUtil.close(this.indexedFastaSequenceFile);
+				if(this.indexedFastaSequenceFile!=null) {
+					try {
+						this.indexedFastaSequenceFile.close();
+						}
+					catch(IOException err) {
+						// ignore
+					}
+				}
 				this.indexedFastaSequenceFile=null;
 				this.interval=null;
 				}
