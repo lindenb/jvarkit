@@ -232,7 +232,7 @@ public class CytobandTrack {
 			for(CytoInfo ii: chromosome.bands) {
 				String gradientid = stain2gradientid.get(ii.getDelegate().getStain());
 				if(gradientid==null) {
-					gradientid = svgDoc.createVerticalLinearGradient("black", ii.getDelegate().getCssColor());
+					gradientid = svgDoc.createVerticalBiLinearGradient("black", ii.getDelegate().getCssColor());
 					stain2gradientid.put(ii.getDelegate().getStain(), gradientid);
 					}
 				

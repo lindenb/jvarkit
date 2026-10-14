@@ -509,8 +509,9 @@ public Element setTitle(final Element root,final String  s) {
 	return root;
 	}
 
-public String createVerticalLinearGradient(String color1,String color2) {
-	Node n= this.makeNodeBuilder("linearGradient").
+/** create two vertical gradients with color2 at the center, return the gradient id */
+public String createVerticalBiLinearGradient(final String color1,final String color2) {
+	final Node n= this.makeNodeBuilder("linearGradient").
 		attribute("x1","50%").
 		attribute("x2","50%").
 		attribute("y1","0%").
@@ -530,6 +531,27 @@ public String createVerticalLinearGradient(String color1,String color2) {
 		make();
 	return insertDefElement(Element.class.cast(n));
 	}
+
+/** create a vertical gradient , return the gradient id */
+public String createVerticaiLinearGradient(final String color1,final String color2) {
+	final Node n= this.makeNodeBuilder("linearGradient").
+		attribute("x1","50%").
+		attribute("x2","50%").
+		attribute("y1","0%").
+		attribute("y2","100%").
+		startElement("stop").
+			attribute("offset","0%").
+			attribute("style","stop-color:"+color1+";stop-opacity:1;").
+		endElement().
+		startElement("stop").
+			attribute("offset","100%").
+			attribute("style","stop-color:"+color2+";stop-opacity:1;").
+		endElement().
+		make();
+	return insertDefElement(Element.class.cast(n));
+	}
+
+
 /** insert element in <defs> , check if very same element exists add new @id if missing, return @id */
 public String insertDefElement(final Element e) {
 	for(Node c1=this.defsElement.getFirstChild();c1!=null;c1=c1.getNextSibling()) {

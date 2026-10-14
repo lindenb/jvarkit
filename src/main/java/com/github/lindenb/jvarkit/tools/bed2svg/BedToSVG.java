@@ -30,13 +30,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,21 +67,19 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
-import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
-import com.github.lindenb.jvarkit.tools.misc.CytobandToSvg;
 import com.github.lindenb.jvarkit.ucsc.Cytoband;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.MultiIntervalVariantIterator;
-import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+import com.github.lindenb.jvarkit.jexl.BaseJexlExpressionHandler;
+import com.github.lindenb.jvarkit.jexl.JexlContextFactory;
+import com.github.lindenb.jvarkit.jexl.JexlExpressionPredicate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.IntervalUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -89,7 +87,6 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
@@ -99,25 +96,24 @@ Convert BED file to SVG
 
 ## Example
 
-
+```
 
 ```
 
 END_DOC
 */
 @Program(name="bed2svg",
-description="Convert BED file to VCF, finding REF allele at start and 'N' as ALT allele",
+description="Convert BED file(s) to SVG",
 keywords={"bed","svg"},
 creationDate="20261013",
 modificationDate="20261013",
-jvarkit_amalgamion = true,
-menu="VCF Manipulation"
+jvarkit_amalgamion = true
 )
 public class BedToSVG extends Launcher {
 	private static final Logger LOG = Logger.of(BedToSVG.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@Parameter(names={"--cytoband"},description=Cytoband.OPT_DESC)
+	@Parameter(names={"--cytoband"},description=Cytoband.OPT_DESC,hidden = true/* not checked */)
 	private Path cytoBandFile=null;
 	@Parameter(names={"-R"},description=DICTIONARY_SOURCE,required = true)
 	private Path faidx=null;
@@ -131,12 +127,21 @@ public class BedToSVG extends Launcher {
 	private int min_feature_length=0;
 	@Parameter(names={"--max-feature-length"},description="discard  features where the length of reference is lower than x. "+ DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter = NoSplitter.class)
 	private int max_feature_length=-1;
-
-	private String ssr_regex = "";
+	@Parameter(names={"--contig-regex"},description="just show chromosomes matching this regex")
+	private String ssr_regex = "(chr)?[0-9XY]+";
+	@Parameter(names={"--contig-min-length"},description="just show chromosomes having a length greater than 'x'")
 	private long min_ssr_length = 0L;
+
+	
+	@Parameter(names={"--jexl-filter"},description="]A JEXL Expression returning a string " + BaseJexlExpressionHandler.OPT_WHAT_IS_JEXL +". "
+			+  "The variable 'record' is the current observed BedLine (or Variant) ). "
+			+ " The variable 'filename' is the current filename"
+			)
+	private String jexlRecordAcceptor="";
+
 	
 	private final List<AreaOfInterest> areas_of_interest = new ArrayList<>();
-	private SAMSequenceDictionary dictionary;
+	private WholeGenomeArea wholegenome;
 	
 	
 	private interface AreaOfInterest extends HasName {
@@ -199,10 +204,14 @@ public class BedToSVG extends Launcher {
 	private class WholeGenomeArea  implements AreaOfInterest {
 		final SAMSequenceDictionary dict;
 		final Map<String, Long> contig2idx=new HashMap<>();
+		final ContigNameConverter ctgConvert;
 		final long genome_length;
+		final Comparator<Locatable> sorter;
 		WholeGenomeArea(final SAMSequenceDictionary dict) {
 			this.dict=dict;
 			this.genome_length = dict.getReferenceLength();
+			this.ctgConvert = ContigNameConverter.fromOneDictionary(dict);
+			this.sorter = new ContigDictComparator(this.dict).createLocatableComparator();
 			long n=0L;
 			for(SAMSequenceRecord ssr:dict.getSequences()) {
 				this.contig2idx.put(ssr.getContig(), n);
@@ -261,6 +270,10 @@ public class BedToSVG extends Launcher {
 		return track;
 		}
 	
+	private String getNameForRecord(final Locatable loc) {
+		return LocatableUtils.toNiceString(loc)+" length:"+StringUtils.niceInt(loc.getLengthOnReference());
+	}
+	
 	private Map<String,Object> getAttributesFor(Locatable loc)  {
 		if(loc instanceof BedLine) {
 			Map<String,Object > attributes =new HashMap<>();
@@ -303,7 +316,7 @@ public class BedToSVG extends Launcher {
 			return Map.of("stroke", "darkgray","fill",fill);
 			}
 		
-		return Map.of("stroke", "pink","fill","green");
+		return Map.of("stroke", "blue","fill","green");
 		}
 	
 	private boolean accept(final Locatable loc) {
@@ -332,11 +345,27 @@ public class BedToSVG extends Launcher {
 	
 	/** read BED file */
 	private void readBed(BufferedReader r,final String filename) throws IOException {
+		JexlExpressionPredicate filter = null;
+		JexlContextFactory<Object[]> jcf=null;
+		if(!StringUtils.isBlank(this.jexlRecordAcceptor)) {
+			jcf =new JexlContextFactory<Object[]>()
+					.add("record", array->array[0])
+					.add("filename",array->filename)
+					.add("line", array->array[1])
+					;
+			filter=new JexlExpressionPredicate(this.jexlRecordAcceptor); 
+			}
+		
 		try(BedLineReader blr = new BedLineReader(r,filename)) {
-			blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.dictionary));
+			int n_line=0;
+			blr.setContigNameConverter(this.wholegenome.ctgConvert);
 			while(blr.hasNext()) {
 				final BedLine rec = blr.next();
+				n_line++;
 				if(!accept(rec)) continue;
+				if(filter!=null &&  !filter.test( jcf.make(new Object[] {rec,n_line}))) {
+					continue;
+					}
 				final String trackName= (filename==null?"":filename);
 				final Track track= createTrack(trackName);
 				track.records.add(rec);
@@ -364,10 +393,23 @@ public class BedToSVG extends Launcher {
 		}
 	
 	private void readVcf(final VCFHeader hdr,final CloseableIterator<VariantContext> iter,final Path filename)  throws IOException {
+		JexlExpressionPredicate filter = null;
+		JexlContextFactory<Object[]> jcf=null;
+		if(!StringUtils.isBlank(this.jexlRecordAcceptor)) {
+			jcf =new JexlContextFactory<Object[]>()
+					.add("record", array->array[0])
+					.add("filename",array->filename)
+					.add("line", array->array[1])
+					;
+			filter=new JexlExpressionPredicate(this.jexlRecordAcceptor); 
+			}
+		int n_line=0;
 		while(iter.hasNext()) {
 			final VariantContext ctx = iter.next();
+			n_line++;
 			if(!ctx.isVariant()) continue;
 			if(!accept(ctx)) continue;
+			
 			
 			
 			if(ctx.hasGenotypes()) {
@@ -375,16 +417,22 @@ public class BedToSVG extends Launcher {
 					if(!g.hasAltAllele()) continue;
 					String trackName = g.getSampleName();
 					final Track track= createTrack(trackName);
-					track.records.add(
-						new VariantContextBuilder(ctx)
-							.noGenotypes()
-							.genotypes(Collections.singletonList(g))
-							.make()
-						);
+					VariantContext ctx2 = new VariantContextBuilder(ctx)
+						.noGenotypes()
+						.genotypes(Collections.singletonList(g))
+						.make()
+						;
+					if(filter!=null &&  !filter.test( jcf.make(new Object[] {ctx2,n_line}))) {
+						continue;
+						}
+					track.records.add(ctx2);
 					}
 				}
 			else
 				{
+				if(filter!=null &&  !filter.test( jcf.make(new Object[] {ctx,n_line}))) {
+					continue;
+					}
 				String trackName= IOUtils.getFilenameWithoutCommonSuffixes(filename);
 				final Track track= createTrack(trackName);
 				track.records.add(ctx);
@@ -397,15 +445,19 @@ public class BedToSVG extends Launcher {
 		try {
 			final SAMSequenceDictionary original_dict=SequenceDictionaryUtils.extractRequired(this.faidx);
 			final Hyperlink hyperlink = Hyperlink.compile(original_dict);
-			this.dictionary = new SAMSequenceDictionary(
+			this.wholegenome = new WholeGenomeArea( new SAMSequenceDictionary(
 						original_dict
 							.getSequences()
 							.stream()
 							.filter(SR->SR.getSequenceLength() >= this.min_ssr_length)
 							.filter(SR->StringUtils.isBlank(ssr_regex) || SR.getContig().matches(ssr_regex))
 							.collect(Collectors.toList())
-						);
-			if(this.dictionary.isEmpty()) {
+						));
+			
+			
+			
+			
+			if(this.wholegenome.dict.isEmpty()) {
 				LOG.info("no chromosome to display");
 				}
 			final boolean splitted_intervals;
@@ -414,8 +466,7 @@ public class BedToSVG extends Launcher {
 				splitted_intervals = true;
 				/** load regions of interest */
 				final List<SimpleInterval> regions=new ArrayList<>();
-				final ContigNameConverter ctgConvert = ContigNameConverter.fromOneDictionary(this.dictionary);
-				final IntervalParser parser= new IntervalParser(this.dictionary);
+				final IntervalParser parser= new IntervalParser(this.wholegenome.dict);
 				this.regions_str
 					.stream()
 					.flatMap(S->Arrays.stream(CharSplitter.COMMA.split(S)))
@@ -427,14 +478,14 @@ public class BedToSVG extends Launcher {
 				
 				if(this.regions_file!=null) {
 					try(BedLineReader br=new BedLineReader(this.regions_file)) {
-						br.setContigNameConverter(ctgConvert);
+						br.setContigNameConverter(this.wholegenome.ctgConvert);
 						br.stream().forEach(R->regions.add(new SimpleInterval(R)));
 						}
 					}
 				final List<IntervalOfInterest> L= LocatableUtils.mergeIntervals(regions)
 					.stream()
 					.map(R->new IntervalOfInterest(R))
-					.sorted(new ContigDictComparator(this.dictionary).createLocatableComparator())
+					.sorted(this.wholegenome.sorter)
 					.collect(Collectors.toList());
 					
 				if(L.isEmpty()) {
@@ -453,7 +504,7 @@ public class BedToSVG extends Launcher {
 			else
 				{
 				splitted_intervals = false;
-				this.areas_of_interest.add(new WholeGenomeArea(this.dictionary));
+				this.areas_of_interest.add(this.wholegenome);
 				}
 			
 			
@@ -488,28 +539,31 @@ public class BedToSVG extends Launcher {
 				"rect.background1 {fill:gainsboro;stroke:none;}"
 				));
 			
+			//svg.createVerticalLinearGradient(ssr_regex, jexlRecordAcceptor)
+			
 			double y=0;
 			final Element document_g= svg.group();
 			svg.rootElement.appendChild(document_g);
-			final Insets insets = new Insets(50, 50, 50, 50);
+			final Insets insets = new Insets(
+					50,
+					this.id2track.values().stream().mapToInt(R->R.name.length()*5+50).max().orElse(50),
+					50, 50);
 			
 			final Element main_g= svg.group();
 			document_g.setAttribute("id", "main");
-			main_g.setAttribute("transform", "translate("+insets.top+","+insets.left+")");
+			main_g.setAttribute("transform", "translate("+insets.left+","+insets.top+")");
 			document_g.appendChild(main_g);
 			
 			/** draw chromosomes at TOP */
-			final long genome_length = this.dictionary.getReferenceLength();
-			Map<String,Long> chromosome2offset=new HashMap<>();
 			double featureHeight=10.0;
-			long offset = 0L;
+			
 			final Element contigs_g = svg.group();
 			main_g.appendChild(contigs_g);
 			
-			for(SAMSequenceRecord ssr:this.dictionary.getSequences()) {
-				chromosome2offset.put(ssr.getContig(), offset);
-				final double x = (offset/(double)genome_length)*this.screen_width;
-				final double w = (ssr.getLengthOnReference()/(double)genome_length)*this.screen_width;
+			for(SAMSequenceRecord ssr: this.wholegenome.dict.getSequences()) {
+				long offset = this.wholegenome.contig2idx.get(ssr.getContig());
+				final double x = (offset/(double)this.wholegenome.genome_length)*this.screen_width;
+				final double w = (ssr.getLengthOnReference()/(double)this.wholegenome.genome_length)*this.screen_width;
 				
 				final Element g= svg.group();
 				final Element rect = svg.rect(
@@ -534,7 +588,6 @@ public class BedToSVG extends Launcher {
 				svg.setTitle(g, ssr.getContig());
 				contigs_g.appendChild(svg.anchor(g, hyperlink.apply(ssr).orElse(null)));
 				
-				offset+=ssr.getLengthOnReference();
 				}
 			y+=featureHeight*2;
 			/*
@@ -546,14 +599,14 @@ public class BedToSVG extends Launcher {
 					List<Cytoband> cytobands= br.lines()
 						.map(L->tab.split(L))
 						.map(T->Cytoband.of(T))
-						.filter(C->dictionary.getSequence(C.getContig())!=null)
-						.sorted(new ContigDictComparator(this.dictionary).createLocatableComparator())
+						.filter(C->wholegenome.dict.getSequence(C.getContig())!=null)
+						.sorted(wholegenome.sorter)
 						.collect(Collectors.toList());
 					for(Cytoband cytoband: cytobands) {
-						Element rect = svg.rect(
-								(cytoband.getStart()/(double)genome_length)*this.screen_width,
+						final Element rect = svg.rect(
+								(cytoband.getStart()/(double)wholegenome.genome_length)*this.screen_width,
 								y,
-								(cytoband.getLengthOnReference()/(double)genome_length)*this.screen_width,
+								(cytoband.getLengthOnReference()/(double)wholegenome.genome_length)*this.screen_width,
 								featureHeight,
 								Maps.of("", "")
 								);
@@ -572,14 +625,40 @@ public class BedToSVG extends Launcher {
 				y+=2;
 				final Element track_g = svg.group();
 				track.y = y;
+				final List<Element> backgrounds = new ArrayList<Element>();
 				final List<Element> frames = new ArrayList<Element>();
+				int contig_idx=0;
 				for(int area_idx=0;area_idx< this.areas_of_interest.size();++area_idx) {
 					final AreaOfInterest area = this.areas_of_interest.get(area_idx);
 					final Element area_g = svg.group();
 					
-					
-					
-					
+					if(splitted_intervals) {
+						final Element rect = svg.rect(
+								area.getX(), 
+								track.y, 
+								area.getWidth(), 
+								1,
+								Maps.of("class", "background"+(contig_idx%2))
+								);
+						backgrounds.add(rect);
+						area_g.appendChild(rect);
+						contig_idx++;
+						}
+					else
+						{
+						for(SAMSequenceRecord ssr:this.wholegenome.dict.getSequences()) {
+							final Element rect = svg.rect(
+								(this.wholegenome.contig2idx.get(ssr.getContig())/(double)this.wholegenome.genome_length)*this.screen_width, 
+								track.y, 
+								(ssr.getLengthOnReference()/(double)this.wholegenome.genome_length)*this.screen_width,  
+								1,
+								Maps.of("class", "background"+(contig_idx%2))
+								);
+							backgrounds.add(rect);
+							area_g.appendChild(svg.setTitle(rect,ssr.getSequenceName()));
+							contig_idx++;
+							}
+						}
 					
 					// loop over each contig, because pileup doesn't handle multiple contigs
 					for(String contig: area.getContigs()) {
@@ -603,6 +682,10 @@ public class BedToSVG extends Launcher {
 										featureHeight*0.9,
 										getAttributesFor(loc)
 										);
+								
+								svg.setTitle(rect,getNameForRecord(loc));
+								
+								
 								area_g.appendChild(svg.anchor(rect, hyperlink.apply(loc).orElse(null)));
 								}
 							area_y+=featureHeight;
@@ -627,6 +710,10 @@ public class BedToSVG extends Launcher {
 				//update frame height
 				for(Element frame: frames) {
 					frame.setAttribute("height", svg.format(track.max_y-track.y));
+					}
+				//update backgrounds height
+				for(Element bckg: backgrounds) {
+					bckg.setAttribute("height", svg.format(track.max_y-track.y));
 					}
 				
 				
