@@ -24,8 +24,17 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.genome2svg;
 
+import java.io.Reader;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -38,6 +47,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
@@ -49,12 +59,15 @@ import com.github.lindenb.jvarkit.tools.genome2svg.beans.KnownGeneTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.Track;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.VcfTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.WiggleTrack;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 @Program(name="genome2svg",
 description="static genome browser as SVG",
 keywords={"vcf","svg","xml","visualization"},
 modificationDate="20240120",
-creationDate="20240120",
+creationDate="20261013",
 generate_doc = false
 )
 public class GenomeToSvg extends Launcher {
@@ -73,22 +86,113 @@ public class GenomeToSvg extends Launcher {
 	private VcfTrack _force_compile5 =null;
 	private WiggleTrack _force_compile6=null;
 
+	abstract class ConfigNode {
+		ConfigNode parent;
+		ConfigNode(ConfigNode parent) {
+			this.parent = parent;
+			}
+		ConfigObjectNode asObject() { throw new IllegalArgumentException();}
+		ConfigArrayNode asArray() { throw new IllegalArgumentException();}
+		}
+	
+	class ConfigObjectNode extends ConfigNode  implements Iterable<Map.Entry<String, ConfigNode>>  {
+		private final Map<String,ConfigNode> hash=new LinkedHashMap<>();
+		ConfigObjectNode(ConfigNode parent) {
+			super(parent);
+			}
+		public Set<String> keySet() { return hash.keySet();}
+		public boolean has(String key) { return hash.containsKey(key);}
+		public ConfigNode get(String key) { return hash.get(key);}
+		@Override
+		public Iterator<Entry<String, ConfigNode>> iterator() {
+			return hash.entrySet().iterator();
+			}
+		@Override ConfigObjectNode asObject() { return this;}
+		}
+	
+	class ConfigArrayNode extends ConfigNode implements Iterable<ConfigNode> {
+		private final List<ConfigNode> array = new ArrayList<>();
+		ConfigArrayNode(ConfigNode parent) {
+			super(parent);
+			}
+		@Override
+		public Iterator<ConfigNode> iterator() {
+			return array.iterator();
+			}
+		ConfigArrayNode asArray() { return this;}
+		}
+	
+	class StringNode extends ConfigNode {
+		private final String value;
+		StringNode(ConfigNode parent,String value) {
+			super(null);
+			this.value=value;
+			}
+		}
+	
+	private ConfigNode fromJSON(ConfigNode parent,JsonElement root) {
+		if(root.isJsonNull()) return null;
+		if(root.isJsonObject()) {
+			final ConfigObjectNode o = new ConfigObjectNode(parent);
+			root.getAsJsonObject().entrySet().stream().forEach(KV->{
+				if(!KV.getValue().isJsonNull()) {
+					o.hash.put(KV.getKey(), fromJSON(o,KV.getValue()));
+					}
+				});
+			return o;
+			}
+		else if(root.isJsonArray()) {
+			final ConfigArrayNode o = new ConfigArrayNode(parent);
+			root.getAsJsonArray().forEach(E->{
+				if(!E.isJsonNull()) {
+					o.array.add(fromJSON(o, E));
+					}
+				});
+			return o;
+			}
+		else
+			{
+			return new StringNode(parent, root.getAsJsonPrimitive().getAsString());
+			}
+		}
 	
 	
 	
 	
+	private static JsonObject mix(final JsonObject root, final JsonObject o2) {
+		for(Map.Entry<String,JsonElement> kv2 : o2.entrySet()) {
+			if(root.has(kv2.getKey())) {
+				final JsonElement x1 = root.get(kv2.getKey());
+				final JsonElement x2 = kv2.getValue();
+				if((x1 instanceof JsonObject) && (x2 instanceof JsonObject)) {
+					root.add(kv2.getKey(), mix(x1.getAsJsonObject(),x2.getAsJsonObject()));
+					}
+				else
+					{
+					root.add(kv2.getKey(), kv2.getValue());
+					}
+				}
+			else
+				{
+				root.add(kv2.getKey(), kv2.getValue());
+				}
+			}
+		return root;
+		}
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-		FileSystemXmlApplicationContext configuration = null;
+	public int doWork(final List<String> args) {
 		try {
-			if(args.isEmpty()) {
-				LOG.error("Spring config empty");
-				return -1;
+			final JsonObject root = new JsonObject();
+			final JsonParser jsonParser=new JsonParser();
+			for(Path jsonPath: IOUtils.unrollPaths(args)) {
+				try (Reader r= Files.newBufferedReader(jsonPath) {
+					root = mix(root,jsonParser.parse(r).getAsJsonObject());
+					}
 				}
+			
 			final SVGContext svgContext = new SVGContext();
-			svgContext.image_width = this.image_width;
 			svgContext.image_width = this.image_width;
 			
 			configuration =  new FileSystemXmlApplicationContext(args.toArray(new String[args.size()]));

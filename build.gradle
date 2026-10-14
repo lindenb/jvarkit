@@ -996,10 +996,6 @@ all2.add( task("cnvslidingwindow", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.CnvSlidingWindow"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all2.add( task("knime2txt", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnimeToText"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
-	});
 
 all.add( task("localrealignreads", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.LocalRealignReads"
@@ -1757,8 +1753,8 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.labguru.ScanLabGuru"
-        jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
+        mainClass = "com.github.lindenb.jvarkit.tools.bed2svg.BedToSVG"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
 all2.add(task("jeter3", type: CompileJVarkit) {
