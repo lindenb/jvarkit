@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.vcfcombine2snvs;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -214,8 +215,8 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 	/** mutated cdna */
 	private static class MutedSequence extends DelegateCharSequence
 		{
-		private int pos0;
-		private char newbase;
+		private final int pos0;
+		private final char newbase;
 	
 		MutedSequence(final CharSequence wild,int pos0,final char newbase)
 			{
@@ -226,9 +227,9 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			}
 		
 		@Override
-		public char charAt(int index)
+		public char charAt(final int index)
 			{
-			return index==this.pos0?newbase:getDelegate().charAt(index);
+			return index==this.pos0 ? this.newbase : getDelegate().charAt(index);
 			}
 		
 		}
@@ -276,7 +277,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 		String id=VCFConstants.EMPTY_ID_FIELD;
 		Allele refAllele;
 		Allele altAllele;
-		int sorting_id;
+		int sorting_id;// set by ID_GENERATOR++
 		/* original vcf line */
 		VariantContext vcfLine=null;
 		
@@ -290,7 +291,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			}
 		@Override
 		public int getEnd() {
-			return genomicPosition1;
+			return genomicPosition1+refAllele.length()-1;
 			}
 		}
 	
@@ -324,7 +325,8 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 				this.genotypes[i] = (byte)(gt.getAlleles().contains(allele)?1:0);
 			}
 			
-			}
+		}
+		
 		/** position in codin 0 or 1 or 2 */
 		int positionInCodon() { return  position_in_cdna%3;}
 		/** start position in cdna of the codon overlapped by the mutation */
@@ -391,15 +393,12 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			this.variantCodec = new VariantContextCodec(header);
 			}
 		
-		
-		
-		
 		@Override
 		public Variant decode(final DataInputStream dis) throws IOException {
 			String contig;
 			try {
 				contig = dis.readUTF();
-			} catch (Exception e) {
+			} catch (EOFException e) {
 				return null;
 				}
 			final Variant variant = new Variant();
@@ -422,7 +421,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			dis.readFully(variant.genotypes);
 			
 			return variant;
-		}
+			}
 
 		@Override
 		public void encode(final DataOutputStream dos, final Variant v) throws IOException {
@@ -440,19 +439,19 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			this.variantCodec.encode(dos,v.vcfLine);
 			dos.writeInt(v.genotypes.length);
 			dos.write(v.genotypes);
-		}
+			}
 
 		@Override
 		public VariantCodec clone() {
 			return new VariantCodec(this.variantCodec.getHeader());
+			}
 		}
-		
-		}
+
 	/** equal range comparator */
-	static private class VariantComparatorOne implements Comparator<Variant>
+	static private class VariantComparatorOnPositionAndTranscrip implements Comparator<Variant>
 		{
 		final ContigDictComparator contigDictComparator;
-		VariantComparatorOne(final SAMSequenceDictionary dict) {
+		VariantComparatorOnPositionAndTranscrip(final SAMSequenceDictionary dict) {
 			this.contigDictComparator = new ContigDictComparator(dict);
 			}
 		@Override
@@ -465,7 +464,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 		}
 	
 	/** sorting collection comparator */
-	static private class VariantComparatorTwo extends VariantComparatorOne
+	static private class VariantComparatorTwo extends VariantComparatorOnPositionAndTranscrip
 		{
 		VariantComparatorTwo(final SAMSequenceDictionary dict) {
 			super(dict);
@@ -474,9 +473,9 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 		public int compare(final Variant o1,final  Variant o2) {
 			int i= super.compare(o1, o2);
 			if(i!=0) return i;
-			i= o1.position_in_cdna-o2.position_in_cdna;
+			i= Integer.compare(  o1.position_in_cdna , o2.position_in_cdna);
 			if(i!=0) return i;
-			return o1.sorting_id - o2.sorting_id;
+			return Integer.compare(  o1.sorting_id , o2.sorting_id );
 			}
 		}
 	
@@ -501,7 +500,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			String contig;
 			try {
 				contig = dis.readUTF();
-			} catch (Exception e) {
+			} catch (EOFException e) {
 				return null;
 				}
 			final CombinedMutation mutation = new CombinedMutation();
@@ -516,7 +515,7 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 			mutation.grantham_score = dis.readInt();
 			mutation.vcfLine = this.variantCodec.decode(dis);
 			
-			int n_samples = dis.readInt();
+			 int n_samples = dis.readInt();
 			while(n_samples>0) {
 				mutation.sampleIndexes.add(dis.readInt());
 				n_samples--;
@@ -550,37 +549,39 @@ public class VCFCombineTwoSnvs extends OnePassVcfLauncher
 		
 		}
 
-static private class MutationComparatorOne implements Comparator<CombinedMutation>
+static private class CombinedMutationComparatorContigPosRef implements Comparator<CombinedMutation>
 	{
 	final ContigDictComparator contigDictComparator;
-	MutationComparatorOne(final SAMSequenceDictionary dict) {
+	CombinedMutationComparatorContigPosRef(final SAMSequenceDictionary dict) {
 		this.contigDictComparator = new ContigDictComparator(dict);
-	}
+		}
 	@Override
 	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
 		int i= contigDictComparator.compare(o1.getContig(), o2.getContig());
 		if(i!=0) return i;
-		i= o1.genomicPosition1-o2.genomicPosition1;
+		i= Integer.compare( o1.genomicPosition1 , o2.genomicPosition1);
 		if(i!=0) return i;
 		i =  o1.refAllele.compareTo(o2.refAllele);
 		return i;
 		}
 	}
 
-	
-static private class MutationComparatorTwo extends MutationComparatorOne
-	{
-	MutationComparatorTwo(final SAMSequenceDictionary dict) {
-		super(dict);
+	/** 
+	 * 	same as CombinedMutationComparatorContigPosRef but add sorting_id
+	 */
+	static private class MutationComparatorTwo extends CombinedMutationComparatorContigPosRef
+		{
+		MutationComparatorTwo(final SAMSequenceDictionary dict) {
+			super(dict);
+			}
+		
+		@Override
+		public int compare(final CombinedMutation o1, final CombinedMutation o2) {
+			int i= super.compare(o1, o2);
+			if(i!=0) return i;
+			return Integer.compare(o1.sorting_id , o2.sorting_id);
+			}
 		}
-	
-	@Override
-	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
-		int i= super.compare(o1, o2);
-		if(i!=0) return i;
-		return o1.sorting_id - o2.sorting_id;
-		}
-	}
 
 	/* used to compare a base in a BAM and an VCF allele */
 	private static boolean same(byte baseInRead,final Allele a)
@@ -737,13 +738,11 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 					.collect(Collectors.toList());
 					
 				
-				final List<Allele> alternateAlleles =  ctx.getAlternateAlleles();
 				
 				/* loop over overlapping genes */
 				for(final Transcript kg:genes) {
 					/* loop over available alleles */
-					for(int allele_idx=0;allele_idx< alternateAlleles.size();++allele_idx) {
-						final Allele alt = alternateAlleles.get(allele_idx);
+					for(final Allele alt : ctx.getAlternateAlleles()) {
 						if(!AcidNucleics.isATGC(alt)) continue;
 						challenge(ctx,alt,kg);
 						}
@@ -772,7 +771,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			
 			varIter = this.variants.iterator();
 			@SuppressWarnings("resource")
-			EqualRangeIterator<Variant> eqVarIter=new EqualRangeIterator<>(varIter, new VariantComparatorOne(dict));
+			EqualRangeIterator<Variant> eqVarIter=new EqualRangeIterator<>(varIter, new VariantComparatorOnPositionAndTranscrip(dict));
 			
 			
 			while(eqVarIter.hasNext())
@@ -1122,7 +1121,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			w.writeHeader(header2);
 			
 			mutIter = mutations.iterator();
-			EqualRangeIterator<CombinedMutation> eqRangeMutIter = new EqualRangeIterator<>(mutIter, new MutationComparatorOne(dict));
+			EqualRangeIterator<CombinedMutation> eqRangeMutIter = new EqualRangeIterator<>(mutIter, new CombinedMutationComparatorContigPosRef(dict));
 			
 			while(eqRangeMutIter.hasNext())
 				{
