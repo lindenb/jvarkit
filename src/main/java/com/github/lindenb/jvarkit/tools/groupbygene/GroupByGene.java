@@ -43,10 +43,7 @@ import java.util.stream.Collectors;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
@@ -65,6 +62,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
+import com.github.lindenb.jvarkit.variant.VariantContextCodec;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 /**
@@ -212,15 +210,10 @@ public class GroupByGene
 	private class CallCodec 
 		extends AbstractDataCodec<Call>
 		{
-		final VCFHeader header;
-		private final VCFCodec vCodec;
-		private final VCFEncoder vcfEncoder;
+		private final VariantContextCodec variantCodec;
 
 		CallCodec(final VCFHeader header) {
-			this.header= header;
-			this.vCodec = new VCFCodec();
-			this.vcfEncoder = new VCFEncoder(header, false, false);
-			this.vCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
+			this.variantCodec = new VariantContextCodec(header);
 			}
 		@Override
 		public void encode(final DataOutputStream dos,final Call c)
@@ -229,7 +222,7 @@ public class GroupByGene
 			dos.writeUTF(c.gene.name);
 			dos.writeUTF(c.gene.label);
 			dos.writeUTF(c.gene.type);
-			writeString(dos, this.vcfEncoder.encode(c.ctx));
+			this.variantCodec.encode(c.ctx);
 			}
 		
 		@Override
@@ -245,12 +238,12 @@ public class GroupByGene
 			final String gType=dis.readUTF();
 			final Call c= new Call();
 			c.gene=new GeneName(gName,gLbl, gType);
-			c.ctx = this.vCodec.decode(readString(dis));
+			c.ctx = this.variantCodec.decode(dis);
 			return c;
 			}
 		@Override
 		public CallCodec clone() {
-			return new CallCodec(this.header);
+			return new CallCodec(this.variantCodec.getHeader());
 			}
 		}
 	

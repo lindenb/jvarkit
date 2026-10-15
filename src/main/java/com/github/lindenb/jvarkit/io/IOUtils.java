@@ -583,9 +583,9 @@ public class IOUtils {
      *  */
     public static String readString(final DataInputStream in) throws IOException
     	{
-    	int llength=in.readInt();
+    	final int llength=in.readInt();
     	if(llength==-1) return null;
-    	byte a[]=new byte[llength];
+    	final byte a[]=new byte[llength];
     	in.readFully(a, 0, llength);
     	return new String(a);
     	}

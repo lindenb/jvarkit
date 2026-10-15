@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 /**
 BEGIN_DOC
 
@@ -163,7 +164,7 @@ public class VCFShuffle extends OnePassVcfLauncher
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			out.writeHeader(header);
 			final VCFCodec vcfCodec = new VCFCodec();
-			vcfCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_4);
+			vcfCodec.setVCFHeader(header, VCFUtils.getLatestVCFHeaderVersion());
 			try(final CloseableIterator<RLine> iter=shuffled.iterator()) {
 				while(iter.hasNext())
 					{

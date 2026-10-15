@@ -226,6 +226,12 @@ public class VCFUtils
 		return createDefaultVCFCodec();
 		}
 	
+	/** return the latest VCF header version available with htsjdk */
+	public static VCFHeaderVersion getLatestVCFHeaderVersion() {
+		final VCFHeaderVersion[] a=VCFHeaderVersion.values();
+		return a[a.length-1];
+	}
+	
 	public static CodecAndHeader parseHeader(final List<String> list)
 		{
 		final CodecAndHeader vh=new CodecAndHeader();

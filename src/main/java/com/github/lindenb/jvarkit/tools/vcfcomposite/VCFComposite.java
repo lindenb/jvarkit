@@ -751,7 +751,7 @@ public class VCFComposite extends Launcher {
 
 		long ID_GENERATOR = 0L;
 		this.vcfDecoder = VCFUtils.createDefaultVCFCodec();
-		this.vcfDecoder.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
+		this.vcfDecoder.setVCFHeader(header, VCFUtils.getLatestVCFHeaderVersion());
 		this.vcfEncoder = new VCFEncoder(header, false, true);
 		SortingCollection<GeneAndVariant> sorting=null;
 		SortingCollection<VariantLine> outputSorter = null;

@@ -24,21 +24,46 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jexl;
 
-import java.util.function.Predicate;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.Function;
 
 import org.apache.commons.jexl2.JexlContext;
 
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 
-public class JexlExpressionPredicate extends BaseJexlExpressionHandler implements Predicate<JexlContext>
+/**
+ * A JEXL Expression handler returning a string
+ */
+public class JexlToString extends BaseJexlHandler
+	implements Function<JexlContext,String>
 	{
-	public JexlExpressionPredicate(final String expr) {
-		super(expr);
+	/** compile JexlExpressionToString as {@link org.apache.commons.jexl2.Expression} **/
+	public JexlToString(final String expr) {
+		this(expr,true);
 		}
+	
+	public JexlToString(final String expr,boolean is_expression) {
+		super(expr,is_expression);
+		}
+	/** output is never null, null is converted to empty string, java.lang.Object is converted with toString() */
 	@Override
-	public boolean test(final JexlContext t) {
+	public String apply(final JexlContext t) {
 		final Object o = eval(t);
-		if(o==null) throw new RuntimeException("JEXL expression \""+this.getExpression()+"\" returned false");
-		if(!(o instanceof Boolean)) throw new RuntimeException("JEXL expression \""+this.getExpression()+"\" returned something that is not a boolean.");
-		return Boolean.class.cast(o);
+		if(o==null) return "";
+		return o.toString();
+		}
+	
+	/** load script stored in path and compile it */
+	public static JexlToString compileScript(final Path path) {
+		IOUtil.assertFileIsReadable(path);
+		try {
+			return new JexlToString(Files.readString(path),false);
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
 		}
 	}

@@ -122,7 +122,7 @@ public class PlinkFixVcf extends Launcher {
 				hdr.setSequenceDictionary(dict);
 				final ContigNameConverter contig_converter = ContigNameConverter.fromOneDictionary(dict);
 				try(VariantContextWriter w= writingVariantsDelegate.dictionary(dict).open(outputFile)) {
-					codec.setVCFHeader(hdr, VCFHeaderVersion.VCF4_2);//htsjdk cannot write above 4.3
+					codec.setVCFHeader(hdr, VCFUtils.getLatestVCFHeaderVersion());//htsjdk cannot write above 4.3
 					w.writeHeader(hdr);
 					while(li.hasNext()) {
 						final String line = li.next();

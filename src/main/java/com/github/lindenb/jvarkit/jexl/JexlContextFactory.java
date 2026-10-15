@@ -26,7 +26,11 @@ public class JexlContextFactory<T>  {
 		return new JexlContextFactory<T>(this);
 		}
 	
-	/** add extractor to extract property 'key' from oject T */
+	/** 
+	 * add extractor to extract property 'key' from oject T
+	 * @return this
+	 *
+	 */
 	public JexlContextFactory<T> add(final String key,Function<T,Object> extractor ) {
 		this.extractors.put(key, extractor);
 		return this;
@@ -52,7 +56,7 @@ public class JexlContextFactory<T>  {
 			throw new IllegalArgumentException("cannot invoke jexl context for \""+key+"\". Available keys are :"+String.join(", ", this.extractors.keySet()));
 			}
 		@Override
-		public void set(String key, Object arg1) {
+		public void set(final String key, final Object arg1) {
 			throw new IllegalArgumentException("cannot set jexl context for \""+key+"\". This is a read-only context");
 			}
 		@Override
@@ -65,9 +69,11 @@ public class JexlContextFactory<T>  {
 			}
 		}
 
+	/** create a new JexlContext from the object */
 	public JexlContext make(final T object) {
 		return new  MyContext<>(object,this.extractors);
 		}
+	
 	@Override
 	public String toString() {
 		return "JexlContextFactory["+String.join("| ", this.extractors.keySet())+"]";

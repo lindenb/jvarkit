@@ -76,6 +76,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 /**
 BEGIN_DOC
 
@@ -273,7 +274,7 @@ public class VCFTabixml extends Launcher
 				 	{
 					throw new RuntimeException("should start with "+ VCFConstants.INFO_HEADER_START +":"+line);
 				 	}
-				VCFInfoHeaderLine hi=new VCFInfoHeaderLine(line.substring(7), VCFHeaderVersion.VCF4_1);
+				VCFInfoHeaderLine hi=new VCFInfoHeaderLine(line.substring(7), VCFUtils.getLatestVCFHeaderVersion());
 				if(hi.getCount()!=1)
 					{
 					throw new IllegalArgumentException("VCFHeaderLineCount not supported : "+hi);

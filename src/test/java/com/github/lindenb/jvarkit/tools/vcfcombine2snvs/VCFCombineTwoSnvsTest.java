@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.vcfannot;
+package com.github.lindenb.jvarkit.tools.vcfcombine2snvs;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -8,6 +8,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.bio.GranthamScoreTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.tools.vcfcombine2snvs.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
@@ -34,5 +35,4 @@ public class VCFCombineTwoSnvsTest {
 			support.removeTmpFiles();
 			}
 		}
-	
 }

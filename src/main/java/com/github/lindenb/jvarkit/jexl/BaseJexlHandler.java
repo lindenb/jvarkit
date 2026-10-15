@@ -27,25 +27,56 @@ package com.github.lindenb.jvarkit.jexl;
 import org.apache.commons.jexl2.Expression;
 import org.apache.commons.jexl2.JexlContext;
 import org.apache.commons.jexl2.JexlException;
+import org.apache.commons.jexl2.Script;
 
 import htsjdk.variant.variantcontext.VariantContextUtils;
 
-public class BaseJexlExpressionHandler {
+/**
+ * A wrapper for org.apache.commons.jexl2.Expression / org.apache.commons.jexl2.Script
+ */
+public class BaseJexlHandler {
 	public static final String OPT_WHAT_IS_JEXL="JEXL stands for Java EXpression Language.  See https://commons.apache.org/proper/commons-jexl/reference/syntax.html ";
 	/** compiled expression */
 	private final Expression jexlExpr;
-	protected BaseJexlExpressionHandler(final String exprStr) {
-		this.jexlExpr = VariantContextUtils.engine.get().createExpression(exprStr);
+	private final Script jexlScript;
+	protected BaseJexlHandler(final String exprStr,boolean is_expression) {
+		if(is_expression) {
+			this.jexlExpr = VariantContextUtils.engine.get().createExpression(exprStr);
+			this.jexlScript = null;
+			}
+		else
+			{
+			this.jexlExpr = null;
+			this.jexlScript=VariantContextUtils.engine.get().createScript(exprStr);
+			}
 		}
 	/** declared expression */
 	public String getExpression() {
-		return this.jexlExpr.getExpression();
+		return  isScript()?
+				this.jexlScript.getText() :
+				this.jexlExpr.getExpression();
 		}
+
+	
+	protected boolean isExpression() {
+		return this.jexlExpr!=null;
+		}
+	protected boolean isScript() {
+		return !isExpression();
+		}
+
 	
 	/** eval the context or throw on error */
 	protected Object eval(final JexlContext ctx) {
 		try {
-			return this.jexlExpr.evaluate(ctx);
+			if(isScript())
+				{
+				return this.jexlScript.execute(ctx);
+				}
+			else
+				{
+				return this.jexlExpr.evaluate(ctx);
+				}
 			}
 		catch(final JexlException err) {
 			throw new RuntimeException("Cannot evaluate JEXL expression \""+this.getExpression()+"\".",err);
@@ -55,4 +86,5 @@ public class BaseJexlExpressionHandler {
 	public String toString() {
 		return getClass().getName()+" "+this.getExpression();
 		}
+	
 	}

@@ -105,7 +105,7 @@ import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.hershey.Hershey;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.jexl.BaseJexlExpressionHandler;
+import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
@@ -189,7 +189,7 @@ public class SwingIndexCov extends Launcher {
 	private String gff3Path = null;
 	@Parameter(names={"--roi","--bed"},description="BED file with regions of interest, to plot")
 	private Path roiBedPath = null;
-	@Parameter(names={"--jexl"},description="JEXL code for highlighting. "+BaseJexlExpressionHandler.OPT_WHAT_IS_JEXL)
+	@Parameter(names={"--jexl"},description="JEXL code for highlighting. "+BaseJexlHandler.OPT_WHAT_IS_JEXL)
 	private Path jexlCode = null;
 
 	

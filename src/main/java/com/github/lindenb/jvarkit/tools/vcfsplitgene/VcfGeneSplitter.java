@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.variant.VariantContextCodec;
 
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
@@ -59,11 +60,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -216,15 +214,10 @@ public class VcfGeneSplitter
     private class CallCodec 
     extends AbstractDataCodec<Call>
 	    {
-	    final VCFHeader header;
-	    private final VCFCodec vCodec;
-	    private final VCFEncoder vcfEncoder;
+	    private final VariantContextCodec ctxCodec;
 	
 	    CallCodec(final VCFHeader header) {
-	            this.header= header;
-	            this.vCodec = new VCFCodec();
-	            this.vcfEncoder = new VCFEncoder(header, false, false);
-	            this.vCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
+	            this.ctxCodec= new VariantContextCodec(header);
 	            }
 	    @Override
 	    public void encode(final DataOutputStream dos,final Call c)
@@ -233,7 +226,7 @@ public class VcfGeneSplitter
 	            dos.writeUTF(c.gene.gene_id);
 	            dos.writeUTF(c.gene.label);
 	            dos.writeUTF(c.gene.extractorName);
-	            writeString(dos, this.vcfEncoder.encode(c.ctx));
+	            this.ctxCodec.encode(dos, c.ctx);
 	            }
 	
 	    @Override
@@ -249,12 +242,12 @@ public class VcfGeneSplitter
 	            final String extractor=dis.readUTF();
 	            final Call c= new Call();
 	            c.gene=new GeneName(gene_id,label, extractor);
-	            c.ctx = this.vCodec.decode(readString(dis));
+	            c.ctx = this.ctxCodec.decode(dis);
 	            return c;
 	            }
 	    @Override
 	    public CallCodec clone() {
-	            return new CallCodec(this.header);
+	            return new CallCodec(this.ctxCodec.getHeader());
 	            }
 	    	}
 	

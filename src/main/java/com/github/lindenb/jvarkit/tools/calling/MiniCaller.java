@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
@@ -84,7 +85,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFSampleHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
@@ -356,7 +356,7 @@ public class MiniCaller extends Launcher   {
 		        				sn2 = sn+"_"+try_count;
 		        				}
 		        			final int sample_index = tmp_sn_index;
-		        			metaData.add(new VCFSampleHeaderLine("<ID="+sn2+",path="+bamPath+">", VCFHeaderVersion.VCF4_3));
+		        			metaData.add(new VCFSampleHeaderLine("<ID="+sn2+",path="+bamPath+">", VCFUtils.getLatestVCFHeaderVersion()));
 		        			
 		        			final String bamCtg = bamCtgConverter.apply(interval.getContig());
 		        			if(StringUtils.isBlank(bamCtg)) {

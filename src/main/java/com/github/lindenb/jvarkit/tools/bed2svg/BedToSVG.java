@@ -72,9 +72,9 @@ import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.MultiIntervalVariantIterator;
-import com.github.lindenb.jvarkit.jexl.BaseJexlExpressionHandler;
+import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
 import com.github.lindenb.jvarkit.jexl.JexlContextFactory;
-import com.github.lindenb.jvarkit.jexl.JexlExpressionPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -133,7 +133,7 @@ public class BedToSVG extends Launcher {
 	private long min_ssr_length = 0L;
 
 	
-	@Parameter(names={"--jexl-filter"},description="]A JEXL Expression returning a string " + BaseJexlExpressionHandler.OPT_WHAT_IS_JEXL +". "
+	@Parameter(names={"--jexl-filter"},description="]A JEXL Expression returning a string " + BaseJexlHandler.OPT_WHAT_IS_JEXL +". "
 			+  "The variable 'record' is the current observed BedLine (or Variant) ). "
 			+ " The variable 'filename' is the current filename"
 			)
@@ -345,7 +345,7 @@ public class BedToSVG extends Launcher {
 	
 	/** read BED file */
 	private void readBed(BufferedReader r,final String filename) throws IOException {
-		JexlExpressionPredicate filter = null;
+		JexlPredicate filter = null;
 		JexlContextFactory<Object[]> jcf=null;
 		if(!StringUtils.isBlank(this.jexlRecordAcceptor)) {
 			jcf =new JexlContextFactory<Object[]>()
@@ -353,7 +353,7 @@ public class BedToSVG extends Launcher {
 					.add("filename",array->filename)
 					.add("line", array->array[1])
 					;
-			filter=new JexlExpressionPredicate(this.jexlRecordAcceptor); 
+			filter=new JexlPredicate(this.jexlRecordAcceptor); 
 			}
 		
 		try(BedLineReader blr = new BedLineReader(r,filename)) {
@@ -393,7 +393,7 @@ public class BedToSVG extends Launcher {
 		}
 	
 	private void readVcf(final VCFHeader hdr,final CloseableIterator<VariantContext> iter,final Path filename)  throws IOException {
-		JexlExpressionPredicate filter = null;
+		JexlPredicate filter = null;
 		JexlContextFactory<Object[]> jcf=null;
 		if(!StringUtils.isBlank(this.jexlRecordAcceptor)) {
 			jcf =new JexlContextFactory<Object[]>()
@@ -401,7 +401,7 @@ public class BedToSVG extends Launcher {
 					.add("filename",array->filename)
 					.add("line", array->array[1])
 					;
-			filter=new JexlExpressionPredicate(this.jexlRecordAcceptor); 
+			filter=new JexlPredicate(this.jexlRecordAcceptor); 
 			}
 		int n_line=0;
 		while(iter.hasNext()) {

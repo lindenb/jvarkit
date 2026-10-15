@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -76,7 +77,6 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFSampleHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -336,7 +336,7 @@ public class BaseCoverage extends AbstractBaseCov
 					
 					sb.append(">");
 					
-					final VCFSampleHeaderLine snH = new VCFSampleHeaderLine(sb.toString(), VCFHeaderVersion.VCF4_3);
+					final VCFSampleHeaderLine snH = new VCFSampleHeaderLine(sb.toString(), VCFUtils.getLatestVCFHeaderVersion());
 					metaData.add(snH);
 				}
 				
