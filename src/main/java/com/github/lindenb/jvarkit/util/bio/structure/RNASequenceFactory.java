@@ -33,9 +33,7 @@ import java.util.function.Function;
 import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.samtools.GenomeSequence;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.Locatable;
 
@@ -44,6 +42,9 @@ import htsjdk.samtools.util.Locatable;
  */
 public class RNASequenceFactory {
 	
+	/**
+	 * Interface that is used to convert the bases character (eg; to Upper)
+	 */
 	@FunctionalInterface
 	public static interface BaseConverter {
 		public char transform(char b);
@@ -78,7 +79,7 @@ public class RNASequenceFactory {
 		}
 	
 	/** 
-	 * set this IndexedFastaSequenceFile as a source of genomic sequence, allocate his own {@link GenomeSequence}
+	 * set this IndexedFastaSequenceFile as a source of genomic sequence, allocate his own {@link GenomicSequence}
 	 * @param indexedFastaSequenceFile
 	 * @return this
 	 */
@@ -168,7 +169,7 @@ public class RNASequenceFactory {
 			}
 		
 		@Override
-		public int convertRnaIndex0ToGenomic0(int rna0) {
+		public int convertRnaIndex0ToGenomic0(final int rna0) {
 			return this.rna02genomic0[rna0];
 			}
 		
