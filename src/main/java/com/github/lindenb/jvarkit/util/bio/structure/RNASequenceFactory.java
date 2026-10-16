@@ -32,9 +32,16 @@ import java.util.function.Function;
 
 import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.GenomeSequence;
 
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.Locatable;
 
+/**
+ * A Factory creating instance of {@link RNASequence}
+ */
 public class RNASequenceFactory {
 	
 	@FunctionalInterface
@@ -42,17 +49,52 @@ public class RNASequenceFactory {
 		public char transform(char b);
 	}
 	
+	/** private implementation of Function<String,CharSequence> */
+	private static class ContigToGenomic implements Function<String,CharSequence> {
+		private final ReferenceSequenceFile indexedFastaSequenceFile;
+		private GenomicSequence genomicSequence = null;
+		ContigToGenomic(ReferenceSequenceFile indexedFastaSequenceFile) {
+			this.indexedFastaSequenceFile = indexedFastaSequenceFile;
+			}
+		@Override
+		public CharSequence apply(final  String ctg) {
+			 if(genomicSequence==null || !genomicSequence.hasName(ctg))
+	             {
+	             genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,ctg);
+	             }
+			 return genomicSequence;
+			}
+		}
+	
 	private Function<String,CharSequence> contig2genomicSequence = S->{throw new IllegalArgumentException();};
 	private BaseConverter baseConverter = B->Character.toUpperCase(B);
 	
-	public RNASequenceFactory() {		
-	}
+	/** default constructor, provider of GenomicSequence must be provided */
+	public RNASequenceFactory() {
+		}
+	/** constructor with IndexedFastaSequenceFile as a source of sequence */
+	public RNASequenceFactory(final ReferenceSequenceFile fasta) {
+		this.contig2genomicSequence = new ContigToGenomic(fasta);
+		}
+	
+	/** 
+	 * set this IndexedFastaSequenceFile as a source of genomic sequence, allocate his own {@link GenomeSequence}
+	 * @param indexedFastaSequenceFile
+	 * @return this
+	 */
+	public RNASequenceFactory setIndexedFastaSequenceFile(final ReferenceSequenceFile indexedFastaSequenceFile) {
+        return this.setContigToGenomicSequence(new ContigToGenomic(indexedFastaSequenceFile));
+        }
+
+	
+
 	
 	public RNASequenceFactory setContigToGenomicSequence(final Function<String, CharSequence> contig2genomicSequence) {
 		this.contig2genomicSequence = contig2genomicSequence;
 		return this;
 		}
 	
+	/** give a chance to change the letter for the base, like toupper case. Default is to upper case */
 	public RNASequenceFactory setBaseConverter(final BaseConverter baseConverter) {
 		this.baseConverter = baseConverter;
 		return this;

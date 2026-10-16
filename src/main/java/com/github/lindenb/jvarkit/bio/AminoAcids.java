@@ -30,6 +30,7 @@ import java.util.Map;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
+/** Amino Acids and their properties */
 public class AminoAcids {
 	
 	public static interface AminoAcid
@@ -152,5 +153,6 @@ public class AminoAcids {
 			case 'X' : return Stop;
 			default: return null;
 			}
-		}
+	}
+		
 }

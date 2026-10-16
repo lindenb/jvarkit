@@ -1753,8 +1753,8 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.bed2svg.BedToSVG"
-        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        mainClass = "com.github.lindenb.jvarkit.tools.test.VcfPhasedCombineSNVs"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
         });
 
 all2.add(task("jeter3", type: CompileJVarkit) {
