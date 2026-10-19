@@ -59,9 +59,9 @@ public class RNASequenceFactory {
 			}
 		@Override
 		public CharSequence apply(final  String ctg) {
-			 if(genomicSequence==null || !genomicSequence.hasName(ctg))
+			 if(this.genomicSequence==null || !this.genomicSequence.hasName(ctg))
 	             {
-	             genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,ctg);
+				 this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,ctg);
 	             }
 			 return genomicSequence;
 			}
@@ -141,8 +141,7 @@ public class RNASequenceFactory {
 						}
 					}
 				}
-			else
-				{
+			else if(transcript.isNegativeStrand()) {
 				int x=0;
 				for(int r1 = intervals.size()-1;r1>=0;r1--) {
 					final Locatable r = intervals.get(r1);
@@ -154,6 +153,10 @@ public class RNASequenceFactory {
 						++x;
 						}
 					}
+				}
+			else
+				{
+				throw new IllegalArgumentException("illegal strand "+transcript.getStrand());	
 				}
 			}
 		

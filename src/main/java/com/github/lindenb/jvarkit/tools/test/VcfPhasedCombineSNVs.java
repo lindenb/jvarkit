@@ -102,11 +102,12 @@ public class VcfPhasedCombineSNVs extends Launcher {
 	private static class Codon {
 		int query_pos0_in_cdna;
 		int shifted_position0;
+		int position0_in_codon=0;
 		String mrna_codon;
 		AminoAcid aminoAcid;
 		@Override
 		public String toString() {
-			return aminoAcid.getName()+"("+mrna_codon+") pos0:"+query_pos0_in_cdna+"/shifted0:"+shifted_position0;
+			return aminoAcid.getName()+"("+mrna_codon+") pos0:"+query_pos0_in_cdna+"/shifted0:"+shifted_position0+" codon.base0:"+this.position0_in_codon;
 			}
 		}
 	
@@ -118,14 +119,12 @@ public class VcfPhasedCombineSNVs extends Launcher {
 			super(wild);
 			}
 		
-		int inFramePosition(int index0) {
-			return index0 - (index0%3);
-			}
 		
-		Codon getCodonAt(int index0) {
+		Codon getCodonAt(int pos0_in_cdna) {
 			final Codon codon=new Codon();
-			codon.query_pos0_in_cdna  = index0;
-			int shifted0 = inFramePosition(index0);
+			codon.query_pos0_in_cdna  = pos0_in_cdna;
+			codon.position0_in_codon =  (pos0_in_cdna%3);
+			final int shifted0 = pos0_in_cdna -  codon.position0_in_codon;
 			codon.shifted_position0 = shifted0;
 			codon.mrna_codon = new StringBuilder(3)
 					.append(charAt(shifted0+0))
@@ -375,8 +374,8 @@ public class VcfPhasedCombineSNVs extends Launcher {
 											if(transcript.isNegativeStrand()) base1 = AcidNucleics.complement(base1);
 											final MutedRNASequence rna1 = new MutedRNASequence(codingRNA, pos1.getAsInt(), base1);
 											// position shifted to the first base of the codong
-											final Codon wildCodon = new TranslatableRNASequence(codingRNA).getCodonAt(pos1.getAsInt()-1);
-											final Codon codon1 = rna1.getCodonAt(pos1.getAsInt()-1);
+											final Codon wildCodon = new TranslatableRNASequence(codingRNA).getCodonAt(pos1.getAsInt());
+											final Codon codon1 = rna1.getCodonAt(pos1.getAsInt());
 											if(this.debug_flag) {
 												LOG.debug("codon1 :  "+codon1);
 												}
@@ -462,6 +461,14 @@ public class VcfPhasedCombineSNVs extends Launcher {
 														LOG.debug("cdnapos2 :  "+pos2);
 														}
 													
+													
+													if(g1.isHomVar() && g2.isHomVar() && (this.phased_only && phase1_idx>0 && phase2_idx>0)) {
+														if(this.debug_flag) {
+															LOG.debug("both homvar, already done");
+															}
+														continue;
+														}
+													
 													char base2 = alt2.getBaseString().charAt(0);
 													if(transcript.isNegativeStrand()) base2 = AcidNucleics.complement(base2);
 													
@@ -469,7 +476,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 													/* pos1 and pos2 must be in the same codon ! */
 													
 													
-													final Codon codon2 = rna2.getCodonAt(pos2.getAsInt()-1);
+													final Codon codon2 = rna2.getCodonAt(pos2.getAsInt());
 													
 													/* both mutations must fall in the same codon */
 													if( codon1.shifted_position0!=codon2.shifted_position0 ) {
@@ -490,18 +497,20 @@ public class VcfPhasedCombineSNVs extends Launcher {
 														}
 		
 													final MutedRNASequence rna_combined = new MutedRNASequence(rna1, pos2.getAsInt(), base2);
-													final Codon codonCombined = rna_combined.getCodonAt(pos2.getAsInt()-1);
+													final Codon codonCombined = rna_combined.getCodonAt(pos2.getAsInt());
 													
 													/* even combined, the AA is the same e.g: leucine */
 													if(wildCodon.aminoAcid.equals(codonCombined.aminoAcid)) {
 														if(this.debug_flag) {
-															LOG.debug("no change, even combined is same combine:" +
-																		codonCombined+" vs wild "+
-																	wildCodon+" codon1:"+codon1+" codon2:"+codon2+
-																	" gt1:"+toString(vc1,alt1)+ " gt2:"+toString(vc2,alt2));
+															LOG.debug("no change for "+transcript.getId()+ " on strand ("+transcript.getStrand() +") " +
+																	" even combined is same. combine:" +
+																		codonCombined+" | wild:"+
+																	wildCodon+" |codon1:"+codon1+" | codon2:"+codon2+
+																	" | gt1:"+toString(vc1,alt1)+ " | gt2:"+toString(vc2,alt2));
 															}
-														continue;//we don't want synonymous
+														continue;//we want synonymous
 														}
+													
 													
 													
 													js.beginObject();
@@ -600,11 +609,15 @@ public class VcfPhasedCombineSNVs extends Launcher {
 														js.name("pos_cdna");
 														js.value((side==0?codon1:codon2).query_pos0_in_cdna+1);
 														js.name("pos_codon");
-														js.value((side==0?codon1:codon2).shifted_position0);
+														js.value((side==0?codon1:codon2).shifted_position0+1);
+														js.name("pos_base_in_codon");
+														js.value((side==0?codon1:codon2).position0_in_codon+1);
 														js.name("mrna_codon");
 														js.value((side==0?codon1:codon2).mrna_codon);
 														js.name("amino_acid");
 														js.value((side==0?codon1:codon2).aminoAcid.getThreeLettersCode());
+														js.name("amino_acid_letter");
+														js.value(String.valueOf((char)((side==0?codon1:codon2).aminoAcid.getOneLetterCode())));
 														
 														final Optional<String> url= hyperlink.apply(vc);
 														if(url.isPresent()) {
