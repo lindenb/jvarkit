@@ -24,21 +24,35 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfsetdict;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
-import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -68,20 +82,25 @@ END_DOC
 	description="Set the `##contig` lines in a VCF header on the fly, fix also ",
 	keywords={"vcf","dict","fai"},
 	creationDate="20251014",
-	modificationDate="20260225",
+	modificationDate="20261017",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
-public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
+public class VcfSetSequenceDictionary extends Launcher {
 	private static final Logger LOG=Logger.of(VcfSetSequenceDictionary.class);
 	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
 	@Parameter(names={"-r","-R","--reference","--dict"},description=DICTIONARY_SOURCE,required=true)
 	private Path faidx=null;
+	@Parameter(names={"--plain"},description="input is a VCF file, just change the dictionary in the header and the first CHROM column. Could be faster")
+	private boolean plain_flag=false;
 	@Parameter(names={"-n","--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 	private OnNotFound onContigNotFound = OnNotFound.SKIP;			
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	protected Path outputFile=null;
+	@ParametersDelegate
+	protected WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 	
-	private SAMSequenceDictionary dict=null;
 	
 	
 	public VcfSetSequenceDictionary()
@@ -112,6 +131,18 @@ public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 		return newContig;
 		}
 	
+	private static ContigNameConverter createContigNameConverter(SAMSequenceDictionary oldDict,SAMSequenceDictionary dict) {
+		final ContigNameConverter contigNameConverter;
+		if(oldDict!=null && !oldDict.isEmpty())
+			{
+			return ContigNameConverter.fromDictionaries(oldDict, dict);
+			}
+		else
+			{
+			return  ContigNameConverter.fromOneDictionary(dict);
+			}
+		}
+	
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
@@ -119,22 +150,14 @@ public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 		final VariantContextWriter w
 		) 
 	    {
+		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(this.faidx);
 		final Set<String> inputContigsNotFound = new HashSet<>();
 		final VCFHeader header = in.getHeader();
 		final boolean has_sv_type = header.getInfoHeaderLine(VCFConstants.SVTYPE)!=null;
 		final VCFHeader header2 = new VCFHeader(header);
-		final ContigNameConverter contigNameConverter;
 		final SAMSequenceDictionary oldDict = header.getSequenceDictionary();
-		header2.setSequenceDictionary(this.dict);
-		if(oldDict!=null && !oldDict.isEmpty())
-			{
-			contigNameConverter = ContigNameConverter.fromDictionaries(oldDict, this.dict);
-			}
-		else
-			{
-			contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
-			}
-		
+		header2.setSequenceDictionary(dict);
+		final ContigNameConverter contigNameConverter = createContigNameConverter(oldDict,dict);
 		w.writeHeader(header2);
 		
 		// for BND change:
@@ -237,28 +260,101 @@ public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 		return 0;
 	    }
 
-	@Override
-	protected Logger getLogger() {
-		return LOG;
-		}
 	
 	@Override
-	protected int beforeVcf() {
-		if(this.faidx==null) {
-			LOG.error("no dict source defined");
-			return -1;
-			}
+	public int doWork(List<String> args) {
 		try {
-			this.dict = new SequenceDictionaryExtractor().extractRequiredDictionary(this.faidx);
-			return 0;
+			final String input = super.oneFileOrNull(args);
+			if(input!=null &&
+				this.outputFile!=null &&
+				!IOUtil.isUrl(input) && Paths.get(input).equals(this.outputFile)) {
+				LOG.error("Input == output : "+ input);
+				return -1;
+				}
+			if(this.plain_flag) {
+				if(this.outputFile!=null && this.outputFile.getFileName().toString().endsWith(FileExtensions.BCF)) {
+					LOG.error("output of type bcf cannot be used with --plain flag");
+					return -1;
+					}
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
+				/* open input */
+				try(BufferedReader br= super.openBufferedReader(input)) {
+					final List<String> header_lines0 = VCFUtils.parseHeaderLines(br);
+					/* extract header from input */
+					final VCFHeader header0 = VCFUtils.parseHeader(header_lines0).header;
+					/* original dict */
+					final SAMSequenceDictionary dict0 = header0.getSequenceDictionary();
+					/* same dict ? no conversion needed , just print the lines */
+					if(dict0!=null && SequenceUtil.areSequenceDictionariesEqual(dict, dict0)) {
+						try(PrintWriter out=super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+							for(String line : header_lines0) {
+								out.println(line);
+								}
+							IOUtils.copyTo(br,out);
+							out.flush();
+							}
+						}
+					else
+						{
+						final Set<String> inputContigsNotFound = new HashSet<>();
+						final ContigNameConverter convert= createContigNameConverter(dict0,dict);
+						final VCFHeader header=new VCFHeader(header0);
+						header.setSequenceDictionary(dict);
+						JVarkitVersion.getInstance().addMetaData(this, header);						
+						try(PrintWriter out=super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+							for(String line: VCFUtils.convertVCFHeaderToList(header)) {
+								out.println(line);
+								}
+							for(;;) {
+								final String line = br.readLine();
+								if(line==null) break;
+								final int tab = line.indexOf('\t');
+								if(tab<=0) throw new IOException("Cannot find tab in "+line);
+								final String ctg0 = line.substring(0, tab);
+								final String contig = convert(convert, ctg0, inputContigsNotFound);
+								if(StringUtils.isBlank(contig)) continue;
+								if(contig.equals(ctg0)) {
+									out.println(line);
+									}
+								else
+									{
+									out.print(contig);
+									out.println(line.substring(tab));
+									}
+								}
+							out.flush();
+							}
+						}
+					}
+				return 0;
+				}
+			else
+				{				
+				final BcfIteratorBuilder bcb = new BcfIteratorBuilder();
+				try(VCFIterator in = (input==null? bcb.open(stdin()):bcb.open(input))) {
+					try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(in.getHeader()).open(this.outputFile)) {
+						return doVcfToVcf(input==null?"<stdin>":input, in,vcw);
+						}
+					}
+				}
+			
 			}
-		catch (final Throwable err2)
+		catch(Throwable error) 
 			{
-			LOG.error(err2);
+			LOG.error(error);
+			if(this.outputFile!=null) {
+				try {
+					if(Files.deleteIfExists(this.outputFile)) {
+						LOG.warning("The following file was deleted: "+this.outputFile);
+						}
+					} catch(final IOException err2) {
+						//ignore
+					}
+				}
 			return -1;
-			} 
+			}
 		}
-
+	
 	public static void main(final String[] args) {
 		new VcfSetSequenceDictionary().instanceMainWithExit(args);
 	}

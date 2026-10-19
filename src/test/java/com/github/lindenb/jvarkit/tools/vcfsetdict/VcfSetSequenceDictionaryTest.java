@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -27,15 +29,23 @@ public class VcfSetSequenceDictionaryTest {
 		}
 	@Test(dataProvider="src1")
 	public void testNoDict(final String vcf,final String ref) throws IOException {
-		run_test(0,vcf,ref);
+		run_test(0,false,vcf,ref);
 		}
 	@Test(dataProvider="src1")
 	public void testDictChr(final String vcf,final String ref) throws IOException {
-		run_test(1,vcf,ref);
+		run_test(1,false,vcf,ref);
 		}
 	
-	
-	private void run_test(int type,final String vcf,final String ref) throws IOException {
+	@Test(dataProvider="src1")
+	public void testPlainNoDict(final String vcf,final String ref) throws IOException {
+		run_test(0,true,vcf,ref);
+		}
+	@Test(dataProvider="src1")
+	public void testPlainDict(final String vcf,final String ref) throws IOException {
+		run_test(1,true,vcf,ref);
+		}
+
+	private void run_test(int type,boolean plain,final String vcf,final String ref) throws IOException {
 
 		final TestSupport support = new TestSupport();
 		try {
@@ -69,13 +79,19 @@ public class VcfSetSequenceDictionaryTest {
 			
 			
 			final Path out = support.createTmpPath(".vcf");
+			final List<String> args= new ArrayList<>();
+			args.add("-R"); args.add(support.resource(ref));
+			args.add("-n"); args.add("SKIP");
+			args.add("-o"); args.add(out.toString());
+			if(plain) {
+				args.add("--plain");
+				}
+			args.add(tmp.toString());
+			
+			
 			Assert.assertEquals(
-				new VcfSetSequenceDictionary().instanceMain(new String[] {
-				"-R",support.resource(ref),
-				"-n","SKIP",
-				"-o",out.toString(),
-				tmp.toString()
-				}),0);
+				new VcfSetSequenceDictionary().instanceMain(args)
+				,0);
 			support.assertIsVcf(out);
 			final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(support.resource(ref)));
 			SequenceUtil.assertSequenceDictionariesEqual(

@@ -75,7 +75,7 @@ import htsjdk.variant.vcf.VCFHeader;
 description="Detect Mutations than are the consequences of two distinct variants using phased vcf. Idea from @SolenaLS and then @AntoineRimbert",
 keywords={"vcf","annotation","prediction","protein","mnv"},
 modificationDate="20160215",
-creationDate="20160215",
+creationDate="20160219",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
@@ -88,10 +88,12 @@ public class VcfPhasedCombineSNVs extends Launcher {
 	private Path gtfPath;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;
-	@Parameter(names={"--debug"},description="debug",hidden = true)
+	@Parameter(names={"--debug"},description="debug mode")
 	protected boolean debug_flag = false;
 	@Parameter(names={"--bed","--regions-file"},description="limit to the genes overlapping that bed file")
 	protected Path regions_file_bed = null;
+	@Parameter(names={"--phase","--phased"},description="Only consider phased variants.")
+	protected boolean phased_only=false;
 
 	/** reference genome */
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
@@ -104,7 +106,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 		AminoAcid aminoAcid;
 		@Override
 		public String toString() {
-			return aminoAcid.toString()+"("+mrna_codon+") at "+query_pos0_in_cdna+"/"+shifted_position0;
+			return aminoAcid.getName()+"("+mrna_codon+") pos0:"+query_pos0_in_cdna+"/shifted0:"+shifted_position0;
 			}
 		}
 	
@@ -171,12 +173,39 @@ public class VcfPhasedCombineSNVs extends Launcher {
 	
 		}
 	
+	private static boolean isAltAllele(Allele alt) {
+		if(alt.isReference() || alt.isSymbolic() || alt.equals(Allele.SPAN_DEL) || alt.isNoCall()) return false;
+		if(!AcidNucleics.isATGC(alt)) return false;
+		return true;
+	}
+	
+	private static String toString(VariantContext ctx) {
+		return  new StringBuilder(ctx.getContig())
+				.append(":")
+				.append(ctx.getStart())
+				.append("/")
+				.append(ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")))
+				.toString();
+		}
+	
+	private static String toString(VariantContext ctx,Allele alt) {
+		return  new StringBuilder(ctx.getContig())
+				.append(":")
+				.append(ctx.getStart())
+				.append(":")
+				.append(ctx.getReference().getDisplayString())
+				.append("/")
+				.append(alt.getDisplayString())
+				.toString();
+		}
+	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try {
 			final Path vcfPath = Paths.get(oneAndOnlyOneFile(args));
 			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referencePath);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+			final String buildName = SequenceDictionaryUtils.getBuildName(dict).orElse(null);
 			final Hyperlink hyperlink = Hyperlink.compile(dict);
 			ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(dict);
 			final List<Gene> genes;
@@ -202,6 +231,11 @@ public class VcfPhasedCombineSNVs extends Launcher {
 					.sorted(new ContigDictComparator(dict).createLocatableComparator())
 					.collect(Collectors.toList());
 				}
+			if(this.debug_flag) {
+				LOG.error("number of genes: "+ genes.size());
+				LOG.error("number of transcripts: "+ genes.stream().mapToLong(G->G.getTranscripts().stream().count()).sum());
+				}
+			
 			if(genes.isEmpty()) {
 				LOG.error("no gene was found");
 				return -1;
@@ -232,7 +266,9 @@ public class VcfPhasedCombineSNVs extends Launcher {
 									}
 								RNASequence codingRNA = null;
 								for(String sn: header.getGenotypeSamples()) {
-									this.debug_flag=false;
+									if(this.debug_flag) {
+										LOG.debug("sample "+sn);
+										}
 									final List<VariantContext> variants = new ArrayList<>(transcript.getLengthOnReference());
 									boolean non_diploid_flag=false;
 									try(CloseableIterator<VariantContext> iter =  vcfReader.query(transcript)) {
@@ -255,12 +291,15 @@ public class VcfPhasedCombineSNVs extends Launcher {
 											}
 										}
 									if(non_diploid_flag) {
+										if(this.debug_flag) {
+											LOG.debug("skipping "+sn+" "+transcript.getId()+" because found non-diploid");
+											}
 										continue;
 										}
 									// at least two genotypes with ALT allele
 									if(variants.stream()
 											.flatMap(G->G.getGenotypes().stream())
-											.filter(G->G.hasAltAllele())
+											.filter(G->G.getAlleles().stream().anyMatch(A->isAltAllele(A)))
 											.count()<2L) {
 										if(this.debug_flag) {
 											LOG.info("not enough variants in the interval for "+sn);
@@ -273,32 +312,43 @@ public class VcfPhasedCombineSNVs extends Launcher {
 									if(codingRNA==null) {
 										codingRNA = rnaSequenceFactory.getCodingRNA(transcript);
 										}
-									/** loop over each phase */
-									for(int phase=0;phase<2;++phase) {
+									/** loop over each phase for variant 1*/
+									for(int phase1_idx=0;phase1_idx<2;++phase1_idx) {
 										if(this.debug_flag) {
-											LOG.info("phase=" + phase +" for "+sn);
+											LOG.info("phase1=" + phase1_idx +" for "+sn);
 											}
 										/** loop over each variant in that transcript */
 										for(int x1=0;x1+1< variants.size();++x1) {
 											final VariantContext vc1= variants.get(x1);
 											if(vc1.getReference().length()!=1) {
 												if(this.debug_flag) {
-													LOG.info("vc1 bad ref  " + vc1.getContig()+":"+vc1.getStart()+" "+vc1.getReference());
+													LOG.info("vc1 bad ref  " + toString(vc1));
 													}
 												continue;
 												}
 											if(this.debug_flag) {
-												LOG.info("vc1 = " + vc1.getContig()+":"+vc1.getStart());
+												LOG.info("vc1 = " + toString(vc1));
 												}
 											final Genotype g1 = vc1.getGenotype(sn);
-											if(!g1.isPhased() || g1.isHomRef() || g1.isNoCall()) {
+											
+											
+											
+											if(this.phased_only && !g1.isPhased()) {
 												if(this.debug_flag) {
-													LOG.info("phase=" + phase +" for "+sn);
+													LOG.info("phase1=" + phase1_idx +" for "+sn);
 													}
 												continue;
 												}
-											final Allele alt1 = g1.getAllele(phase);
-											if(alt1.isReference() || alt1.isSymbolic() || alt1.equals(Allele.SPAN_DEL)) {
+											
+											if(phase1_idx>=g1.getPloidy()) {
+												if(this.debug_flag) {
+													LOG.info("type=" +g1.getType().name() +" for "+sn);
+													}
+												continue;
+												}
+											
+											final Allele alt1 = g1.getAllele(phase1_idx);
+											if(!isAltAllele(alt1)) {
 												if(this.debug_flag) {
 													LOG.info("bad alt allele1 "+alt1+" vs "+vc1.getReference()+" "+alt1.isNonReference()+" "+alt1.isReference()+" "+alt1.isNonRefAllele());
 													}
@@ -319,7 +369,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 												continue;
 												}
 											if(this.debug_flag) {
-												LOG.debug("cndapos1 :  "+pos1);
+												LOG.debug("cdnapos1 :  "+pos1);
 												}
 											char base1 = alt1.getBaseString().charAt(0);
 											if(transcript.isNegativeStrand()) base1 = AcidNucleics.complement(base1);
@@ -341,215 +391,246 @@ public class VcfPhasedCombineSNVs extends Launcher {
 											if(this.debug_flag) {
 												LOG.debug("ok: synonymous codon 1 "+codon1+" vs wild "+wildCodon);
 												}
-											
-											/** loop over each variant in that transcript */
-											for(int x2=x1+1; x2< variants.size();++x2) {
-												final VariantContext vc2= variants.get(x2);
-												
-												if(this.debug_flag) {
-													LOG.info("vc2 = " + vc2.getContig()+":"+vc2.getStart());
-													}
-												
-												if(vc2.getReference().length()!=1) {
-													if(this.debug_flag) {
-														LOG.info("vc2 bad ref  " + vc2.getContig()+":"+vc2.getStart()+" "+vc2.getReference());
-														}
+											/** loop over each phase of second variant */
+											for(int phase2_idx=0;phase2_idx<2;++phase2_idx) {
+												/* both phases must be the same if this.phased_only*/
+												if(this.phased_only && phase1_idx!=phase2_idx) {
 													continue;
 													}
-												
-												final Genotype g2 = vc2.getGenotype(sn);
-												if(!g2.isPhased()) {
-													/* end of PHASE, let's stop here */
+												/** loop over each variant in that transcript */
+												for(int x2=x1+1; x2< variants.size();++x2) {
+													final VariantContext vc2= variants.get(x2);
+													
 													if(this.debug_flag) {
-														LOG.info("gt2 is not phased");
+														LOG.info("vc2 = " + toString(vc2));
 														}
-													break;
-													}
-												if(g2.isNoCall() || g2.isHomRef()) {
-													if(this.debug_flag) {
-														LOG.info("gt2 has bad type "+g2.getType().name());
-														}
-													continue;
-													}
-												
-												if(vc1.getStart()>= vc2.getStart()) {
-													if(this.debug_flag) {
-														LOG.info("Hum.. strange order ?");
-														}
-													continue;
-													}
-												final Allele alt2 = g2.getAllele(phase);
-												if(alt2.isReference() || alt2.isSymbolic() || alt2.equals(Allele.SPAN_DEL)) {
-													if(this.debug_flag) {
-														LOG.info("bad alt allele2 "+alt2+" vs "+vc2.getReference()+" "+alt2.isNonReference()+" "+alt2.isReference()+" "+alt1.isNonRefAllele());
-														}
-													continue;
-													}
-												if(alt2.length()!=1) {
-													if(this.debug_flag) {
-														LOG.debug("bad length for allele2 "+alt2);
-														}
-													continue;
-													}
-												/* get position in mRNA*/
-												final OptionalInt pos2 =  codingRNA.convertGenomic0ToRnaIndex0(vc2.getStart()-1);
-												if(!pos2.isPresent()) {
-													if(this.debug_flag) {
-														LOG.debug("pos2 is not in cdna");
-														}
-													continue;
-													}
-												
-												if(this.debug_flag) {
-													LOG.debug("cndapos2 :  "+pos2);
-													}
-												
-												char base2 = alt2.getBaseString().charAt(0);
-												if(transcript.isNegativeStrand()) base2 = AcidNucleics.complement(base2);
-												
-												final MutedRNASequence rna2 = new MutedRNASequence(codingRNA, pos2.getAsInt(), base2);
-												/* pos1 and pos2 must be in the same codon ! */
-												
-												
-												final Codon codon2 = rna2.getCodonAt(pos2.getAsInt()-1);
-												
-												/* both mutations must fall in the same codon */
-												if( codon1.shifted_position0!=codon2.shifted_position0 ) {
-													if(this.debug_flag) {
-														LOG.debug(" shifted_pos1!=shifted_pos2 "+codon1.shifted_position0+" "+codon2.shifted_position0);
-														}
-													continue;
-													}
-												
-												if(!wildCodon.aminoAcid.equals(codon2.aminoAcid)) {
-													if(this.debug_flag) {
-														LOG.debug("non synonymous codon2  "+codon2+" vs wild "+wildCodon);
-														}
-													continue;//we want synonymous
-													}
-												if(this.debug_flag) {
-													LOG.debug("ok : synonymous codon2  "+codon2+" vs wild "+wildCodon);
-													}
-	
-												final MutedRNASequence rna_combined = new MutedRNASequence(rna1, pos2.getAsInt(), base2);
-												final Codon codonCombined = rna_combined.getCodonAt(pos2.getAsInt()-1);
-												
-												/* even combined, the AA is the same e.g: leucine */
-												if(wildCodon.aminoAcid.equals(codonCombined.aminoAcid)) {
-													if(this.debug_flag) {
-														LOG.debug("no change, even combined is same "+codonCombined+" vs wild "+wildCodon);
-														}
-													continue;//we want synonymous
-													}
-												
-												
-												js.beginObject();
-												js.name("contig"); js.value(transcript.getContig());
-												js.name("transcript_start"); js.value(transcript.getStart());
-												js.name("transcript_end"); js.value(transcript.getEnd());
-												js.name("strand"); js.value(transcript.getStrand());
-												js.name("transcript_id"); js.value(transcript.getId());
-												js.name("gene_id"); js.value(transcript.getGene().getId());
-												js.name("gene_name"); js.value(transcript.getGene().getGeneName());
-												js.name("pos_cdna"); js.value(pos2.getAsInt()+1);
-												js.name("wild_codon"); js.value(wildCodon.mrna_codon);
-												js.name("wild_aa"); js.value(wildCodon.aminoAcid.getThreeLettersCode());
-												js.name("sample"); js.value(sn);
-												js.name("phase"); js.value(phase+1);
-												js.name("variants");
-												js.beginArray();
-												for(int side=0;side< 2;++side) {
-													final VariantContext vc =(side==0?vc1:vc2);
-													js.beginObject();
-													js.name("contig"); js.value(vc.getContig());
-													js.name("pos"); js.value(vc.getStart());
-													js.name("ref"); js.value(vc.getReference().getBaseString());
-													if(vc.hasID()) {
-														js.name("id"); js.value(vc.getID());
-														}
-													if(vc.isFiltered()) {
-														js.name("filter"); 
-														js.beginArray();
-														for(String fmt: vc.getFilters()) {
-															js.value(fmt);
+													
+													if(vc2.getReference().length()!=1) {
+														if(this.debug_flag) {
+															LOG.info("vc2 bad REF length : " + toString(vc2));
 															}
-														js.endArray();
+														continue;
 														}
-													Genotype gt =(side==0?g1:g2);
-													if(gt.hasGQ()) {
-														js.name("gq"); js.value(gt.getGQ());
-														}
-													if(gt.hasDP()) {
-														js.name("dp"); js.value(gt.getDP());
-														}
-													if(gt.hasAD()) {
-														js.name("ad");
-														js.beginArray();
-														for(int p: gt.getAD())
-															{
-															js.value(p);
+													
+													final Genotype g2 = vc2.getGenotype(sn);
+													if(this.phased_only && !g2.isPhased()) {
+														/* end of PHASE, let's stop here */
+														if(this.debug_flag) {
+															LOG.info("gt2 is not phased");
 															}
-														js.endArray();
+														break;
 														}
-													if(gt.hasPL()) {
-														js.name("pl");
-														js.beginArray();
-														for(int p: gt.getPL())
-															{
-															js.value(p);
-															}
-														js.endArray();
-														}
-													if(gt.isFiltered()) {
-														js.name("filter"); 
-														js.value(gt.getFilters());
-														}
-													js.name("type"); js.value(gt.getType().name());
+													
 
-													js.name("alleles");
+													
+													if(phase2_idx >= g2.getPloidy()) {
+														if(this.debug_flag) {
+															LOG.info("gt2 has bad ploidy "+g2.getType().name());
+															}
+														continue;
+														}
+													
+													if(vc1.getStart()>= vc2.getStart()) {
+														if(this.debug_flag) {
+															LOG.info("Hum.. strange order ?"+vc1+" / "+vc2);
+															}
+														continue;
+														}
+													final Allele alt2 = g2.getAllele(phase2_idx);
+													if(!isAltAllele(alt2)) {
+														if(this.debug_flag) {
+															LOG.info("bad alt allele2 "+alt2);
+															}
+														continue;
+														}
+													if(alt2.length()!=1) {
+														if(this.debug_flag) {
+															LOG.debug("bad length for allele2 "+alt2);
+															}
+														continue;
+														}
+													/* get position in mRNA*/
+													final OptionalInt pos2 =  codingRNA.convertGenomic0ToRnaIndex0(vc2.getStart()-1);
+													if(!pos2.isPresent()) {
+														if(this.debug_flag) {
+															LOG.debug("pos2 is not in cdna");
+															}
+														continue;
+														}
+													
+													if(this.debug_flag) {
+														LOG.debug("cdnapos2 :  "+pos2);
+														}
+													
+													char base2 = alt2.getBaseString().charAt(0);
+													if(transcript.isNegativeStrand()) base2 = AcidNucleics.complement(base2);
+													
+													final MutedRNASequence rna2 = new MutedRNASequence(codingRNA, pos2.getAsInt(), base2);
+													/* pos1 and pos2 must be in the same codon ! */
+													
+													
+													final Codon codon2 = rna2.getCodonAt(pos2.getAsInt()-1);
+													
+													/* both mutations must fall in the same codon */
+													if( codon1.shifted_position0!=codon2.shifted_position0 ) {
+														if(this.debug_flag) {
+															LOG.debug(" shifted_pos1!=shifted_pos2 "+codon1.shifted_position0+" "+codon2.shifted_position0);
+															}
+														continue;
+														}
+													
+													if(!wildCodon.aminoAcid.equals(codon2.aminoAcid)) {
+														if(this.debug_flag) {
+															LOG.debug("non synonymous codon2  "+codon2+" vs wild "+wildCodon);
+															}
+														continue;//we want synonymous
+														}
+													if(this.debug_flag) {
+														LOG.debug("ok : synonymous codon2  "+codon2+" vs wild "+wildCodon);
+														}
+		
+													final MutedRNASequence rna_combined = new MutedRNASequence(rna1, pos2.getAsInt(), base2);
+													final Codon codonCombined = rna_combined.getCodonAt(pos2.getAsInt()-1);
+													
+													/* even combined, the AA is the same e.g: leucine */
+													if(wildCodon.aminoAcid.equals(codonCombined.aminoAcid)) {
+														if(this.debug_flag) {
+															LOG.debug("no change, even combined is same combine:" +
+																		codonCombined+" vs wild "+
+																	wildCodon+" codon1:"+codon1+" codon2:"+codon2+
+																	" gt1:"+toString(vc1,alt1)+ " gt2:"+toString(vc2,alt2));
+															}
+														continue;//we don't want synonymous
+														}
+													
+													
+													js.beginObject();
+													js.name("contig"); js.value(transcript.getContig());
+													js.name("transcript_start"); js.value(transcript.getStart());
+													js.name("transcript_end"); js.value(transcript.getEnd());
+													js.name("strand"); js.value(transcript.getStrand());
+													js.name("transcript_id"); js.value(transcript.getId());
+													js.name("gene_id"); js.value(transcript.getGene().getId());
+													js.name("gene_name"); js.value(transcript.getGene().getGeneName());
+													js.name("pos_cdna"); js.value(pos2.getAsInt()+1);
+													js.name("wild_codon"); js.value(wildCodon.mrna_codon);
+													js.name("wild_aa"); js.value(wildCodon.aminoAcid.getThreeLettersCode());
+													js.name("sample"); js.value(sn);
+													if(this.phased_only) {
+														js.name("phase"); js.value(phase1_idx+1);
+														}
+													else
+														{
+														// label if all variants are phased in the interval
+														boolean all_phased=true;
+														for(int x3=x1;x3<=x2;++x3) {
+															final Genotype gt3 = variants.get(x3).getGenotype(sn);
+															if(!gt3.isPhased()) {
+																all_phased = false;
+																break;
+																}
+															}
+														js.name("continuous_phase"); js.value(all_phased);
+														}
+													js.name("variants");
 													js.beginArray();
-													for(Allele a:gt.getAlleles()) {
-														js.value(a.getBaseString());
+													for(int side=0;side< 2;++side) {
+														final VariantContext vc =(side==0?vc1:vc2);
+														js.beginObject();
+														if(buildName!=null) {
+															js.name("build"); js.value(buildName);
+															}
+														js.name("contig"); js.value(vc.getContig());
+														js.name("pos"); js.value(vc.getStart());
+														js.name("ref"); js.value(vc.getReference().getBaseString());
+														if(vc.hasID()) {
+															js.name("id"); js.value(vc.getID());
+															}
+														if(vc.isFiltered()) {
+															js.name("filter"); 
+															js.beginArray();
+															for(String fmt: vc.getFilters()) {
+																js.value(fmt);
+																}
+															js.endArray();
+															}
+														final Genotype gt =(side==0?g1:g2);
+														if(gt.hasGQ()) {
+															js.name("gq"); js.value(gt.getGQ());
+															}
+														if(gt.hasDP()) {
+															js.name("dp"); js.value(gt.getDP());
+															}
+														if(gt.hasAD()) {
+															js.name("ad");
+															js.beginArray();
+															for(int p: gt.getAD())
+																{
+																js.value(p);
+																}
+															js.endArray();
+															}
+														if(gt.hasPL()) {
+															js.name("pl");
+															js.beginArray();
+															for(int p: gt.getPL())
+																{
+																js.value(p);
+																}
+															js.endArray();
+															}
+														if(gt.isFiltered()) {
+															js.name("filter"); 
+															js.value(gt.getFilters());
+															}
+														js.name("type"); js.value(gt.getType().name());
+	
+														js.name("alleles");
+														js.beginArray();
+														for(Allele a:gt.getAlleles()) {
+															js.value(a.getBaseString());
+															}
+														js.endArray();
+														
+														js.name("alt");
+														js.value((side==0?alt1:alt2).getBaseString());
+														
+														js.name("phase"); js.value(1+(side==0?phase1_idx:phase2_idx));
+														
+														js.name("pos_cdna");
+														js.value((side==0?codon1:codon2).query_pos0_in_cdna+1);
+														js.name("pos_codon");
+														js.value((side==0?codon1:codon2).shifted_position0);
+														js.name("mrna_codon");
+														js.value((side==0?codon1:codon2).mrna_codon);
+														js.name("amino_acid");
+														js.value((side==0?codon1:codon2).aminoAcid.getThreeLettersCode());
+														
+														final Optional<String> url= hyperlink.apply(vc);
+														if(url.isPresent()) {
+															js.name("url");
+															js.value(url.get());
+															}
+														
+														js.endObject();
 														}
 													js.endArray();
-													
-													js.name("alt");
-													js.value((side==0?alt1:alt2).getBaseString());
-													js.name("pos_cdna");
-													js.value((side==0?codon1:codon2).query_pos0_in_cdna+1);
-													js.name("pos_codon");
-													js.value((side==0?codon1:codon2).shifted_position0);
-													js.name("mrna_codon");
-													js.value((side==0?codon1:codon2).mrna_codon);
-													js.name("amino_acid");
-													js.value((side==0?codon1:codon2).aminoAcid.getThreeLettersCode());
-													
-													final Optional<String> url= hyperlink.apply(vc);
-													if(url.isPresent()) {
-														js.name("url");
-														js.value(url.get());
-														}
+													js.name("distance");
+													js.value(vc2.getStart()-vc1.getEnd());
+													js.name("combined_mrna_codon");
+													js.value(codonCombined.mrna_codon);
+													js.name("combined_amino_acid");
+													js.value(codonCombined.aminoAcid.getName());
+													js.name("combined_grantham_score");
+													js.value(GranthamScore.score(
+															wildCodon.aminoAcid.getOneLetterCode(),
+															codonCombined.aminoAcid.getOneLetterCode())
+															);
+	
 													
 													js.endObject();
-													}
-												js.endArray();
-
-												js.name("combined_mrna_codon");
-												js.value(codonCombined.mrna_codon);
-												js.name("combined_amino_acid");
-												js.value(codonCombined.aminoAcid.getName());
-												js.name("combined_grantham_score");
-												js.value(GranthamScore.score(
-														wildCodon.aminoAcid.getOneLetterCode(),
-														codonCombined.aminoAcid.getOneLetterCode())
-														);
-
-												
-												js.endObject();
-												}
-											
-											
-											
+													} // end variant2
+												}//end phase2
 											}
 										}
 									}
@@ -576,7 +657,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfPhasedCombineSNVs().instanceMainWithExit(args);
 	}
 
