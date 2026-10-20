@@ -111,7 +111,7 @@ BEGIN_DOC
 
 ## Motivation
 
-@SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotaion tools.
+@SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotation tools.
 
 ## Example
 

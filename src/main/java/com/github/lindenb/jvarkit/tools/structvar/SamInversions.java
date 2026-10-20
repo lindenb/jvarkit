@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -48,17 +49,23 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.PeekIterator;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -93,7 +100,7 @@ public class SamInversions extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE,required = true)
 	private Path referenceFaidx = null;
 	@Parameter(names={"--max-size"},description="max distance between read and mate.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_distance = 1_000 ;
@@ -106,7 +113,7 @@ public class SamInversions extends Launcher
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
-
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -114,140 +121,153 @@ public class SamInversions extends Launcher
 			LOG.error("max size inversion must be >=100");
 			return -1;
 			}
-	 	VariantContextWriter vcw= null;
 		try {
 			final Allele REF = Allele.create("N", true);
 			final Allele INV = Allele.create("<INV>", false);
-			
-
-			final String input = super.oneFileOrNull(args);
-			final Path inputPath = input==null?null:Paths.get(input);
-			try(SamReader samReader= super.createSamReaderFactory().
+			final String input = oneAndOnlyOneFile(args);
+			final Path inputPath = Paths.get(input);
+			final SamReaderFactory srf =  super.createSamReaderFactory().
 					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.referenceFaidx).open(input==null?
-						SamInputResource.of(stdin()):
-						SamInputResource.of(inputPath)
-						)) {
-				final SAMFileHeader samHeader = samReader.getFileHeader();
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samHeader);
-
-				final String sampleName= samHeader.getReadGroups().stream().
-						map(RG->RG.getSample()).
-						filter(S->!StringUtil.isBlank(S)).
-						findFirst().
-						orElse(inputPath==null?"SAMPLE":IOUtils.getFilenameWithoutCommonSuffixes(inputPath));
-				
-				final ToIntFunction<SAMRecord> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
-						SAMUtils.getMateAlignmentEnd(REC):
-						REC.getMateAlignmentStart();
-				
-				final ToIntFunction<SAMRecord> recordLen = REC->{
-					final int start = Math.min(REC.getStart(), REC.getMateAlignmentStart());
-					final int end = Math.max(REC.getEnd(), mateEnd.applyAsInt(REC));
-					return CoordMath.getLength(start, end);
-					};
-				
-				final QueryInterval queryIntervals[] = this.intervallistProvider==null?
-						null:
-						this.intervallistProvider.
-							dictionary(dict).
-							optimizedQueryIntervals()
-							;
-				
-				final Set<VCFHeaderLine> meta=new HashSet<>();
-				VCFStandardHeaderLines.addStandardFormatLines(meta,true,
-						VCFConstants.GENOTYPE_KEY,
-						VCFConstants.DEPTH_KEY
-						
-						);
-				VCFStandardHeaderLines.addStandardInfoLines(meta,true,
-						VCFConstants.DEPTH_KEY,
-						VCFConstants.END_KEY
-						);
-				meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
-				meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
-				
-				
-				
-				final VCFHeader header=new VCFHeader(meta,Collections.singleton(sampleName));
-				JVarkitVersion.getInstance().addMetaData(this, header);
-				header.setSequenceDictionary(dict);
-
-				
-				vcw = this.writingVariants.dictionary(dict).open(this.outputFile);
-				vcw.writeHeader(header);
-
-				final Predicate<SAMRecord> acceptRecord = rec->{
-					if(!SAMRecordDefaultFilter.accept(rec, this.mapq)) return false;
-					if(!rec.getReadPairedFlag()) return false;
-					if(rec.getMateUnmappedFlag()) return false;
-					if(!rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) return false;
-					if(rec.getReadNegativeStrandFlag()!=rec.getMateNegativeStrandFlag()) return false;
-					final int len =  recordLen.applyAsInt(rec);
-					if(len > max_distance)  return false;
-					return true;
-					};
-				final List<Allele> alleles = Arrays.asList(REF,INV);
-				try(final CloseableIterator<SAMRecord> iter0 = (queryIntervals==null?samReader.iterator():samReader.query(queryIntervals,false))) {
-					final PeekIterator<SAMRecord> iter = new PeekIterator<>(iter0);
-					while(iter.hasNext()) {
-						final SAMRecord rec = iter.next();
-						if(!acceptRecord.test(rec)) continue;
-						final int invStart = rec.getAlignmentStart();
-						int invEnd = Math.max(rec.getEnd(),mateEnd.applyAsInt(rec));
-						if(CoordMath.getLength(invStart, invEnd)>this.max_distance) continue;
-						int dp = 1;
-						while(iter.hasNext()) {
-							final SAMRecord rec2 = iter.peek();
-							if(!acceptRecord.test(rec2)) {
-								iter.next();
-								continue;
-								}
-							if(rec2.getAlignmentStart() > invEnd ||
-								!rec2.contigsMatch(rec) ||
-								CoordMath.getLength(invStart, rec2.getAlignmentStart())>this.max_distance) {
-								break;
-								}
-							iter.next();//consumme
-							invEnd = Math.max(invEnd,Math.max(rec2.getEnd(),mateEnd.applyAsInt(rec2)));
-							dp++;
-							}
-						
-						if(dp >= this.min_supporting_reads) {
-							final VariantContextBuilder vcb = new VariantContextBuilder();
-							
-							
-							vcb.chr(rec.getContig());
-							vcb.start(invStart);
-							vcb.stop(invEnd);
-							vcb.alleles(alleles);
-							vcb.attribute(VCFConstants.END_KEY, invEnd);
-							
-							final GenotypeBuilder gb = new GenotypeBuilder(sampleName,alleles);
-							gb.DP(dp);					
-								
-							
-							vcb.genotypes(Collections.singletonList(gb.make()));
-							vcb.alleles(alleles);
-							vcb.attribute(VCFConstants.DEPTH_KEY, dp);
-							vcb.attribute(VCFConstants.SVTYPE, "INV");
-							vcb.attribute("SVLEN", CoordMath.getLength(invStart,invEnd));
-							vcw.add(vcb.make());
-							}
+					referenceSequence(this.referenceFaidx)
+					;
+			try(ReferenceSequenceFile referenceSequenceFile = new IndexedFastaSequenceFile(this.referenceFaidx)) {
+				try(SamReader samReader1= srf.open(inputPath)) {
+					if(!samReader1.hasIndex()) {
+						LOG.error("file is not indexed "+input);
+						return -1;
 						}
-					}
-				vcw.close();
-				}
+					final SAMFileHeader samHeader = samReader1.getFileHeader();
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samHeader);
+					final String sampleName= samHeader.getReadGroups().stream().
+							map(RG->RG.getSample()).
+							filter(S->!StringUtil.isBlank(S)).
+							findFirst().
+							orElse(IOUtils.getFilenameWithoutCommonSuffixes(inputPath));
+
+					//open a second reader to fetch the mate
+					try(SamReader samReader2= srf.open(inputPath)) {
+						try(VariantContextWriter vcw = this.writingVariants.open(this.outputFile)) {
+
+							final Set<VCFHeaderLine> meta=new HashSet<>();
+							VCFStandardHeaderLines.addStandardFormatLines(meta,true,
+									VCFConstants.GENOTYPE_KEY,
+									VCFConstants.DEPTH_KEY
+									
+									);
+							VCFStandardHeaderLines.addStandardInfoLines(meta,true,
+									VCFConstants.DEPTH_KEY,
+									VCFConstants.END_KEY
+									);
+							meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+							meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
+							
+							final VCFHeader header=new VCFHeader(meta,Collections.singleton(sampleName));
+							JVarkitVersion.getInstance().addMetaData(this, header);
+
+							header.setSequenceDictionary(dict);
+							vcw.writeHeader(header);
+	
+							final List<Interval> candidate_intervals = new ArrayList<>();
+							
+							String prev_contig = null;
+							/** loop over eall reads */
+							try(SAMRecordIterator iter1= samReader1.iterator()) {
+								for(;;) {
+									final SAMRecord rec1 = iter1.hasNext()?iter1.next():null;
+									if(rec1!=null && !SAMRecordDefaultFilter.accept(rec1)) {
+										continue;
+										}
+									if(rec1==null || !rec1.getContig().equals(prev_contig)) {
+										for(Interval rgn : candidate_intervals) {
+											final VariantContextBuilder vcb = new VariantContextBuilder();
+											
+											
+											}
+										
+										if(rec1==null) break;
+										candidate_intervals.clear();
+										prev_contig = rec1.getContig();
+										LOG.info("contig "+ rec1.getContig());
+										}
+									final Cigar cigar = rec1.getCigar();
+									
+									
+									
+									
+									for(SAMRecord suppl:SAMUtils.getOtherCanonicalAlignments(rec1)) {
+										if(!suppl.contigsMatch(rec1)) continue;
+										if(rec1.getReadNegativeStrandFlag()== suppl.getReadNegativeStrandFlag()) continue;
+										if(!rec1.withinDistanceOf(suppl, this.max_distance)) continue;
+										
+										
+										// #########oooooooooooooooooooooo#######
+										//      =======>
+										//      <=======
+										
+										if(cigar.isRightClipped() && 
+											rec1.getEnd()< suppl.getStart()
+											) {
+											final Interval bounds= new Interval(
+													rec1.getContig(),
+													rec1.getEnd()+1,
+													suppl.getEnd(),
+													rec1.getReadNegativeStrandFlag(),
+													rec1.getReadName()
+													);
+											candidate_intervals.add(bounds);
+											}
+										// #########oooooooooooooooooooooo###########
+										//                           =======>
+										//                           <=======
+										if(cigar.isLeftClipped() && 
+												suppl.getEnd() < rec1.getStart()
+												) {
+												final Interval bounds= new Interval(
+														rec1.getContig(),
+														suppl.getStart(),
+														rec1.getStart()-1,
+														rec1.getReadNegativeStrandFlag(),
+														rec1.getReadName()
+														);
+												candidate_intervals.add(bounds);
+												}
+										}
+									// in inversion read and it's mate will be in same strand
+									if(rec1.getReadPairedFlag() &&
+											!rec1.getMateUnmappedFlag() &&
+											rec1.getReferenceIndex().equals(rec1.getMateReferenceIndex()) &&
+											rec1.getAlignmentStart() < rec1.getMateAlignmentStart() &&
+											rec1.getReadNegativeStrandFlag()==rec1.getMateNegativeStrandFlag() &&
+											Math.abs(rec1.getInferredInsertSize()) <= this.max_distance
+											) {
+										final SAMRecord mateRec = samReader2.queryMate(rec1);
+										if(mateRec!=null) {
+											final Interval interval = new Interval(rec1.getContig(),
+													Math.min(rec1.getStart(), mateRec.getStart()),
+													Math.max(rec1.getEnd(), mateRec.getEnd()),
+													false,
+													rec1.getReadName()
+													);
+											// TODO
+											}
+										}
+									
+									}
+								}
+							
+							
+							
+							}//end vcw
+						} // end cram2
+					} //end cram1
+				} // end fasta
 			return 0;
 			} 
 		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(vcw);	
-			}
+		
 		}
 
 	

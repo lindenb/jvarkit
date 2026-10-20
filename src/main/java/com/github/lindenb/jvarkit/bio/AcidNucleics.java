@@ -29,6 +29,9 @@ import java.util.Set;
 
 import htsjdk.variant.variantcontext.Allele;
 
+/**
+ * Utilities for DNA sequences
+ */
 public class AcidNucleics {
 
 /** return true if a is not null, not symbolic, not span not empty and all bases match 'isATGC */
@@ -133,6 +136,22 @@ public static String reverseComplement(final CharSequence seq)
 		}
 	return b.toString();
 	}
+
+/** return true if seq1 is not empty and seq1 is reverse complement of seq2 */	
+public static boolean areReverseComplement(final CharSequence seq1,final CharSequence seq2)
+	{
+	if(seq1.length()!=seq2.length()) return false;
+	if(seq1.length()==0) return false;
+	
+	for(int i=0;i< seq1.length();++i)
+		{
+		final char c1 = seq1.charAt(i);
+		final char c2 = complement(seq2.charAt((seq2.length()-1)-i));
+		if(Character.toUpperCase(c1)!=Character.toUpperCase(c2)) return false;
+		}
+	return true;
+	}
+
 
 /** returns the reverse complement of the character */	
 public static char complement(char c)

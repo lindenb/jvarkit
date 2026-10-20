@@ -198,6 +198,13 @@ public class GenomicSequence
 		this.buffer_pos=minStart;
 		return (char)buffer[index0-minStart];
 		}
+	/** return sub-CharSequence using genomic Coordinates. Must be mapped on same chromosome */
+	public CharSequence subSequence(final Locatable loc) {
+		if(loc==null) throw new IllegalArgumentException("loc is null");
+		if(!this.hasName(loc.getContig())) throw new IllegalArgumentException("expected interval mapped on "+this.getContig()+" but got loc : "+loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
+		return subSequence(loc.getStart()-1, loc.getEnd());
+		}
+	
 	
 	/** return GC% between start (inclusive, 0 based) and end (exclusive)) */
 	public GCPercent getGCPercent(int start,int end) {

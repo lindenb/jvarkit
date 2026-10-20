@@ -27,70 +27,50 @@ package com.github.lindenb.jvarkit.tools.structvar;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.function.Consumer;
-import java.util.function.ToIntBiFunction;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
-import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
-import htsjdk.samtools.MergingSamRecordIterator;
-import htsjdk.samtools.QueryInterval;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTag;
-import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.AggregateFilter;
-import htsjdk.samtools.filter.DuplicateReadFilter;
-import htsjdk.samtools.filter.FailsVendorReadQualityFilter;
-import htsjdk.samtools.filter.FilteringSamIterator;
-import htsjdk.samtools.filter.MappingQualityFilter;
-import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.filter.SecondaryOrSupplementaryFilter;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -102,403 +82,261 @@ BEGIN_DOC
 
 finds the regions having some short inversions.
 
-input is a set of BAM files. One file ending with '.list' is interpreted as a file containing some path to the bams.
 
 output is a VCF file
 
 ## Example:
 
 ```
-$ find DIR -type f -name "*.bam" > bams.list
 $ java -jar ${JVARKIT_DIST}/samshortinvert.jar -R ref.fasta bams.list |\
  	bcftools view -i 'INFO/DPMAX>10' > out.vcf
 ```
-
-## Screenshot
-
-* https://twitter.com/yokofakun/status/1222848286048112641
-![https://twitter.com/yokofakun/status/1222848286048112641](https://pbs.twimg.com/media/EPhuCJnX4AA3Brc?format=png&name=medium)
-
-* https://twitter.com/yokofakun/status/1222832425518141442
-![https://twitter.com/yokofakun/status/1222832425518141442](https://pbs.twimg.com/media/EPhfm8EW4AAiaBq?format=png&name=medium)
-
-* https://twitter.com/yokofakun/status/1222853635656364032
-![https://twitter.com/yokofakun/status/1222853635656364032](https://pbs.twimg.com/media/EPhy5fAUYAAMunf?format=png&name=medium)
 
 END_DOC
 
 **/
 
 @Program(name="samshortinvert",
-	description="Scan short inversions in SAM using supplementary reads.",
+	description="Scan short inversions in reads.",
 	keywords={"sam","bam","sv","inversion"},
-	modificationDate="20201210",
+	modificationDate="20261020",
 	creationDate="20140228"
 	)
 public class SamShortInvertion extends Launcher
 	{
-	private static final Logger LOG = Logger.of(SamShortInvertion.class);
-	private static final byte SUPPORTING_LEFT=(byte)1;
-	private static final byte SUPPORTING_RIGHT=(byte)2;
-	
+	private static final Logger LOG = Logger.of(SamShortInvertion.class);	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFaidx = null;
-	@Parameter(names={"-m","--maxsize"},description="max size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
-	private int max_size_inversion = 10_000 ;
-	@Parameter(names={"-B","--bed","-r","--rgn"},description=IntervalListProvider.OPT_DESC,splitter= NoSplitter.class,converter=IntervalListProvider.StringConverter.class)
-	private IntervalListProvider intervallistProvider = null;
-	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
-	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	@Parameter(names={"-F","--ratio"},description="Two intervals are the same if they both have more or equals of this fraction of length in common. " + FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
-	private double region_are_same_ratio=0.75;
-	@Parameter(names={"-s","-supporting"},description="Don't print the variant if INFO/DP <= 's'")
-	private int min_supporting_reads = 1;
-	@Parameter(names={"--debug"},description="Debug",hidden=true)
-	private boolean debug = false;
-	@Parameter(names={"--keep"},description="keep interval if they were used.",hidden=true)
-	private boolean keep_flag = false;
 	@Parameter(names={"--mapq"},description="min mapping quality")
 	private int mapq=1;
+	@Parameter(names={"--min-inversion-length"},description="min inversion length")
+	private int min_inv_length = 8;
 
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
-	private static class Arc
-		{
-		String sample;
-		int tid;
-		int chromStart;
-		int chromEnd;
-		boolean consummed=false;
-		byte type;
-		
-		int length() {
-			return chromEnd-chromStart+1;
+	private static abstract class MappedSequence extends AbstractCharSequence {
+		abstract CigarOperator getOperator();
 		}
-		
+	
+	private static class SubReadSequence extends MappedSequence {
+		private final byte[] sequence;
+		private final int start;
+		private final int length;
+		SubReadSequence( byte[] sequence,int start,int length) {
+			this.sequence= sequence;
+			this.start = start;
+			this.length=length;
+			}
 		@Override
-		public String toString() {
-			return "("+tid+"):"+chromStart+"-"+chromEnd +" type="+(int)type;
+		public char charAt(int index) {
+			return (char)sequence[start+index];
+			}
+		@Override
+		public int length() {
+			return this.length;
+			}
+		@Override
+		CigarOperator getOperator() {
+			return CigarOperator.I;
 			}
 		}
-	
-	private boolean testOverlapping2(final int start1,final int end1,final int start2,final int end2 )
-		{
-		double lenA = CoordMath.getLength(start1, end1);
-		double len2 = CoordMath.getOverlap(start1, end1, start2, end2);
-		return len2/lenA >= this.region_are_same_ratio;
-		}
-	
-	private boolean testOverlapping(final Locatable a,final Arc b )
-		{
-		if(!CoordMath.overlaps(a.getStart(), a.getEnd(), b.chromStart, b.chromEnd)) return false;
-		return testOverlapping2(a.getStart(), a.getEnd(), b.chromStart, b.chromEnd) && 
-				testOverlapping2(b.chromStart, b.chromEnd,a.getStart(), a.getEnd());
-		}
 
-	private void dump(
-			final SAMSequenceDictionary dict,
-			final IntervalTreeMap<List<Arc>> database,
-			final VariantContextWriter vcw,
-			final Set<String> samples,
-			final Integer before
-			) {
-		if(this.debug) LOG.debug("dump");
-		final Allele REF = Allele.create("N", true);
-		final Allele SPLIT = Allele.create("<INV>", false);
-		final Comparator<Locatable> cmp = new ContigDictComparator(dict).createLocatableComparator();
-		final List<SimpleInterval> intervals  = database.keySet().stream().
-				filter(R->(before==null?true:R.getEnd() > before.intValue())).
-				map(R-> new SimpleInterval(R)).
-				sorted(cmp).
-				collect(Collectors.toList());
-		
-		for(final SimpleInterval interval0:intervals) {
-			
-			final List<Arc> arcs = database.getOverlapping(interval0).
-					stream().
-					flatMap(L->L.stream()).
-					filter(A->!A.consummed).
-					filter(A->testOverlapping(interval0, A)).
-					collect(Collectors.toList());
-			
-			if(arcs.isEmpty()) continue;
-			if(!keep_flag) arcs.forEach(A->A.consummed=true);
-			
-			int maxdp = 0;
-			final VariantContextBuilder vcb = new VariantContextBuilder();
-			final Set<Allele> alleles = new HashSet<>();
-			alleles.add(REF);
-			final List<Genotype> genotypes = new ArrayList<>(samples.size());
-			
-			
-			vcb.chr(dict.getSequence(arcs.get(0).tid).getSequenceName());
-			final int chromStart = arcs.stream().mapToInt(A->A.chromStart).min().getAsInt();
-			vcb.start(chromStart);
-			final int chromEnd = arcs.stream().mapToInt(A->A.chromEnd).max().getAsInt();
-			vcb.stop(chromEnd);
-			
-			vcb.attribute(VCFConstants.END_KEY, chromEnd);
-			vcb.attribute("SVLEN", CoordMath.getLength(chromStart,chromEnd));
-			
-			int depth = 0;
-			final Set<String> gotSamples = new TreeSet<>();
-			for(final String sample : samples) {
-			
-				final List<Arc> sampleArcs = arcs.stream().
-						filter(A->A.sample.equals(sample)).
-						collect(Collectors.toList());
-				if(sampleArcs.isEmpty())
-					{
-					genotypes.add(GenotypeBuilder.createMissing(sample, 2));
-					}
-				else
-					{
-					final GenotypeBuilder gb = new GenotypeBuilder(sample);
-					alleles.add(SPLIT);
-					gb.alleles(Arrays.asList(REF,SPLIT));
-					final int countCat1= (int)sampleArcs.stream().filter(A->A.type==SUPPORTING_LEFT).count();
-					final int countCat2= (int)sampleArcs.stream().filter(A->A.type==SUPPORTING_RIGHT).count();
-					gb.DP(countCat1+countCat2);
-					gb.attribute("N5", countCat1);
-					gb.attribute("N3", countCat2);
-					
-					maxdp = Math.max(maxdp, countCat1+countCat2);
-					
-					depth+=countCat1+countCat2;
-					genotypes.add(gb.make());
-					gotSamples.add(sample);
-					}
-				}
-			if(depth<=this.min_supporting_reads) continue;
-			
-			vcb.genotypes(genotypes);
-			vcb.alleles(alleles);
-			vcb.attribute(VCFConstants.DEPTH_KEY, depth);
-			vcb.attribute("NSAMPLES", gotSamples.size());
-			vcb.attribute("SAMPLES", new ArrayList<>(gotSamples));
-			vcb.attribute(VCFConstants.SVTYPE, "INV");
-			vcb.attribute("DPMAX", maxdp);
-			vcw.add(vcb.make());
+	private static class SubGenomeSequence extends MappedSequence {
+		private final Locatable genomicPos;
+		private final CharSequence seq;
+		SubGenomeSequence(Locatable genomicPos,GenomicSequence genomicSeq) {
+			this.genomicPos = genomicPos;
+			this.seq = genomicSeq.subSequence(genomicPos); 
 			}
-		
+		@Override
+		public char charAt(int index) {
+			return (char)seq.charAt(index);
+			}
+		@Override
+		public int length() {
+			return seq.length();
+			}
+		@Override
+		CigarOperator getOperator() {
+			return CigarOperator.D;
+			}
 		}
 
+	
+	private static class Inversion {
+		String contig;
+		int start;
+		String sequence;
+		int count=0;
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.max_size_inversion<100) {
-			LOG.error("max size insersion must be >=100");
-			return -1;
-			}
-	 	final Map<SamReader,CloseableIterator<SAMRecord>> samReaders = new HashMap<>();
-	 	VariantContextWriter vcw= null;
-	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
 		try {
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFaidx);
-			
-			final short SA_TAG = SAMTag.SA.getBinaryTag();
-
-			
-			final QueryInterval queryIntervals[] = this.intervallistProvider==null?
-				null:
-				this.intervallistProvider.
-					dictionary(dict).
-					optimizedQueryIntervals()
+			final String input =oneFileOrNull(args);
+			final SamReaderFactory srf = super.createSamReaderFactory()
+					.validationStringency(ValidationStringency.LENIENT)
+					.referenceSequence(this.referenceFaidx)
 					;
-			
-			final AggregateFilter theFilter = new AggregateFilter(
-					Arrays.asList(
-							new MappingQualityFilter(this.mapq),
-							new DuplicateReadFilter(),
-							new SecondaryOrSupplementaryFilter(),
-							new FailsVendorReadQualityFilter(),
-							new SamRecordFilter() {
-								@Override
-								public boolean filterOut(SAMRecord first, SAMRecord second) {
-									return filterOut(first) || filterOut(second);
-								}
-								@Override
-								public boolean filterOut(final SAMRecord rec) {
-									if(rec.getReadUnmappedFlag()) return true;
-									if(rec.getAttribute(SA_TAG) == null) return true;
-									final Cigar cigar = rec.getCigar();
-									if(cigar==null || cigar.isEmpty() || !cigar.isClipped()) return true;
-									return false;
-								}
-							}
-							)				
-					);
-			
-			for(final Path samPath:IOUtils.unrollPaths(args)) {
-				final SamReader srf = SamReaderFactory.
-						makeDefault().
-						validationStringency(ValidationStringency.LENIENT).
-						referenceSequence(this.referenceFaidx).
-						open(samPath);
-				
-				final CloseableIterator<SAMRecord> iter;
-				if(queryIntervals!=null)
-					{
-					iter = srf.query(queryIntervals,false);
-					}
-				else
-					{
-					iter = srf.iterator();
-					}
-				final FilteringSamIterator sfi = new FilteringSamIterator(iter,theFilter);
-				samReaders.put(srf,sfi);
-				}
-			final SamFileHeaderMerger headerMerger  = new SamFileHeaderMerger(SAMFileHeader.SortOrder.coordinate,samReaders.keySet().stream().map(SR->SR.getFileHeader()).collect(Collectors.toList()),false);
-			final MergingSamRecordIterator iter = new MergingSamRecordIterator( headerMerger,samReaders, true);
-			
-			
-			
-			final Set<String> samples = headerMerger.getHeaders().stream().
-					flatMap(R->R.getReadGroups().stream()).
-					map(RG->this.partition.apply(RG, null)).
-					filter(S->!StringUtil.isBlank(S)).
-					collect(Collectors.toCollection(TreeSet::new));
-			
-			if(samples.isEmpty())
-				{
-				iter.close();
-				LOG.error("No samples/bam defined");
-				return -1;
-				}
-			
-			final ToIntBiFunction<Locatable, Locatable> distance = (A,B) ->{
-				if(CoordMath.overlaps(A.getStart(), A.getEnd(), B.getStart(), B.getEnd())) return 0;
-				if(A.getEnd()<B.getStart()) {
-					return B.getStart() - A.getEnd();
-					}
-				else
-					{
-					return A.getStart() - B.getEnd();
-					}
-				};
-		
-			
-			final Set<VCFHeaderLine> meta=new HashSet<>();
-			VCFStandardHeaderLines.addStandardFormatLines(meta,true,
-					VCFConstants.GENOTYPE_KEY,
-					VCFConstants.DEPTH_KEY
-					);
-			VCFStandardHeaderLines.addStandardInfoLines(meta,true,
-					VCFConstants.DEPTH_KEY,
-					VCFConstants.END_KEY
+			try(ReferenceSequenceFile referenceSequenceFile = new IndexedFastaSequenceFile(this.referenceFaidx)) {
+				GenomicSequence genomicSequence= null;
+				final SAMSequenceDictionary dict =SequenceDictionaryUtils.extractRequired(referenceSequenceFile);
+				try(SamReader samReader =  srf.open(StringUtils.isBlank(input)?SamInputResource.of(stdin()):SamInputResource.of(input))) {
+					final SAMFileHeader samHeader = samReader.getFileHeader();
+					final String sampleName = samHeader.getReadGroups().
+							stream().
+							map(RG->RG.getSample()).
+							filter(S->!StringUtils.isBlank(S)).
+							findFirst().orElseThrow();
+	
 					
-					);
-			meta.add(new VCFFormatHeaderLine("N5", 1, VCFHeaderLineType.Integer,"Number of validating clipped reads in 5'"));
-			meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of validating clipped reads in 3'"));
-			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
-			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
-			meta.add(new VCFInfoHeaderLine("SAMPLES", VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Samples having some split reads"));
-			meta.add(new VCFInfoHeaderLine("DPMAX", 1, VCFHeaderLineType.Integer,"MAX DP among samples"));
-			meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
-			
-			
-			
-			final VCFHeader header=new VCFHeader(meta,samples);
-			JVarkitVersion.getInstance().addMetaData(this, header);
-			header.setSequenceDictionary(dict);
-			vcw = this.writingVariants.open(this.outputFile);
-			vcw.writeHeader(header);
-			
-			
-			String prevContig=null;
-			while(iter.hasNext())
-				{
-				final SAMRecord rec = iter.next();
-				
-				if(theFilter.filterOut(rec)) continue;
-				
-				final String sample= this.partition.getPartion(rec, null);
-				if(StringUtil.isBlank(sample))continue;
-				
-				final List<SAMRecord> others = SAMUtils.getOtherCanonicalAlignments(rec).
-						stream().
-						filter(R->rec.getContig().equals(R.getContig())).
-						filter(R->rec.getReadNegativeStrandFlag()!=R.getReadNegativeStrandFlag()).
-						filter(R->distance.applyAsInt(rec,R)< this.max_size_inversion).
-						collect(Collectors.toList());
-				
-				if(others.isEmpty()) continue;
-				
-				if(!rec.getContig().equals(prevContig)) {
-					dump(dict,database,vcw,samples,null);
-					database.clear();
-					prevContig = rec.getContig();
-					}
-				else
-					{
-					final int before = rec.getUnclippedStart() - this.max_size_inversion*2;
-					dump(dict,database,vcw,samples,before);
-					database.entrySet().removeIf(entries->entries.getKey().getEnd()< before);
-					}
+					final Set<VCFHeaderLine> meta=new HashSet<>();
+					VCFStandardHeaderLines.addStandardFormatLines(meta,true,
+							VCFConstants.GENOTYPE_KEY,
+							VCFConstants.DEPTH_KEY
+							);
+					VCFStandardHeaderLines.addStandardInfoLines(meta,true,
+							VCFConstants.DEPTH_KEY,
+							VCFConstants.END_KEY
+							
+							);
+					meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+					meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
+					meta.add(new VCFInfoHeaderLine("SEQ", 1, VCFHeaderLineType.String,"DNA Sequence"));
+					
+					
+					final VCFHeader header=new VCFHeader(meta,Collections.singletonList(sampleName));
+					JVarkitVersion.getInstance().addMetaData(this, header);
+					header.setSequenceDictionary(dict);
+					try(VariantContextWriter vcw = this.writingVariants.open(this.outputFile)) {
+						vcw.writeHeader(header);
+						final Map<Interval,Inversion> all_inversions = new TreeMap<>();
+						String prevContig=null;
+						try(CloseableIterator<SAMRecord> iter = samReader.iterator()) {
+						for(;;)
+							{
+							final SAMRecord rec = iter.hasNext()?iter.next():null;
+							if(rec!=null && !SAMRecordDefaultFilter.accept(rec,this.mapq)) continue;
+							
+							if(rec==null || (prevContig!=null && !rec.getContig().equals(prevContig))) {
+								for(Inversion inv: all_inversions.values()) {
+									final Allele alt = Allele.create("<INV>",false);
+									final VariantContextBuilder vcb = new VariantContextBuilder(
+											"", 
+											inv.contig, 
+											inv.start,
+											inv.start + inv.sequence.length()-1,
+											Arrays.asList(Allele.REF_N,alt)
+											);
+									vcb.attribute("SVLEN",inv.sequence.length());
+									vcb.attribute("SEQ",inv.sequence);
+									vcb.attribute(VCFConstants.END_KEY,inv.start + inv.sequence.length()-1);
+									vcb.attribute("SVTYPE","INV");
+									
+									vcb.genotypes(new GenotypeBuilder(sampleName, Arrays.asList(Allele.REF_N,alt))
+											.DP(inv.count)
+											.make());
+									
+									vcw.add(vcb.make());
+									}
+								
+								
+								if(rec==null) {
+									break;
+									}
+								prevContig = rec.getContig();
+								all_inversions.clear();
+								}
+							
+							
+							final byte[] sequence = rec.getReadBases();
+							if(SAMRecord.NULL_SEQUENCE.equals(sequence)) continue;
+							final Cigar cigar = rec.getCigar();
+							if(cigar.numCigarElements()< 4 ) continue;
+							
+							
+							final List<MappedSequence> subSequences= new ArrayList<>();
+							
+							int refpos1 = rec.getAlignmentStart();
+							int readpos0=0;
+							for(CigarElement ce: cigar.getCigarElements()) {
+								final CigarOperator op = ce.getOperator();
+								switch(op) {
+									case S: case H: break;
+									case M: case X: case EQ: break;
+									case N: case D: {
+										if(genomicSequence==null || !genomicSequence.hasName(rec.getContig())) {
+											genomicSequence = new GenomicSequence(referenceSequenceFile, rec.getContig());
+											}
+										final Locatable loc = new SimpleInterval(
+												rec.getContig(),
+												refpos1,
+												refpos1+ce.getLength()-1
+												);
+										subSequences.add(new SubGenomeSequence(loc, genomicSequence));
+										break;
+										}
+									case I: {
+										subSequences.add(new SubReadSequence(sequence, readpos0, ce.getLength()));
+										break;
+										}
+									case P:break;
+									}
 
-				final Consumer<Arc> registerArc = (A)->{
-					if(A.chromEnd<=A.chromStart) throw new IllegalArgumentException(A.toString());
-					final Interval rgn = new Interval(rec.getContig(), A.chromStart,A.chromEnd);
-					List<Arc> list = database.get(rgn);
-					if(list==null) {
-						list = new ArrayList<>();
-						database.put(rgn,list);
-						}
-					list.add(A);					
-					};
-				final Cigar cigar = rec.getCigar();
-				if(cigar.isLeftClipped())
-					{
-					for(final SAMRecord rec2:others) {
-						// NON if(rec.getEnd()>= rec2.getStart()) continue;
-						final Arc arc = new Arc();
-						arc.sample  = sample;
-						arc.tid = rec.getReferenceIndex();
-						arc.chromStart = Math.min(rec.getStart(),rec2.getStart());
-						arc.chromEnd = Math.max(rec.getEnd(),rec2.getEnd());
-						if(arc.length()> this.max_size_inversion) continue;
-
-						
-						arc.type = SUPPORTING_LEFT;
-						registerArc.accept(arc);
+								if(ce.getOperator().consumesReadBases()) {
+									readpos0+=ce.getLength();
+									}
+								if(ce.getOperator().consumesReferenceBases()) {
+									refpos1+=ce.getLength();
+									}
+								} // end loop cigar elements
+							
+							for(int x=0;x+1< subSequences.size();++x) {
+								final MappedSequence seqx = subSequences.get(x);
+								if(seqx.length()< this.min_inv_length) continue;
+								for(int y=x+1;y< subSequences.size();++y) {
+									final MappedSequence seqy = subSequences.get(y);
+									if(seqx.length()!=seqy.length()) continue;
+									if(seqx.getOperator().equals(seqy.getOperator())) continue;
+									if(!AcidNucleics.areReverseComplement(seqx,seqy)) continue;
+									Locatable loc=null;
+									if(seqx instanceof SubGenomeSequence) {
+										loc = SubGenomeSequence.class.cast(seqx).genomicPos;
+										}
+									else if(seqy instanceof SubGenomeSequence) {
+										loc = SubGenomeSequence.class.cast(seqy).genomicPos;
+										}
+									if(loc!=null) {
+										final Interval r= new Interval(loc);
+										Inversion inv = all_inversions.get(r);
+										if(inv==null) {
+											inv=new Inversion();
+											inv.contig = loc.getContig();
+											inv.start = loc.getStart();
+											inv.sequence = seqx.toString();
+											all_inversions.put(r,inv);
+											}
+										inv.count++;
+										}
+									}
+								
+								}
+							
+							}
+							
+							}
 						}
 					}
-			
-				
-				if(cigar.isRightClipped())
-					{
-					for(final SAMRecord rec2:others) {
-						final Arc arc = new Arc();
-						arc.sample  = sample;
-						arc.tid = rec.getReferenceIndex();
-						arc.chromStart = Math.min(rec.getStart(),rec2.getStart());
-						arc.chromEnd = Math.max(rec.getEnd(),rec2.getEnd());
-						if(arc.length()> this.max_size_inversion) continue;
-						
-						arc.type = SUPPORTING_RIGHT;
-						registerArc.accept(arc);
-						}
-					}				
 				}
-			dump(dict,database,vcw,samples,null);
-			iter.close();
-			vcw.close();vcw=null;
-			for(final SamReader sr: samReaders.keySet()) {
-				samReaders.get(sr).close();
-				sr.close();
-			}
 			return 0;
 			}
 		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcw);	
 			}
 		}
 
