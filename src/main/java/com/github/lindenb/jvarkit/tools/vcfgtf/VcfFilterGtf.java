@@ -110,7 +110,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private boolean hide_biotypes =false;
 
 	private static class GTFInterval extends LocatableDelegate<GTFLine> {
-		final int extend;
+		protected final int extend;
 		GTFInterval(final GTFLine line,int extend) {
 			super(line);
 			this.extend=extend;
@@ -148,6 +148,49 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 		@Override
 		public String getTag() {
 			return "in_exon_boundaries" + xSuffix(this.extend);
+			}
+		}
+	
+	/** upstream / downstream gene */
+	private static abstract class GTFGeneXXXStream extends GTFInterval {
+		protected GTFGeneXXXStream(final GTFLine line,int extend) {
+			super(line,extend);
+			if(extend<=0) throw new IllegalStateException();
+			}
+		// each breakend before/after
+		protected int x1() { return Math.max(1,getDelegate().getStart()-this.extend);}
+		protected int x2() { return Math.max(1,getDelegate().getStart()-1);}
+		protected int x3() { return getDelegate().getEnd()+1;}
+		protected int x4() { return getDelegate().getEnd()+this.extend;}
+		}
+	
+	/** upstream / downstream gene */
+	private static class GTFGeneUpstream extends GTFGeneXXXStream {
+		protected GTFGeneUpstream(final GTFLine line,int extend) {
+			super(line,extend);
+			}
+		@Override
+		public int getStart() { return getDelegate().isPostiveStrand()?x1():x3();}
+		@Override
+		public int getEnd() { return getDelegate().isPostiveStrand()?x2():x4();}
+		@Override
+		public String getTag() {
+			return "in_gene_upstream" + xSuffix(this.extend);
+			}
+		}
+	
+	/** upstream / downstream gene */
+	private static class GTFGeneDownstream extends GTFGeneXXXStream {
+		protected GTFGeneDownstream(final GTFLine line,int extend) {
+			super(line,extend);
+			}
+		@Override
+		public int getStart() { return getDelegate().isPostiveStrand()?x3():x1();}
+		@Override
+		public int getEnd() { return getDelegate().isPostiveStrand()?x4():x2();}
+		@Override
+		public String getTag() {
+			return "in_gene_downstream" + xSuffix(this.extend);
 			}
 		}
 	
@@ -317,14 +360,28 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 					for(Integer extend: all_extends) {
 						pushInterval(intervalTreeMap, new GTFInterval(feat,extend));
 						}
-					
-					if(feat.getType().equals("exon")) {
+					// special features for exon
+					if(feat.isExon()) {
 						for(int x=0;x<2;++x) {
 							for(Integer extend: all_extends) {
 								pushInterval(intervalTreeMap, new GTFExonBoundaries(feat,x,extend));
 								}
 							}
-										
+						}
+					// special features for genes
+					else if(feat.isGene()) {
+						for(Integer extend: all_extends) {
+							if(extend.intValue()==0) continue;
+							GTFGeneXXXStream gxs = new GTFGeneDownstream(feat, extend);
+							if(gxs.getStart()< gxs.getEnd()) {
+								pushInterval(intervalTreeMap,gxs);
+								}
+							gxs = new GTFGeneUpstream(feat, extend);
+							if(gxs.getStart()< gxs.getEnd()) {
+								pushInterval(intervalTreeMap,gxs);
+								}
+							}
+							
 						}
 	 				}
 				}
@@ -342,11 +399,25 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 				}
 			
 			for(Integer extend: all_extends) {
-				final VCFInfoHeaderLine h=new VCFInfoHeaderLine(
+				VCFInfoHeaderLine h=new VCFInfoHeaderLine(
 						"in_exon_boundaries"+xSuffix(extend),
 						0,VCFHeaderLineType.Flag,
 						"Variant overlap exon boundaries "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
 				header.addMetaDataLine(h);
+				
+				if(extend.intValue()>0) {
+					h=new VCFInfoHeaderLine(
+							"in_gene_downstream"+xSuffix(extend),
+							0,VCFHeaderLineType.Flag,
+							"Variant downstream gene "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
+					header.addMetaDataLine(h);
+					
+					h=new VCFInfoHeaderLine(
+							"in_gene_upstream"+xSuffix(extend),
+							0,VCFHeaderLineType.Flag,
+							"Variant upstream gene "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
+					header.addMetaDataLine(h);
+					}
 				}
 			
 			final VCFInfoHeaderLine infoGeneNames=new VCFInfoHeaderLine(
