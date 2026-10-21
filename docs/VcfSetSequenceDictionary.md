@@ -37,6 +37,10 @@ Usage: vcfsetdict [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -o, --out
       Output file. Optional . Default: stdout
+    --plain
+      input is a VCF file, just change the dictionary in the header and the 
+      first CHROM column. Could be faster
+      Default: false
   * -r, -R, --reference, --dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 

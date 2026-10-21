@@ -96,6 +96,7 @@
       <class name="com.github.lindenb.jvarkit.tools.bam2bedgraph.BamsToBedGraphTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bammatrix.BamMatrixTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bed2svg.BedToSVGTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfgtf.VcfFilterGtfTest"/>
     </classes>
   </test>
 </suite>

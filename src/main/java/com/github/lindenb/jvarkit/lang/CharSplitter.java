@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.lang;
 import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -131,7 +132,6 @@ public default void split(final CharSequence seq,final int maxTokens,final java.
 		}
 	handler.accept(seq.subSequence(prev, seqLen));
 	}
-
 
 
 

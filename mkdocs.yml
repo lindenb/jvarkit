@@ -292,7 +292,6 @@ nav:
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffilterbyliftover" : VcfFilterByLiftOver.md
         - "vcffiltergenes" : VcFilterGenes.md
-        - "vcffiltergtf" : VcfFilterGtf.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
         - "vcfflatten" : VCFFlatten.md
@@ -302,6 +301,7 @@ nav:
         - "vcfgnomadsv" : VcfGnomadSV.md
         - "vcfgrantham" : VcfGrantham.md
         - "vcfgroupbypop" : VcfGroupByPopulation.md
+        - "vcfgtf" : VcfFilterGtf.md
         - "vcfhead" : VcfHead.md
         - "vcfisec" : VcfISec.md
         - "vcfliftover" : VcfLiftOver.md
