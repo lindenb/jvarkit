@@ -116,6 +116,8 @@ public class Biostar139647 extends Launcher
 	private String SELECTED_REF_LABEL = null;
 	@Parameter(names={"-F","--fullalignment"},description="by default heading/traling gaps are ignored ( as in read to reference alignment). Use this option to treat them as meaningfull indels as in full genome alignment. Optional")
 	private boolean FULL_ALIGN = false;
+	@Parameter(names={"-X","--matchandmismatch"},description="when a reference is selected, identical residue match (=) and mismatches (X) are output. Default is using general match (M). Optional")
+	private boolean CIGAR_X_EQ = false;
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
@@ -377,7 +379,17 @@ public class Biostar139647 extends Launcher
 						{
 							if (Character.isLetter(referenceEntry.at(n)))
 							{
-								cigars.add(new CigarElement(1, CigarOperator.M));
+								if (CIGAR_X_EQ)
+								{
+									if (entry.at(n)==entry.at(n))
+										cigars.add(new CigarElement(1, CigarOperator.EQ));
+									else
+										cigars.add(new CigarElement(1, CigarOperator.X));
+								}
+								else
+								{
+									cigars.add(new CigarElement(1, CigarOperator.M));
+								}
 							}
 							else
 							{
