@@ -73,7 +73,7 @@ Usage: lowresbam2raster [options] Files
       Hide read if in a paired-end pair, both reads are mapped but not in 
       proper pair.
       Default: false
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, --region
@@ -174,20 +174,6 @@ java -jar dist/jvarkit.jar  lowresbam2raster \
 
  * Baudic M, Murata H, Bosada FM, Melo US, Aizawa T, Lindenbaum P, van der Maarel LE, Guedon A, Baron E, Fremy E, Foucal A, Ishikawa T, Ushinohama H, Jurgens SJ, Choi SH, Kyndt F, Le Scouarnec S, Wakker V, Thollet A, Rajalu A, Takaki T, Ohno S, Shimizu W, Horie M, Kimura T, Ellinor PT, Petit F, Dulac Y, Bru P, Boland A, Deleuze JF, Redon R, Le Marec H, Le Tourneau T, Gourraud JB, Yoshida Y, Makita N, Vieyres C, Makiyama T, Mundlos S, Christoffels VM, Probst V, Schott JJ, Barc J. TAD boundary deletion causes PITX2-related cardiac electrical and structural defects. Nat Commun. 2024 Apr 20;15(1):3380. doi: 10.1038/s41467-024-47739-x. PMID: 38643172; PMCID: PMC11032321.
 
-## see also
 
-  * https://twitter.com/yokofakun/status/951769190884610051
-  * https://twitter.com/yokofakun/status/973836167522279425
-  * https://twitter.com/notSoJunkDNA/status/1012309599079272448
-
-## Screenshots
-
-![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
-
-![https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg](https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg)
-
-![https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg](https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg)
-
-![https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg](https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg)
 
 

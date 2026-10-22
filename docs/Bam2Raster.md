@@ -59,7 +59,7 @@ Usage: bam2raster [options] Files
       Output file. Optional . Default: stdout [20180829] filename can be also 
       an existing directory or a zip file, in witch case, each individual will 
       be saved in the zip/dir.
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, --region

@@ -330,6 +330,7 @@ import com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndex;
 import com.github.lindenb.jvarkit.tools.vcfcluster.VcfCluster;
 import com.github.lindenb.jvarkit.tools.vcfcollapse.VcfCollapse;
 import com.github.lindenb.jvarkit.tools.vcfcombine2snvs.VCFCombineTwoSnvs;
+import com.github.lindenb.jvarkit.tools.vcfcombine2snvs.VcfPhasedCombineSNVs;
 import com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite;
 import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcfcoocurrence.VcfCoOccurrence;
@@ -983,6 +984,7 @@ public class JvarkitCentral {
 		command(VcfMultiToOneAllele.class);
 		command(VcfMoveFiltersToInfo.class);
 		command(VCFMerge.class);
+		command(VcfPhasedCombineSNVs.class);
 		command(VcfTbiToBed.class);
 		command(VcfSplitNVariants.class);
 		command(VcfStrechToSvg.class);

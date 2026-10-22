@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,6 +69,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
@@ -78,9 +80,11 @@ import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
+import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster.SamRecordPair;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -90,6 +94,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
@@ -102,6 +107,8 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -114,6 +121,9 @@ public class BamToDOM extends SVGDocument {
 	private static final int HEIGHT_MAIN_TITLE=30;
 	private static final int HEIGHT_SAMPLE_NAME=20;
 	
+	private enum GroupBy {
+		
+	}
 	
 	private static final Logger LOG = Logger.of(BamToDOM.class);
 
@@ -149,10 +159,123 @@ public class BamToDOM extends SVGDocument {
 	private SAMSequenceDictionary referenceDict=null;
 	private CharSequence genomicSequence=null;
 	private Locatable interval=null;
+	private final List<Region> all_regions = new ArrayList<>();
+	
+	
+	private class SamRecordPair implements HasName
+		{
+		private SAMRecord R1 = null;
+		private SAMRecord R2 = null;
+		
+		public SamRecordPair(final SAMRecord rec)
+			{
+			this.R1 = rec;
+			}
+		@Override
+		public String getName() {
+			return R1.getReadName();
+			}
+		}
+	
+	private class Region extends LocatableDelegate<Locatable> {
+		double x;
+		double width;
+		double y=0.0;//may change
+		double height=0.0; //may change
+		Region(final Locatable loc) {
+			super(loc);
+			}
+		public double getX() {
+			return x;
+			}
+		public double getWidth() {
+			return width;
+			}
+		int trimPosition(int genomic1) {
+			return Math.min(Math.max(genomic1, this.getStart()),this.getEnd());
+			}
+		double toPixel(int genomic1) {
+			return this.getX() + ((genomic1-getStart())/(double)getLengthOnReference())*this.getWidth();
+			}
+		QueryInterval toQueryInterval() {
+			return new QueryInterval(referenceDict.getSequenceIndex(getContig()), getStart(), getEnd());
+			}
+		
+		// BAM stuff
+		final Map<String,List<SAMRecord>> group2buffer= new HashMap<>();
+		
+		void addSAMRecord(SAMFileHeader header, final SAMRecord rec) {
+			final String groupName = getGroupForSAMRecord(header, rec);
+			List<SAMRecord> L = group2buffer.get(groupName);
+			if(L==null) {
+				L= new ArrayList<SAMRecord>();
+				group2buffer.put(groupName, L);
+				}
+			L.add(rec);
+			}
+		
+		Node plotBam(SAMFileHeader header) {
+			Element g = BamToDOM.this.group();
+			
+			return g;
+			}
+		
+		
+		}
+	
+	
+	
+	public String getGroupForSAMRecord(final SAMFileHeader samHeader,final SAMRecord rec) {
+		return null;
+		}
+	
+	public void plot(Path path,SamReader samReader) {
+		final SAMFileHeader samHeader = samReader.getFileHeader();
+		final String sampleName= samHeader.getReadGroups().stream()
+				.map(RG->RG.getSample())
+				.filter(SN->!StringUtils.isBlank(SN))
+				.findFirst()
+				.orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+		final QueryInterval[] query_intervals= QueryInterval.optimizeIntervals(
+				all_regions.stream().map(R->R.toQueryInterval()).toArray(N->new QueryInterval[N])
+				);
+		final IntervalTreeMap<Region> regionMap=new IntervalTreeMap<BamToDOM.Region>();
+		for(Region r: this.all_regions) {
+			regionMap.put(new Interval(r), r);
+			}
+		try(CloseableIterator<SAMRecord> iter=samReader.query(query_intervals, false)) {
+			while(iter.hasNext()) {
+				final SAMRecord rec=iter.next();
+				regionMap.getOverlapping(rec).stream().forEach(R->R.addSAMRecord(samHeader,rec));
+				}
+			}
+		final Set<String> groups = all_regions.stream().flatMap(R->R.group2buffer.keySet().stream()).collect(Collectors.toSet());
+		for(String groupName: groups) {
+			
+			}
+		
+		for(Region r: this.all_regions) {
+			
+			}
 
-	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+		}
 	
 	
+	private Collection<SamRecordPair> viewAsPaired(final List<SAMRecord> records) {
+		final Map<String,SamRecordPair> hash=new HashMap<String, BamToDOM.SamRecordPair>();
+		for(SAMRecord rec:records) {
+			final String name=rec.getReadName();
+			SamRecordPair p = hash.get(name);
+			if(p==null)  {
+				hash.put(name, new SamRecordPair(rec));
+				}
+			else if(p.R2!=null)
+				{
+				p.R2=rec;
+				}
+			}
+		return hash.values();
+		}
 	
 	private class Context
 		{
@@ -666,19 +789,17 @@ public class BamToDOM extends SVGDocument {
 		svgOutput.geneNames.addAll(gene_names);
 		return svgOutput;
 		}
-		@SuppressWarnings("fallthrough")
-		private Node printSamRecord(
-				final Context context,
-				final SAMRecord record,
-				final Map<Integer,Counter<Character>> consensus
-				)
-			throws XMLStreamException
-			{
-			double mid_y= context.featureHeight/2.0;
-			final double y_h95= context.featureHeight*0.90;
-			final double y_top5=(context.featureHeight-y_h95)/2.0;
+	
+	Node makeSamRecord(
+			final Region region,
+			final SAMRecord record,
+			final double featureHeight
+			)	{
+			double mid_y=  featureHeight/2.0;
+			final double y_h95= featureHeight*0.90;
+			final double y_top5= (featureHeight-y_h95)/2.0;
 			final double y_bot5= y_top5+y_h95;
-			final double arrow_w= context.featureHeight/3.0;
+			final double arrow_w= featureHeight/3.0;
 	
 			
 			/* print that sam record */

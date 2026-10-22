@@ -38,8 +38,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Result;
 import javax.xml.transform.Transformer;
@@ -47,13 +45,12 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
-import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.html.HTMLDocument;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -65,11 +62,12 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
-import com.github.lindenb.jvarkit.svg.SVG;
+import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+import com.github.lindenb.jvarkit.xml.DocumentWrapper;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -124,35 +122,24 @@ $ java -jar dist/jvarkit.jar sv2svg -r "9:137229907-137231907" -r "14:79838174-7
 
 [https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb](https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb)
 
-[https://twitter.com/yokofakun/status/1063369955406725120](https://twitter.com/yokofakun/status/1063369955406725120)
 
 ![https://imgur.com/EVOrXuc](https://i.imgur.com/EVOrXuc.gif)
 
-[https://twitter.com/yokofakun/status/1063511215832539136](https://twitter.com/yokofakun/status/1063511215832539136)
 
-![https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg](https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg)
 
 [https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614](https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614)
 
-[https://twitter.com/yokofakun/status/1064484537059684355](https://twitter.com/yokofakun/status/1064484537059684355)
-
-![https://twitter.com/yokofakun/status/1064484537059684355](https://pbs.twimg.com/media/DsXObwuXoAAepSw.jpg)
-
-[https://twitter.com/yokofakun/status/1064503996285681666](https://twitter.com/yokofakun/status/1064503996285681666)
-
-![https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg](https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg)
 
 
 [https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09](https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09)
 
-![https://twitter.com/yokofakun/status/1448993550746759169](https://pbs.twimg.com/media/FBva8sTWUAMNApn?format=jpg&name=large)
 
 END_DOC
  */
 @Program(name="sv2svg",
 description="BAM to SVG. Used to display structural variations.",
 keywords={"bam","alignment","graphics","visualization","svg","structural","variant"},
-modificationDate="20230505",
+modificationDate="20261022",
 creationDate="20181115",
 biostars={405059,9495994},
 jvarkit_amalgamion = true,
@@ -191,11 +178,9 @@ public class SvToSVG extends Launcher
 	
 	private final List<Sample> sampleList =new ArrayList<>();
 	private double featureHeight = 10;
-	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-	private Document document = null;
+	//private Document document = null;
 	private final double arrow_w = 5;
-	private ReferenceSequenceFile indexedFastaSequenceFile = null;
 	private VCFReader vcfFileReader = null;
 	
 	private final String DEBUG_READ="___";
@@ -465,23 +450,22 @@ public class SvToSVG extends Launcher
 		}/* end sample */
 	
 	
-	/** convert double to string */
-	private String format(final double v)
-		{
-		return this.decimalFormater.format(v);
-		}
-	
+
 	
 	private Element buildSample(
 			final Sample sample,
-			final DocumentFragment animationLayer
+			final ReferenceSequenceFile indexedFastaSequenceFile,
+			final DocumentFragment animationLayer,
+			final SVGDocument svgDoc
 			)
 		{
-		final Element sampleRoot = element("g");
+		final Element sampleRoot = svgDoc.group();
 		double curr_y = sample.getY();
-		final Element sampleLabel= element("text",sample.sampleName);
-		sampleLabel.setAttribute("x", "5");
-		sampleLabel.setAttribute("y", format(curr_y +14));
+		final Element sampleLabel= svgDoc.text(
+				5,
+				curr_y +14
+				,sample.sampleName
+				);
 		sampleLabel.setAttribute("class", "samplename");
 		sampleRoot.appendChild(sampleLabel);
 		curr_y += 20;
@@ -493,14 +477,14 @@ public class SvToSVG extends Launcher
 			region.y = curr_y;
 			// genomic sequence will be used to test if there is a mismatch. No garantee it exists.
 			final GenomicSequence genomicSequence;
-			if(this.indexedFastaSequenceFile !=null) {
-				final ContigNameConverter ctgConver = ContigNameConverter.fromOneDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
+			if(indexedFastaSequenceFile !=null) {
+				final ContigNameConverter ctgConver = ContigNameConverter.fromOneDictionary(indexedFastaSequenceFile.getSequenceDictionary());
 				final String sname = ctgConver.apply(region.getContig());
 				if(StringUtil.isBlank(sname)) {
 					genomicSequence = null;
 				} else
 					{
-					genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, sname);
+					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, sname);
 					}
 				}
 			else
@@ -509,13 +493,14 @@ public class SvToSVG extends Launcher
 				}
 			
 			
-			final Element regionRoot = element("g");
+			final Element regionRoot = svgDoc.group();
 			sampleRoot.appendChild(regionRoot);
 			
-			final Element rgnLabel= element("text",
-					new SimpleInterval(region).toNiceString()+" Length:"+this.niceIntFormat.format((region.getLengthOnReference())));
-			rgnLabel.setAttribute("x", "5");
-			rgnLabel.setAttribute("y", format(curr_y+12));
+			final Element rgnLabel= svgDoc.text(
+					5,
+					curr_y+12,
+					new SimpleInterval(region).toNiceString()+" Length:"+this.niceIntFormat.format((region.getLengthOnReference()))
+					);
 			rgnLabel.setAttribute("class", "samplename");
 			regionRoot.appendChild(rgnLabel);
 			curr_y += 20;
@@ -535,11 +520,11 @@ public class SvToSVG extends Launcher
 					collect(Collectors.groupingBy( Function.identity(),()->new TreeMap<>(), Collectors.counting()));
 					;
 				final long max_cov = pos2cov.values().stream().mapToLong(L->L.longValue()).max().orElse(1L);
-				final Element covPath = element("path");
+				final Element covPath = svgDoc.path();
 				covPath.setAttribute("class", "coverage");
 				regionRoot.appendChild(covPath);
 				final StringBuilder sb = new StringBuilder();
-				sb.append( "M 0 "+format(curr_y+this.coverageHeight));
+				sb.append( "M 0 "+svgDoc.format(curr_y+this.coverageHeight));
 				for(int k=0;k< this.drawinAreaWidth;k++)
 					{
 					final int pos1 = region.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.getLengthOnReference());
@@ -550,12 +535,12 @@ public class SvToSVG extends Launcher
 						max().
 						orElseGet(()->0L);
 					final double dpy= curr_y + this.coverageHeight - (dp/(double)max_cov)*(double)this.coverageHeight;
-					sb.append(" L "+format(k)+" "+format(dpy));
+					sb.append(" L "+svgDoc.format(k)+" "+svgDoc.format(dpy));
 					}
-				sb.append(" L "+format(this.drawinAreaWidth)+" "+format(curr_y+this.coverageHeight));
+				sb.append(" L "+svgDoc.format(this.drawinAreaWidth)+" "+ svgDoc.format(curr_y+this.coverageHeight));
 				sb.append(" Z");
 				covPath.setAttribute("d", sb.toString());
-				covPath.appendChild(element("title","Coverage. Max:"+niceIntFormat.format(max_cov)));
+				svgDoc.setTitle(covPath,"Coverage. Max:"+niceIntFormat.format(max_cov));
 				curr_y += this.coverageHeight;
 				curr_y += 2;
 				}
@@ -578,17 +563,17 @@ public class SvToSVG extends Launcher
 					final double midy =  this.featureHeight/2.0;
 					final double maxy = this.featureHeight;
 
-					final Element g1 = element("g");
+					final Element g1 =svgDoc.group();
 					final Element g3;
 					if(shortRead.isSplitRead()) {
 							final Sample.SplitRead splitRead =  Sample.SplitRead.class.cast(shortRead);
 							//final double dx = -0.5*shortRead.getPixelLength();
 							//final double dy = -0.5*shortRead.getHeight();
 							
-							splitRead.g_rotate = element("g");
+							splitRead.g_rotate = svgDoc.group();
 							splitRead.g_rotate.setAttribute("transform","rotate(0)");
 							g1.appendChild(splitRead.g_rotate);
-							g3 = element("g");
+							g3 = svgDoc.group();
 							g3.setAttribute("transform","translate(0,0)");
 							splitRead.g_rotate.appendChild(g3);
 							splitRead.g_translate2 = g3;
@@ -596,8 +581,8 @@ public class SvToSVG extends Launcher
 						g3 = g1;
 						}
 					g1.setAttribute("transform","translate(" +
-						format(shortRead.getPixelStart()) + "," +
-						format(shortRead.getY()) +
+						svgDoc.format(shortRead.getPixelStart()) + "," +
+						svgDoc.format(shortRead.getY()) +
 						")");
 					
 					// https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin
@@ -631,10 +616,10 @@ public class SvToSVG extends Launcher
 					int readpos0_clipped=0;
 					
 					
-					final Element title = element("title",shortRead.getRecord().getPairedReadName()+" "+shortRead.getRecord().getCigarString()+" "+(shortRead.getRecord().getReadNegativeStrandFlag()?"-":"+"));
+					final Element title = svgDoc.title(shortRead.getRecord().getPairedReadName()+" "+shortRead.getRecord().getCigarString()+" "+(shortRead.getRecord().getReadNegativeStrandFlag()?"-":"+"));
 					g3.appendChild(title);
 					
-					final DocumentFragment insertionsFragment = this.document.createDocumentFragment();
+					final DocumentFragment insertionsFragment = svgDoc.fragment();
 					
 					final Cigar cigar = shortRead.getRecord().getCigar();
 					for(int cigarIdx=0;cigarIdx< cigar.numCigarElements();cigarIdx++) {
@@ -650,21 +635,22 @@ public class SvToSVG extends Launcher
 								readpos0_clipped+= ce.getLength();
 								if(!(ref1+ce.getLength() < region.getStart() || ref1> region.getEnd())) {
 									final double ce_length = region.baseToPixel(region.getStart()+ce.getLength());
-									final Element rectInsert = element("rect");
+									final Element rectInsert = svgDoc.rect(
+											region.baseToPixel(ref1)-leftX,
+											0,
+											(this.svgDuration>0  && ce_length >1 ?ce_length:1),
+											this.featureHeight
+											);
 									rectInsert.setAttribute("class", "insert");
-									rectInsert.setAttribute("x", format(region.baseToPixel(ref1)-leftX));
-									rectInsert.setAttribute("y", format(0));
-									rectInsert.setAttribute("width", format(this.svgDuration>0  && ce_length >1 ?ce_length:1));
-									rectInsert.setAttribute("height", format(this.featureHeight));
-									rectInsert.appendChild(element("title", this.niceIntFormat.format(ce.getLength())));
+									svgDoc.setTitle(rectInsert,this.niceIntFormat.format(ce.getLength()));
 									if(this.svgDuration>0 && ce_length >1)
 										{
-										final Element anim = element("animate");
+										final Element anim = svgDoc.animate();
 										rectInsert.appendChild(anim);
 										anim.setAttribute("attributeType","XML");
 										anim.setAttribute("attributeName","width");
 										anim.setAttribute("begin","0s");
-										anim.setAttribute("from",format(ce_length));
+										anim.setAttribute("from",svgDoc.format(ce_length));
 										anim.setAttribute("to","1");
 										anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 										anim.setAttribute("repeatCount",this.svgRepeatCount);
@@ -691,7 +677,7 @@ public class SvToSVG extends Launcher
 									
 									final StringBuilder sb=new StringBuilder();
 									
-									final Element path = element("path");
+									final Element path = svgDoc.path();
 									path.setAttribute("class", "op"+op.name()+(shortRead.isDefaultShortRead()?"":"x"));
 									if(trace) path.setAttribute("style", "fill:blue;");
 									if(!op.isClipping() && shortRead.isDefaultShortRead() && shortRead.getRecord().getReadPairedFlag() &&  !shortRead.getRecord().getProperPairFlag())
@@ -708,29 +694,29 @@ public class SvToSVG extends Launcher
 									
 									// arrow <--
 									if(cigarIdx==0 && shortRead.isNegativeStrand()) {
-										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
-										sb.append(" h ").append(format(distance_pix));
-										sb.append(" v ").append(format(maxy));
-										sb.append(" h ").append(format(-(distance_pix)));
-										sb.append(" l ").append(format(-arrow_w)).append(',').append(-featureHeight/2.0);
+										sb.append( "M ").append(svgDoc.format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
+										sb.append(" h ").append(svgDoc.format(distance_pix));
+										sb.append(" v ").append(svgDoc.format(maxy));
+										sb.append(" h ").append(svgDoc.format(-(distance_pix)));
+										sb.append(" l ").append(svgDoc.format(-arrow_w)).append(',').append(-featureHeight/2.0);
 										sb.append(" Z");
 										}
 									// arrow -->
 									else if(cigarIdx+1==cigar.numCigarElements() && !shortRead.isNegativeStrand()) {
-										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX+distance_pix)).append(',').append(0);
-										sb.append(" h ").append(format(-(distance_pix)));
-										sb.append(" v ").append(format(maxy));
-										sb.append(" h ").append(format(distance_pix));
-										sb.append(" l ").append(format(arrow_w)).append(',').append(-featureHeight/2.0);
+										sb.append( "M ").append(svgDoc.format(region.baseToPixel(ref1)-leftX+distance_pix)).append(',').append(0);
+										sb.append(" h ").append(svgDoc.format(-(distance_pix)));
+										sb.append(" v ").append(svgDoc.format(maxy));
+										sb.append(" h ").append(svgDoc.format(distance_pix));
+										sb.append(" l ").append(svgDoc.format(arrow_w)).append(',').append(-featureHeight/2.0);
 										sb.append(" Z");
 										
 										}
 									else
 										{
-										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
-										sb.append(" h ").append(format(distance_pix));
-										sb.append(" v ").append(format(maxy));
-										sb.append(" h ").append(format(-(distance_pix)));
+										sb.append( "M ").append(svgDoc.format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
+										sb.append(" h ").append(svgDoc.format(distance_pix));
+										sb.append(" v ").append(svgDoc.format(maxy));
+										sb.append(" h ").append(svgDoc.format(-(distance_pix)));
 										sb.append(" Z");
 										}
 									path.setAttribute("d", sb.toString());
@@ -743,12 +729,13 @@ public class SvToSVG extends Launcher
 											if(!isMismatch.test(readpos0_clipped+x, ref1+x)) continue;
 											if(ref1+x < region.getStart()) continue;
 											if(ref1+x > region.getEnd()) continue;
-											final Element rectMismatch = element("rect");
+											final Element rectMismatch =svgDoc.rect(
+													region.baseToPixel(ref1+x)-leftX,
+													0,
+													((region.baseToPixel(ref1+x+1)-region.baseToPixel(ref1+x))),
+													this.featureHeight
+													);
 											rectMismatch.setAttribute("class", "mismatch");
-											rectMismatch.setAttribute("x", format(region.baseToPixel(ref1+x)-leftX));
-											rectMismatch.setAttribute("y", format(0));
-											rectMismatch.setAttribute("width", format((region.baseToPixel(ref1+x+1)-region.baseToPixel(ref1+x))));
-											rectMismatch.setAttribute("height", format(this.featureHeight));
 											g3.appendChild(rectMismatch);
 											}
 										}
@@ -763,12 +750,13 @@ public class SvToSVG extends Launcher
 								next_ref+= ce.getLength();
 								if(!(next_ref < region.getStart() || ref1> region.getEnd())) {
 									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref1);
-									final Element lineE = element("line");
+									final Element lineE = svgDoc.line(
+											region.baseToPixel(ref1)-leftX,
+											midy,
+											region.baseToPixel(ref1)-leftX+distance_pix,
+											midy
+											);
 									lineE.setAttribute("class", "opD");
-									lineE.setAttribute("x1", format(region.baseToPixel(ref1)-leftX));
-									lineE.setAttribute("y1", format(midy));
-									lineE.setAttribute("x2", format(region.baseToPixel(ref1)-leftX+distance_pix));
-									lineE.setAttribute("y2", format(midy));
 									g3.insertBefore(lineE, g3.getFirstChild());
 									}
 								break;
@@ -815,13 +803,14 @@ public class SvToSVG extends Launcher
 				for(int x=1;x<10;++x)
 					{
 					final double xx = (this.drawinAreaWidth/10.0)*x;
-					final Element line = element("line");
+					final Element line = svgDoc.line(
+							xx,
+							y_top_region,
+							xx,
+							curr_y
+							);
 					line.setAttribute("class", "ruler");
-					line.setAttribute("x1", format(xx));
-					line.setAttribute("y1", format(y_top_region));
-					line.setAttribute("x2", format(xx));
-					line.setAttribute("y2", format(curr_y));
-					line.appendChild(element("title",niceIntFormat.format(region.getStart()+(int)(region.getLengthOnReference()/10.0)*x)));
+					svgDoc.setTitle(line,niceIntFormat.format(region.getStart()+(int)(region.getLengthOnReference()/10.0)*x));
 					regionRoot.insertBefore(line, regionRoot.getFirstChild());
 					}
 				
@@ -843,16 +832,18 @@ public class SvToSVG extends Launcher
 							final double x2 = Math.min(region.baseToPixel(ctx.getEnd()+1),this.drawinAreaWidth);
 							final Genotype g = ctx.getGenotype(sample.sampleName);
 							
-							final Element rect = element("rect");
+							final Element rect = svgDoc.rect(
+									x1,
+									y_top_region,
+									(x2-x1),
+									curr_y-y_top_region
+									);
 							rect.setAttribute("class", "variant"+(g==null?"":g.getType().name()));
-							rect.setAttribute("x", format(x1));
-							rect.setAttribute("y", format(y_top_region));
-							rect.setAttribute("width", format(x2-x1));
-							rect.setAttribute("height", format(curr_y-y_top_region));
-							rect.appendChild(element("title",
-									niceIntFormat.format(ctx.getStart())+"-"+
-											niceIntFormat.format(ctx.getEnd())
-											+" "+ctx.getReference().getDisplayString()));
+							svgDoc.setTitle(rect,niceIntFormat.format(ctx.getStart())+"-"+
+									niceIntFormat.format(ctx.getEnd())
+									+" "+ctx.getReference().getDisplayString()
+									);
+							
 							regionRoot.insertBefore(rect, regionRoot.getFirstChild());
 							
 							}
@@ -866,173 +857,47 @@ public class SvToSVG extends Launcher
 		sample.height = curr_y - sample.y;
 
 		
-		final Element frame= element("rect");
+		final Element frame= svgDoc.rect(0,sample.getY(),drawinAreaWidth,sample.getHeight());
 		frame.setAttribute("class","frame");
-		frame.setAttribute("x",format(0));
-		frame.setAttribute("y",format(sample.getY()));
-		frame.setAttribute("width",format(drawinAreaWidth));
-		frame.setAttribute("height",format(sample.getHeight()));
 		sampleRoot.appendChild(frame);
 		
 		return sampleRoot;
 		}
 		
-		private Element html(final String tag) {
-			return this.document.createElement(tag);
-			}
-
-		private Element html(final String tag,final String content) {
-			final Element E = html(tag);
-			E.appendChild(text(content));
-			return E;
-			}
-		
-		private Element element(final String tag) {
-			return this.document.createElementNS(SVG.NS, tag);
-			}
-		private Text text(final Object o) {
-			return this.document.createTextNode(o==null?"":String.valueOf(o));
-			}
-		private Element element(final String tag,final Object content) {
-			final Element E = element(tag);
-			E.appendChild(text(content));
-			return E;
-			}
-		private void buildDocument(
+		private DocumentWrapper buildDocument(
+				final ReferenceSequenceFile indexedFastaSequenceFile,
 				final SAMSequenceDictionary dict,
-				final List<Locatable> intervals) 
+				final List<Locatable> intervals
+				) 
 			{
+			final SVGDocument svgDoc = new SVGDocument();
+			svgDoc.setWidth(this.drawinAreaWidth+1);
 			
-			
-			
-			final Element svgRoot = element("svg");
-			final Element metadata = element("metadata");
-			svgRoot.appendChild(metadata);
-			metadata.setAttribute("id", "metadata");
-			
-			if(write_svg_only) {
-				this.document.appendChild(svgRoot);
-				}
-			else
-				{
-				final Element html = html("html");
-				this.document.appendChild(html);
-				final Element head = html("head");
-				html.appendChild(head);
-				final Element title = html("title");
-				title.appendChild(text(String.join(" ",this.intervalStrList)));
-
-				head.appendChild(title);
-
-				Element meta = html("meta");
-				meta.setAttribute("charset", "UTF-8");
-				head.appendChild(meta);
-
-				Element style=html("style");
-				head.appendChild(style);
-				
-				style.appendChild(text(
-						"body { font-family: sans-serif;}\n" 
-						+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
-						+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
-						+"th,td { padding: 12px 15px}\n"
-						+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
-						+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
-						+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
-						+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
-						));
-				final Element body = html("body");
-				html.appendChild(body);
-
-				final Element h1 = html("h1");
-				body.appendChild(h1);
-				h1.appendChild(text(String.join(" ",this.intervalStrList)));				
-				Element htmlDiv1 = html("div");
-				body.appendChild(htmlDiv1);
-				
-				htmlDiv1.setAttribute("style","display:none;");
-				htmlDiv1.setAttribute("id","__PLACEHOLDER__");
-				htmlDiv1.appendChild(document.createComment("Use this div to insert things later. "));
-				htmlDiv1.appendChild(text("__PLACEHOLDER__"));
-
-				htmlDiv1 = html("div");
-				body.appendChild(htmlDiv1);
-
-				
-				htmlDiv1.appendChild(svgRoot);
-				
-				htmlDiv1.appendChild(html("hr"));
-				
-				final UrlSupplier labelledUrlSupplier = new UrlSupplier(dict);
-
-				
-				for(Locatable r:intervals) {
-					Element htmlTable = html("table");
-					htmlDiv1.appendChild(htmlTable);
-					final Element thead=html("thead");
-					htmlTable.appendChild(thead);
-					thead.appendChild(html("caption",r.toString()));
-					Element tr=html("tr");
-					thead.appendChild(tr);
-					tr.appendChild(html("th","Database"));
-					tr.appendChild(html("th","URL"));
-					final Element tbody=html("tbody");
-					htmlTable.appendChild(tbody);
-					for(UrlSupplier.LabelledUrl u: labelledUrlSupplier.of(r)) {
-						tr=html("tr");
-						tbody.appendChild(tr);
-						Element td = html("td",u.getLabel());
-						tr.appendChild(td);
-						
-						td = html("td");
-						tr.appendChild(td);
-
-						Element htmlA =html("a",u.getUrl());
-						htmlA.setAttribute("href",u.getUrl());
-						htmlA.setAttribute("title",u.getUrl());
-						htmlA.setAttribute("target", "_blank");
-						td.appendChild(htmlA);
-
-						}
-
-				}
-				
-				
-				htmlDiv1.appendChild(html("hr"));
-				Element p = html("p");
-				htmlDiv1.appendChild(p);
-				p.appendChild(text("Pierre Lindenbaum PhD 2022. Made with "+getProgramName()+" version:"+getVersion()+
-					". Command was: " + getProgramCommandLine()
-					));
-				}
-			
-			svgRoot.setAttribute("width",format(this.drawinAreaWidth+1));
 			
 			double doc_height = 0.0;
 			
-			final Element title = element("title");
-			svgRoot.appendChild(title);
-			title.appendChild(text(String.join(" ",this.intervalStrList)));
+			svgDoc.setTitle(String.join(" ",this.intervalStrList));
 			
-			final Element descr = element("desc");
-			svgRoot.appendChild(descr);
-			descr.appendChild(text("Author: Pierre Lindenbaum"));
 			
-			final Element style = element("style");
-			svgRoot.appendChild(style);
-			style.appendChild(text(StaticCodeExtractor.forClass(SvToSVG.class).extract("CSS").get()));
+			svgDoc.setDescription("Author: Pierre Lindenbaum");
 			
-			final Element mainG = element("g");
+			svgDoc.styleElement.appendChild(svgDoc.text(StaticCodeExtractor.forClass(SvToSVG.class).extract("CSS").get()));
+			
+			final Element mainG = svgDoc.rootElement;
 			mainG.setAttribute("class","maing");
-			svgRoot.appendChild(mainG);
 			
-			final DocumentFragment animationLayer = this.document.createDocumentFragment();
+			final DocumentFragment animationLayer = svgDoc.fragment();
 			
 			//loop over each sample
 			for(final Sample sample:this.sampleList)
 				{
 				sample.y = doc_height;
-				final Element div = buildSample(sample,animationLayer);
+				final Element div = buildSample(
+						sample,
+						indexedFastaSequenceFile,
+						animationLayer,
+						svgDoc
+						);
 				doc_height += sample.getHeight();
 				mainG.appendChild(div);
 				}
@@ -1065,14 +930,14 @@ public class SvToSVG extends Launcher
 							final double x1 = srx.isNegativeStrand()?srx.getPixelStart()-arrow_w:srx.getPixelEnd()+arrow_w;
 							final double x2 = sry.isNegativeStrand()?sry.getPixelStart()-arrow_w:sry.getPixelEnd()+arrow_w;
 							
-							final Element path = element("path");
+							final Element path = svgDoc.path();
 							path.setAttribute("class", "discordant");
 							final StringBuilder sb = new StringBuilder();
-							sb.append( "M ").append(format(x1)).append(" ").append(format(srx.y+featureHeight/2.0));
+							sb.append( "M ").append(svgDoc.format(x1)).append(" ").append(svgDoc.format(srx.y+featureHeight/2.0));
 							sb.append( "Q ").
-								append(format((x1+x2)/2.0)).append(" ").append(format((srx.y+sry.y)/2.0)).
+								append(svgDoc.format((x1+x2)/2.0)).append(" ").append(svgDoc.format((srx.y+sry.y)/2.0)).
 								append(" ").
-								append(format(x2)).append(" ").append(format(sry.y+featureHeight/2.0));
+								append(svgDoc.format(x2)).append(" ").append(svgDoc.format(sry.y+featureHeight/2.0));
 							path.setAttribute("d", sb.toString());
 							animationLayer.appendChild(path);
 							}
@@ -1090,9 +955,9 @@ public class SvToSVG extends Launcher
 					
 					boolean rotate = SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand();
 					//add a few 0.01 seconds to avoir same shape when rotation
-					final String beginSec = format(Math.random()/2.0)+"s";
+					final String beginSec = svgDoc.format(Math.random()/2.0)+"s";
 					
-					Element anim = element("animateTransform");
+					Element anim = svgDoc.element("animateTransform");
 					SR.g_rotate.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
 					anim.setAttribute("attributeName","transform");
@@ -1100,8 +965,8 @@ public class SvToSVG extends Launcher
 					anim.setAttribute("begin",beginSec);
 					anim.setAttribute("from","0,0");
 					anim.setAttribute("to",
-							format(SR.source.getPixelStart() - SR.getPixelStart())+" "+
-							format(SR.source.getY() - SR.getY())
+							svgDoc.format(SR.source.getPixelStart() - SR.getPixelStart())+" "+
+									svgDoc.format(SR.source.getY() - SR.getY())
 							);
 					anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 					anim.setAttribute("repeatCount",this.svgRepeatCount);
@@ -1110,15 +975,15 @@ public class SvToSVG extends Launcher
 					if(rotate)
 						{
 						
-						anim = element("animateTransform");
+						anim = svgDoc.element("animateTransform");
 						SR.g_translate2.appendChild(anim);
 						
 						anim.setAttribute("attributeType","XML");
 						anim.setAttribute("attributeName","transform");
 						anim.setAttribute("type","rotate");
 						anim.setAttribute("begin",beginSec);
-						anim.setAttribute("from","0 "+format(SR.getWidth()/2.0)+" "+format(SR.getHeight()/2.0));
-						anim.setAttribute("to",(Math.random()<0.5?"-":"")+"180 "+format(SR.getWidth()/2.0)+" "+format(SR.getHeight()/2.0));
+						anim.setAttribute("from","0 "+svgDoc.format(SR.getWidth()/2.0)+" "+svgDoc.format(SR.getHeight()/2.0));
+						anim.setAttribute("to",(Math.random()<0.5?"-":"")+"180 "+svgDoc.format(SR.getWidth()/2.0)+" "+svgDoc.format(SR.getHeight()/2.0));
 						anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 						anim.setAttribute("repeatCount",this.svgRepeatCount);
 						anim.setAttribute("fill","freeze");
@@ -1130,15 +995,101 @@ public class SvToSVG extends Launcher
 			mainG.appendChild(animationLayer);
 			
 			// frame
-			final Element frame = element("rect");
+			final Element frame = svgDoc.rect(
+					0,0,
+					this.drawinAreaWidth,
+					doc_height
+					);
+					
 			frame.setAttribute("class", "frame");
-			frame.setAttribute("x", "0");
-			frame.setAttribute("y", "0");
-			frame.setAttribute("width",format(this.drawinAreaWidth));
-			frame.setAttribute("height",format(doc_height));
 			mainG.appendChild(frame);
 			
-			svgRoot.setAttribute("height",format(doc_height+1));
+			svgDoc.setHeight(doc_height+1);			
+			
+			
+			if(write_svg_only) {
+				return svgDoc;
+				}
+			else
+				{
+				final HTMLDocument htmlDoc = new HTMLDocument();
+				htmlDoc.setTitle(String.join(" ",this.intervalStrList));
+				
+				
+				htmlDoc.styleElement.appendChild(htmlDoc.text(
+						"body { font-family: sans-serif;}\n" 
+						+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
+						+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
+						+"th,td { padding: 12px 15px}\n"
+						+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
+						+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
+						+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
+						+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
+						));
+				
+
+				final Element h1 = htmlDoc.h1(String.join(" ",this.intervalStrList));
+				htmlDoc.bodyElement.appendChild(h1);
+				Element htmlDiv1 = htmlDoc.div();
+				htmlDoc.bodyElement.appendChild(htmlDiv1);
+				
+				htmlDiv1.setAttribute("style","display:none;");
+				htmlDiv1.setAttribute("id","__PLACEHOLDER__");
+				htmlDiv1.appendChild(htmlDoc.comment("Use this div to insert things later. "));
+				htmlDiv1.appendChild(htmlDoc.text("__PLACEHOLDER__"));
+
+				htmlDiv1 = htmlDoc.div();
+				htmlDoc.bodyElement.appendChild(htmlDiv1);
+
+				
+				htmlDiv1.appendChild( htmlDoc.importNode(svgDoc.svgElement));
+				
+				htmlDiv1.appendChild(htmlDoc.hr());
+				
+				final UrlSupplier labelledUrlSupplier = new UrlSupplier(dict);
+
+				
+				for(Locatable r:intervals) {
+					Element htmlTable = htmlDoc.table();
+					htmlDiv1.appendChild(htmlTable);
+					final Element thead = htmlDoc.thead();
+					htmlTable.appendChild(thead);
+					thead.appendChild(htmlDoc.caption(r.toString()));
+					Element tr= htmlDoc.tr();
+					thead.appendChild(tr);
+					tr.appendChild(htmlDoc.th("Database"));
+					tr.appendChild(htmlDoc.th("URL"));
+					final Element tbody= htmlDoc.tbody();
+					htmlTable.appendChild(tbody);
+					for(UrlSupplier.LabelledUrl u: labelledUrlSupplier.of(r)) {
+						tr= htmlDoc.tr();
+						tbody.appendChild(tr);
+						Element td =htmlDoc.td(u.getLabel());
+						tr.appendChild(td);
+						
+						td = htmlDoc.td();
+						tr.appendChild(td);
+
+						Element htmlA = htmlDoc.anchor(u.getUrl());
+						htmlA.setAttribute("href",u.getUrl());
+						htmlA.setAttribute("title",u.getUrl());
+						htmlA.setAttribute("target", "_blank");
+						td.appendChild(htmlA);
+
+						}
+
+				}
+				
+				
+				htmlDiv1.appendChild(htmlDoc.hr());
+				Element p = htmlDoc.paragraph();
+				htmlDiv1.appendChild(p);
+				p.appendChild(htmlDoc.text("Pierre Lindenbaum PhD 2026. Made with "+getProgramName()+" version:"+getVersion()+
+					". Command was: " + getProgramCommandLine()
+					));
+				
+				return htmlDoc;
+				}
 			}
 		
 		
@@ -1156,141 +1107,148 @@ public class SvToSVG extends Launcher
 			this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 			try
 				{
-				this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile);
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-				final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
-				final List<SimpleInterval> all_intervals = new ArrayList<>(this.intervalStrList.size());
-				
-				for(final String intervalStr:this.intervalStrList) {
-					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParser.exception(intervalStr));
-					if(interval==null) {
-						LOG.error("Cannot parse interval "+intervalStr);
-						return  -1;
+				try(ReferenceSequenceFile indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile)) {
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+					final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
+					final List<SimpleInterval> all_intervals = new ArrayList<>(this.intervalStrList.size());
+					/* parse intervals */
+					for(final String intervalStr:this.intervalStrList) {
+						final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParser.exception(intervalStr));
+						if(interval==null) {
+							LOG.error("Cannot parse interval "+intervalStr);
+							return  -1;
+							}
+						if(!all_intervals.isEmpty() && interval.getLengthOnReference()!= all_intervals.get(0).getLengthOnReference()) {
+							LOG.warning("intervals should all have the same length");
+							}
+						all_intervals.add(interval);
 						}
-					if(!all_intervals.isEmpty() && interval.getLengthOnReference()!= all_intervals.get(0).getLengthOnReference()) {
-						LOG.warning("intervals should all have the same length");
+					
+					all_intervals.sort(new ContigDictComparator(dict).createLocatableComparator());
+					if(all_intervals.isEmpty()) {
+						LOG.info("no interval was defined");
+						return -1;
 						}
-					all_intervals.add(interval);
-					}
-				
-				all_intervals.sort(new ContigDictComparator(dict).createLocatableComparator());
-				if(all_intervals.isEmpty()) {
-					LOG.info("no interval was defined");
-					return -1;
-					}
-				
-				
-				if(this.vcfFile!=null)
-					{
-					this.vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
-					}
-				
-				final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-				dbf.setNamespaceAware(true);
-				final DocumentBuilder db = dbf.newDocumentBuilder();
-				this.document=db.newDocument();
-
-				
-				final List<Path> bamFiles = IOUtils.unrollPaths(args);
-				if(bamFiles.isEmpty()) {
-					LOG.error("bam(s) undefined");
-					return -1;
-					}
-				
-				final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.faidxFile);
-				
-				/* loop over each bam file */
-				for(final Path bamFile : bamFiles) {
-					try(final SamReader sr = srf.open(bamFile)) {
-						final SAMFileHeader header = sr.getFileHeader();
-						final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
-						SequenceUtil.assertSequenceDictionariesEqual(dict, dict0);
-						final String sampleName = header.getReadGroups().stream().
-								map(G->G.getSample()).
-								filter(S->!StringUtil.isBlank(S)).
-								findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
-						
-						final Sample sample = new Sample(sampleName);
-						this.sampleList.add(sample);
-						/* loop over each region for that sample */
-						for(final SimpleInterval interval:all_intervals) {
-							/* create new region */
-							final Sample.Region region = sample.new Region(interval);
+					
+					
+					if(this.vcfFile!=null)
+						{
+						this.vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
+						}
+					
+	
+					
+					final List<Path> bamFiles = IOUtils.unrollPaths(args);
+					if(bamFiles.isEmpty()) {
+						LOG.error("bam(s) undefined");
+						return -1;
+						}
+					
+					final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.faidxFile);
+					
+					/* loop over each bam file */
+					for(final Path bamFile : bamFiles) {
+						try(final SamReader sr = srf.open(bamFile)) {
+							final SAMFileHeader header = sr.getFileHeader();
+							final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
+							SequenceUtil.assertSequenceDictionariesEqual(dict, dict0);
+							final String sampleName = header.getReadGroups().stream().
+									map(G->G.getSample()).
+									filter(S->!StringUtil.isBlank(S)).
+									findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
 							
-							sample.regions.add(region);
-							
-							try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
-								while(iter.hasNext())
-									{
-									final SAMRecord record = iter.next();
-									
-									boolean trace =record.getReadName().equals(DEBUG_READ);
-									
-									if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
-									
-									if(trace) LOG.debug("got1");
-									final Cigar cigar = record.getCigar();
-									if(cigar==null || cigar.isEmpty()) continue;
-									if(trace) LOG.debug("got2");
-									
-									if(remove_simple_reads) {
-										if((!cigar.isClipped() &&
-											SAMUtils.getOtherCanonicalAlignments(record).isEmpty() &&
-											(record.getReadPairedFlag() && record.getProperPairFlag())
-											)) continue;
+							final Sample sample = new Sample(sampleName);
+							this.sampleList.add(sample);
+							/* loop over each region for that sample */
+							for(final SimpleInterval interval:all_intervals) {
+								/* create new region */
+								final Sample.Region region = sample.new Region(interval);
+								
+								sample.regions.add(region);
+								
+								try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
+									while(iter.hasNext())
+										{
+										final SAMRecord record = iter.next();
+										
+										boolean trace =record.getReadName().equals(DEBUG_READ);
+										
+										if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
+										
+										if(trace) LOG.debug("got1");
+										final Cigar cigar = record.getCigar();
+										if(cigar==null || cigar.isEmpty()) continue;
+										if(trace) LOG.debug("got2");
+										
+										if(remove_simple_reads) {
+											if((!cigar.isClipped() &&
+												SAMUtils.getOtherCanonicalAlignments(record).isEmpty() &&
+												(record.getReadPairedFlag() && record.getProperPairFlag())
+												)) continue;
+											}
+	
+										
+										if( !record.getContig().equals(interval.getContig())) continue;
+										if(trace) LOG.debug("got3");
+										final Sample.ShortRead shortRead = sample.new  DefaultShortRead(region,record);
+										
+										if( shortRead.getEnd()  < interval.getStart()) continue;
+										if( shortRead.getStart()  > interval.getEnd())continue;
+										if(trace) LOG.debug("got4" +record.getSAMString());
+										region.beforePileup.add(shortRead);
 										}
+									}/* en iterator */
+								} /* end loop interval */
+							}/* end open SAM */
+						}
+					this.sampleList.forEach(S->S.regions.forEach(R->R.addSplitReads()));
+					this.sampleList.forEach(S->S.regions.forEach(R->R.pileup()));
+					
+					
+					/* sort per sample */
+					this.sampleList.sort((A,B)->A.sampleName.compareTo(B.sampleName));
+					/* sort per region */
+					this.sampleList.stream().forEach(SL->SL.regions.sort((A,B)->{
+						final SmartComparator sc = new SmartComparator();
+						int i = sc.compare(A.getContig(), B.getContig());
+						if(i!=0) return i;
+						return A.getStart() -  B.getStart();
+						}));
+					
+					
+					final DocumentWrapper document =  buildDocument(
+							indexedFastaSequenceFile,
+							dict,
+							this.sampleList.stream().
+								flatMap(S->S.regions.stream()).
+								map(R->R._interval).
+								collect(Collectors.toSet()).
+								stream().collect(Collectors.toList())
+							);
+					
+					
+					
+					final Transformer tr = TransformerFactory.newInstance().newTransformer();
+					
+					if(!this.write_svg_only) tr.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+					tr.setOutputProperty(OutputKeys.METHOD, "xml");
 
-									
-									if( !record.getContig().equals(interval.getContig())) continue;
-									if(trace) LOG.debug("got3");
-									final Sample.ShortRead shortRead = sample.new  DefaultShortRead(region,record);
-									
-									if( shortRead.getEnd()  < interval.getStart()) continue;
-									if( shortRead.getStart()  > interval.getEnd())continue;
-									if(trace) LOG.debug("got4" +record.getSAMString());
-									region.beforePileup.add(shortRead);
-									}
-								}/* en iterator */
-							} /* end loop interval */
-						}/* end open SAM */
-					}
-				this.sampleList.forEach(S->S.regions.forEach(R->R.addSplitReads()));
-				this.sampleList.forEach(S->S.regions.forEach(R->R.pileup()));
+					final Result result;
+					
+					if(this.outputFile!=null)
+						{
+						result = new StreamResult(this.outputFile);
+						}
+					else
+						{
+						result = new StreamResult(stdout());
+						}
+					tr.transform(new DOMSource(document.getDocument()),result);
+					
+					
+					} //end open REF
 				
 				
-				/* sort per sample */
-				this.sampleList.sort((A,B)->A.sampleName.compareTo(B.sampleName));
-				/* sort per region */
-				this.sampleList.stream().forEach(SL->SL.regions.sort((A,B)->{
-					final SmartComparator sc = new SmartComparator();
-					int i = sc.compare(A.getContig(), B.getContig());
-					if(i!=0) return i;
-					return A.getStart() -  B.getStart();
-					}));
-				
-				
-				buildDocument(dict,this.sampleList.stream().
-						flatMap(S->S.regions.stream()).
-						map(R->R._interval).
-						collect(Collectors.toSet()).
-						stream().collect(Collectors.toList()));
-				
-				final Transformer tr = TransformerFactory.newInstance().newTransformer();
-				
-				if(!this.write_svg_only) tr.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-				tr.setOutputProperty(OutputKeys.METHOD, "xml");
-
-				final Result result;
-				
-				if(this.outputFile!=null)
-					{
-					result = new StreamResult(this.outputFile);
-					}
-				else
-					{
-					result = new StreamResult(stdout());
-					}
-				tr.transform(new DOMSource(this.document),result);
 				
 				return 0;
 				}
@@ -1301,9 +1259,7 @@ public class SvToSVG extends Launcher
 				}
 			finally
 				{
-				CloserUtil.close(this.indexedFastaSequenceFile);
 				CloserUtil.close(this.vcfFileReader);
-				this.document = null;
 				}
 			}
 		

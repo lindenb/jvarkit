@@ -29,6 +29,12 @@ Usage: vcfgtf [options] Files
       What feature biotype 'x'  should be used.
       Default: all
       Possible Values: [all, protein_coding]
+    --cut
+      The GTF feature should not enclose the variant. This is interesting for 
+      the SV like the DUP or the INV where  we want that the variant 'cut' a 
+      genomic feature. Features where the whole Variant is contained will be 
+      ignore. 
+      Default: false
     --extend, --extends, -x, -X
       extends each gtf feature by 'x' bases. Multiple separated by commas. 
       Empty will be replaced by '0'. A distance specified as a positive 

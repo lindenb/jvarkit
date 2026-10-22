@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -122,6 +123,8 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private boolean show_transcripts_id = false;
 	@Parameter(names={"--show-protein-id"},description="Do show protein IDs in the output")
 	private boolean show_proteins_id = false;
+	@Parameter(names={"--cut"},description="The GTF feature should not enclose the variant. This is interesting for the SV like the DUP or the INV where  we want that the variant 'cut' a genomic feature. Features where the whole Variant is contained will be ignore.")
+	private boolean cut_flag = false;
 
 	private static class GTFInterval extends LocatableDelegate<GTFLine> {
 		protected final int extend;
@@ -272,6 +275,19 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 		L.add(r);
 		}
 	
+	private boolean testOverlap(final VariantContext ctx, GTFInterval feature) {
+		if(!ctx.overlaps(feature)) throw new IllegalStateException();
+		if(this.cut_flag) {
+			/* example : a large DUP enclose the variant: reject the variant */
+			if(CoordMath.encloses(
+					feature.getStart()-1, feature.getEnd()+1,
+					ctx.getStart(), ctx.getEnd())
+					) {
+				return false;
+				}
+			}
+		return true;
+		}
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator iterin, final VariantContextWriter out) {
@@ -469,6 +485,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 						.getOverlapping(ctx)
 						.stream()
 						.flatMap(L->L.stream())
+						.filter(feat->testOverlap(ctx,feat))
 						.collect(Collectors.toList());
 				
 				if(intervals.isEmpty()) {

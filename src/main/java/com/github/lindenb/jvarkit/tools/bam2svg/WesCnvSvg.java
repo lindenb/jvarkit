@@ -223,7 +223,6 @@ public class WesCnvSvg  extends Launcher {
 	
 	//private final List<CaptureInterval> intervals = new ArrayList<>();
 	private final List<BamInput> bamInputs = new ArrayList<>();
-	private ReferenceSequenceFile indexedFastaSequenceFile;
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	//private double globalMaxDepth = 0.0;
 	private int countBasesToBeDisplayed = 0;
@@ -262,488 +261,488 @@ public class WesCnvSvg  extends Launcher {
 		VCFReader vcfReader = null;
 		try
 			{
-			
-			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
-			final IntervalExtender extender = IntervalExtender.of(refDict,this.extendWhat);
-			if(extender.isShriking()) {
-				LOG.error("extend factor <1.0");
-				return -1;
-				}
-			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
-			final ContigDictComparator contigDictCompare = new ContigDictComparator(refDict);
-			
-			final List<CaptureInterval> userIntervals = this.intervalListProvider.
-					stream().
-					/* https://stackoverflow.com/questions/25523375 */
-					map(loc->contigNameConverter.convertToSimpleInterval(loc).<RuntimeException>orElseThrow(()->new RuntimeException(new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict)))).
-					map(extender).
-					collect(HtsCollectors.mergeIntervals()).
-					map(L->new CaptureInterval(L)).
-					sorted(contigDictCompare.createLocatableComparator()).
-					collect(Collectors.toCollection(ArrayList::new))
-					;
-		
-			if(userIntervals.isEmpty())
-				{
-				LOG.error("no interval or bed defined");
-				return -1;
-				}
-			
-			this.countBasesToBeDisplayed = userIntervals.stream().
-					mapToInt(R->R.getLengthOnReference()).
-					sum();
-			if(this.countBasesToBeDisplayed<1) {
-				LOG.error("Nothing to display. BED count==0");
-				return -1;
-				}
-			else
-				{
-				double x1=0;
-				for(int i=0;i< userIntervals.size();++i) {
-					final CaptureInterval ci = userIntervals.get(i);
-					ci.pixelx = x1;
-					x1+=ci.getPixelWidth();
+			try(ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx) ) {
+				final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);			
+				final IntervalExtender extender = IntervalExtender.of(refDict,this.extendWhat);
+				if(extender.isShriking()) {
+					LOG.error("extend factor <1.0");
+					return -1;
 					}
-				}
+				final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
+				final ContigDictComparator contigDictCompare = new ContigDictComparator(refDict);
+				
+				final List<CaptureInterval> userIntervals = this.intervalListProvider.
+						stream().
+						/* https://stackoverflow.com/questions/25523375 */
+						map(loc->contigNameConverter.convertToSimpleInterval(loc).<RuntimeException>orElseThrow(()->new RuntimeException(new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict)))).
+						map(extender).
+						collect(HtsCollectors.mergeIntervals()).
+						map(L->new CaptureInterval(L)).
+						sorted(contigDictCompare.createLocatableComparator()).
+						collect(Collectors.toCollection(ArrayList::new))
+						;
 			
-			/* distinct ordered contigs */
-			final List<String> distinctContigs = userIntervals.stream().
-					map(R->R.getContig()).
-					collect(Collectors.toSet()).
-					stream().
-					sorted(contigDictCompare).
-					collect(Collectors.toList());
-			
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.faidx);
-			for(final Path bamFile:IOUtils.unrollPaths(args)) {
-				final BamInput bi = new BamInput();
-				bi.bamPath = bamFile;
-				try(SamReader samReader = srf.open(bamFile)) {
-					final SAMSequenceDictionary samDict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
-					if(!SequenceUtil.areSequenceDictionariesEqual(refDict, samDict)) {
-						throw new JvarkitException.DictionariesAreNotTheSame(refDict, samDict);
+				if(userIntervals.isEmpty())
+					{
+					LOG.error("no interval or bed defined");
+					return -1;
+					}
+				
+				this.countBasesToBeDisplayed = userIntervals.stream().
+						mapToInt(R->R.getLengthOnReference()).
+						sum();
+				if(this.countBasesToBeDisplayed<1) {
+					LOG.error("Nothing to display. BED count==0");
+					return -1;
+					}
+				else
+					{
+					double x1=0;
+					for(int i=0;i< userIntervals.size();++i) {
+						final CaptureInterval ci = userIntervals.get(i);
+						ci.pixelx = x1;
+						x1+=ci.getPixelWidth();
 						}
-					bi.sample = samReader.getFileHeader().getReadGroups().stream().
-							map(V->V.getSample()).
-							filter(S->!StringUtil.isBlank(S)).
-							findFirst().
-							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
-					final CoverageFactory covFactory = new CoverageFactory().setMappingQuality(this.minMappingQuality);
-					for(final String contig: distinctContigs) {
-						final List<CaptureInterval> contig_intervals = userIntervals.stream().
-								filter(R->R.getContig().equals(contig)).
-								collect(Collectors.toList());
-						
-						final CoverageFactory.SimpleCoverage coverage = covFactory.getSimpleCoverage(samReader,
-							contig_intervals,
-							null);
-						for(CaptureInterval rgn:contig_intervals)  {
-							final double[] array = coverage.getSubCoverage(rgn).scale(this.scaleType, (int)rgn.getPixelWidth());
-							bi.coverages.add(array);
+					}
+				
+				/* distinct ordered contigs */
+				final List<String> distinctContigs = userIntervals.stream().
+						map(R->R.getContig()).
+						collect(Collectors.toSet()).
+						stream().
+						sorted(contigDictCompare).
+						collect(Collectors.toList());
+				
+				final SamReaderFactory srf = SamReaderFactory.makeDefault().
+						validationStringency(ValidationStringency.LENIENT).
+						referenceSequence(this.faidx);
+				for(final Path bamFile:IOUtils.unrollPaths(args)) {
+					final BamInput bi = new BamInput();
+					bi.bamPath = bamFile;
+					try(SamReader samReader = srf.open(bamFile)) {
+						final SAMSequenceDictionary samDict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
+						if(!SequenceUtil.areSequenceDictionariesEqual(refDict, samDict)) {
+							throw new JvarkitException.DictionariesAreNotTheSame(refDict, samDict);
+							}
+						bi.sample = samReader.getFileHeader().getReadGroups().stream().
+								map(V->V.getSample()).
+								filter(S->!StringUtil.isBlank(S)).
+								findFirst().
+								orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
+						final CoverageFactory covFactory = new CoverageFactory().setMappingQuality(this.minMappingQuality);
+						for(final String contig: distinctContigs) {
+							final List<CaptureInterval> contig_intervals = userIntervals.stream().
+									filter(R->R.getContig().equals(contig)).
+									collect(Collectors.toList());
+							
+							final CoverageFactory.SimpleCoverage coverage = covFactory.getSimpleCoverage(samReader,
+								contig_intervals,
+								null);
+							for(CaptureInterval rgn:contig_intervals)  {
+								final double[] array = coverage.getSubCoverage(rgn).scale(this.scaleType, (int)rgn.getPixelWidth());
+								bi.coverages.add(array);
+								}
 							}
 						}
+					this.bamInputs.add(bi);
 					}
-				this.bamInputs.add(bi);
-				}
-			if(this.bamInputs.isEmpty()) {
-				LOG.error("no bam input");
-				return -1;
-				}
-			
-			if(this.vcfFile!=null) {
-				vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
-				final SAMSequenceDictionary vcfDict = vcfReader.getHeader().getSequenceDictionary();
-				if(vcfDict!=null) SequenceUtil.assertSequenceDictionariesEqual(refDict, vcfDict);
-				}
-			
-			
-			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			if(this.outputFile==null)
-				{
-				w=xof.createXMLStreamWriter(stdout(), "UTF-8");
-				}
-			else
-				{
-				fout =Files.newOutputStream(this.outputFile);
-				w=xof.createXMLStreamWriter(fout, "UTF-8");
-				}
-			
-			final Function<List<Point2D.Double>,String> points2str = (L)->
-				L.stream().map(S->format(S.getX())+","+format(S.getY())).
-				collect(Collectors.joining(" "));
+				if(this.bamInputs.isEmpty()) {
+					LOG.error("no bam input");
+					return -1;
+					}
 				
-			final Consumer<List<Point2D.Double>> simplifyPoints = (L)->{
-				for(int z=0;z+1< L.size();++z) {
-					if(L.get(z).getY()==L.get(z+1).getY())
-						{
-						L.get(z).x = L.get(z+1).x;
-						L.remove(z+1);
-						}
+				if(this.vcfFile!=null) {
+					vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
+					final SAMSequenceDictionary vcfDict = vcfReader.getHeader().getSequenceDictionary();
+					if(vcfDict!=null) SequenceUtil.assertSequenceDictionariesEqual(refDict, vcfDict);
 					}
-			};
-			
-			w.writeStartDocument("UTF-8", "1.0");
-			
-			
-			final Dimension dim=new Dimension(this.drawinAreaWidth,0);
-			final int bed_header_height=20;
-			dim.height += bed_header_height;
-			dim.height+=(int)this.bamInputs.stream().
-					mapToDouble(B->B.getPixelHeight()).
-					sum();
-			
-			LOG.debug("drawing area: "+dim);
-			
-			w.writeStartElement("svg");
-			w.writeAttribute("width", String.valueOf(dim.width));
-			w.writeAttribute("height", String.valueOf(dim.height));
-			w.writeDefaultNamespace(SVG.NS);
-			w.writeNamespace("xlink", XLINK.NS);
-			
-			// https://stackoverflow.com/questions/15717970
-			w.writeStartElement("style");
-			if(this.cssFile!=null) {
-				w.writeCharacters(IOUtil.slurp(this.cssFile));
-				}
-			else {
-				w.writeCharacters(
-						"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
-						"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
-						"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
-						"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:url('#grad01');}" +
-						"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
-						"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
-						"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
-						"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
-						"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
-						"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"+
-						"circle.ar {fill:orange;stroke:none;}"+
-						"circle.aa {fill:red;stroke:none;}"+
-						"circle.rr {fill:green;stroke:none;}"
-						);
-				}
-			w.writeEndElement();//style
-			
-			w.writeStartElement("title");
-			w.writeCharacters(this.domSvgTitle);
-			w.writeEndElement();
-
-			w.writeStartElement("defs");
-			// alleles
-			final double genotype_radius = Double.parseDouble(this.dynaParams.getOrDefault("gt.radius", "1.5"));
-			w.writeEmptyElement("circle");
-			w.writeAttribute("r", format(genotype_radius));
-			w.writeAttribute("id","rr");
-			w.writeAttribute("class","rr");
-			
-			w.writeEmptyElement("circle");
-			w.writeAttribute("r", format(genotype_radius));
-			w.writeAttribute("id","ar");
-			w.writeAttribute("class","ar");
-			
-			w.writeEmptyElement("circle");
-			w.writeAttribute("r", format(genotype_radius));
-			w.writeAttribute("id","aa");
-			w.writeAttribute("class","aa");
-			
-			//gradient
-			w.writeStartElement("linearGradient");
-			w.writeAttribute("id","grad01");
-			w.writeAttribute("x1","50%");
-			w.writeAttribute("x2","50%");
-			w.writeAttribute("y1","0%");
-			w.writeAttribute("y2","100%");
-			w.writeEmptyElement("stop");
-				w.writeAttribute("offset","0%");
-				w.writeAttribute("style","stop-color:lightgray;stop-opacity:1;");
-			w.writeEmptyElement("stop");
-				w.writeAttribute("offset","100%");
-				w.writeAttribute("style","stop-color:gray;stop-opacity:1;");
-			w.writeEndElement();
-
-			
-			// gc percent
-			for(final CaptureInterval ci: userIntervals)
-				{
-				final GenomicSequence genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,ci.getContig());
-				final int gc_percent_width= (int)ci.getPixelWidth();
-				final List<Point2D.Double> points= new ArrayList<>(gc_percent_width);
-				for(int x=0;x< gc_percent_width;++x)
+				
+				
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				if(this.outputFile==null)
 					{
-					int pos1= ci.getStart()+(int)(((x+0)/ci.getPixelWidth())*ci.getLengthOnReference());
-					int pos2= ci.getStart()+(int)(((x+1)/ci.getPixelWidth())*ci.getLengthOnReference());
-					double gc_percent = getGcPercent(genomicSequence,pos1,pos2);
-					double y = this.sampleTrackHeight - this.sampleTrackHeight*gc_percent;
-					
-					points.add(new Point2D.Double(x, y));
+					w=xof.createXMLStreamWriter(stdout(), "UTF-8");
 					}
-				simplifyPoints.accept(points);
+				else
+					{
+					fout =Files.newOutputStream(this.outputFile);
+					w=xof.createXMLStreamWriter(fout, "UTF-8");
+					}
 				
-				w.writeStartElement("polyline");
-				w.writeAttribute("class","gc");
-				w.writeAttribute("id","z"+ci.getId());
-				w.writeAttribute("points",points2str.apply(points));
+				final Function<List<Point2D.Double>,String> points2str = (L)->
+					L.stream().map(S->format(S.getX())+","+format(S.getY())).
+					collect(Collectors.joining(" "));
+					
+				final Consumer<List<Point2D.Double>> simplifyPoints = (L)->{
+					for(int z=0;z+1< L.size();++z) {
+						if(L.get(z).getY()==L.get(z+1).getY())
+							{
+							L.get(z).x = L.get(z+1).x;
+							L.remove(z+1);
+							}
+						}
+				};
+				
+				w.writeStartDocument("UTF-8", "1.0");
+				
+				
+				final Dimension dim=new Dimension(this.drawinAreaWidth,0);
+				final int bed_header_height=20;
+				dim.height += bed_header_height;
+				dim.height+=(int)this.bamInputs.stream().
+						mapToDouble(B->B.getPixelHeight()).
+						sum();
+				
+				LOG.debug("drawing area: "+dim);
+				
+				w.writeStartElement("svg");
+				w.writeAttribute("width", String.valueOf(dim.width));
+				w.writeAttribute("height", String.valueOf(dim.height));
+				w.writeDefaultNamespace(SVG.NS);
+				w.writeNamespace("xlink", XLINK.NS);
+				
+				// https://stackoverflow.com/questions/15717970
+				w.writeStartElement("style");
+				if(this.cssFile!=null) {
+					w.writeCharacters(IOUtil.slurp(this.cssFile));
+					}
+				else {
+					w.writeCharacters(
+							"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
+							"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
+							"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
+							"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:url('#grad01');}" +
+							"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
+							"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
+							"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
+							"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
+							"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
+							"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"+
+							"circle.ar {fill:orange;stroke:none;}"+
+							"circle.aa {fill:red;stroke:none;}"+
+							"circle.rr {fill:green;stroke:none;}"
+							);
+					}
+				w.writeEndElement();//style
+				
 				w.writeStartElement("title");
-				w.writeCharacters("GC %");
+				w.writeCharacters(this.domSvgTitle);
 				w.writeEndElement();
+	
+				w.writeStartElement("defs");
+				// alleles
+				final double genotype_radius = Double.parseDouble(this.dynaParams.getOrDefault("gt.radius", "1.5"));
+				w.writeEmptyElement("circle");
+				w.writeAttribute("r", format(genotype_radius));
+				w.writeAttribute("id","rr");
+				w.writeAttribute("class","rr");
+				
+				w.writeEmptyElement("circle");
+				w.writeAttribute("r", format(genotype_radius));
+				w.writeAttribute("id","ar");
+				w.writeAttribute("class","ar");
+				
+				w.writeEmptyElement("circle");
+				w.writeAttribute("r", format(genotype_radius));
+				w.writeAttribute("id","aa");
+				w.writeAttribute("class","aa");
+				
+				//gradient
+				w.writeStartElement("linearGradient");
+				w.writeAttribute("id","grad01");
+				w.writeAttribute("x1","50%");
+				w.writeAttribute("x2","50%");
+				w.writeAttribute("y1","0%");
+				w.writeAttribute("y2","100%");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","0%");
+					w.writeAttribute("style","stop-color:lightgray;stop-opacity:1;");
+				w.writeEmptyElement("stop");
+					w.writeAttribute("offset","100%");
+					w.writeAttribute("style","stop-color:gray;stop-opacity:1;");
 				w.writeEndElement();
-				}
-			
-			w.writeEndElement();//defs
-			
-			
-			w.writeStartElement("script");
-			
-			final StringBuilder openBrowserFunction = new StringBuilder(
-					"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
-					);
-			if(!this.hyperlinkType.isEmpty())
-				{
-				openBrowserFunction.append("var url=\""+this.hyperlinkType.getPattern()+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
-				openBrowserFunction.append("window.open(url,'_blank');\n");
-
-				}
-			else
-				{
-				//nothing
-				}
-			openBrowserFunction.append("}\n");
-			
-			w.writeCData(
-				openBrowserFunction.toString() +
-				"function clicked(evt,contig,chromStart,chromEnd){\n" +
-			    "    var e = evt.target;\n" +
-			    "    var dim = e.getBoundingClientRect();\n" +
-			    "    var x = 1.0 * evt.clientX - dim.left;\n" + 
-			    "    var cLen = 1.0* (chromEnd - chromStart); if(cLen<1) cLen=1.0;\n" + 
-			    "    var pos1 = chromStart + parseInt(((x+0)/dim.width)*cLen);\n" +
-			    "    var pos2 = chromStart + parseInt(((x+1)/dim.width)*cLen);\n" +
-			    "   openGenomeBrowser(contig,pos1,pos2);\n" +
-			    "}\n");                
-			w.writeEndElement();//script
-			
-			
-			w.writeStartElement("g");
-			w.writeAttribute("class", "maing");
-			
-			double y=0;
-			w.writeStartElement("g");
-			w.writeComment("interval background");
-			for(final CaptureInterval ci:userIntervals)
-				{
-				w.writeStartElement("text");
-					w.writeAttribute("class", "captureLabel");
-					w.writeAttribute("textLength",String.valueOf(ci.getPixelWidth()*0.8));
-					w.writeAttribute("lengthAdjust", "spacing");
-					w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
-					w.writeAttribute("y",String.valueOf(bed_header_height-2));
-					w.writeCharacters(ci.getName());
-					w.writeStartElement("title");
-					w.writeCharacters(ci.toNiceString());
-					w.writeEndElement();//title
-				w.writeEndElement();//text
-
+	
 				
-				w.writeStartElement("rect");
-					w.writeAttribute("style","stroke:black;fill:none;");
-					w.writeAttribute("x",String.valueOf(ci.getPixelX1()));
-					w.writeAttribute("y", "0");
-					w.writeAttribute("width",String.valueOf(ci.getPixelWidth()));
-					w.writeAttribute("height",String.valueOf(dim.height));
-					w.writeStartElement("title");
-						w.writeCharacters(ci.getName());
-					w.writeEndElement();
-				w.writeEndElement();
-				}
-			w.writeEndElement();//interval background
-			
-			y+= bed_header_height;
-			
-			for(final BamInput bi:this.bamInputs)
-				{	
-				w.writeComment(bi.bamPath.toString());
-				w.writeStartElement("g");
-				w.writeAttribute("transform","translate(0,"+y+")");
-				
-				if(normalize_on_median_flag) {
-					final double medianDepth = Math.max(1.0,Percentile.median().evaluate(bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).toArray()).orElse(1.0));
-					LOG.info("median"+medianDepth);
-					for(final double[] coverage_array: bi.coverages) {
-						for(int px=0;px< coverage_array.length;px++) {
-							coverage_array[px]/=medianDepth;
-							}
-						}
-					}
-				
-				final double maxDepth = bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).max().orElse(1.0);
-				
-				for(int ridx=0;ridx<userIntervals.size();ridx++) {
-					final CaptureInterval ci = userIntervals.get(ridx);
-					final String clickedAttribute = "clicked(evt,\""+ci.getContig()+"\","+ci.getStart()+","+ci.getEnd()+")";
-					final double[] coverage_array = bi.coverages.get(ridx);
-					final double leftx =ci.getPixelX1();
-					w.writeStartElement("g");
-					w.writeAttribute("transform","translate("+leftx+",0)");
-					
-					final int segment_width = (int)ci.getPixelWidth();
-
-					//coverage
+				// gc percent
+				for(final CaptureInterval ci: userIntervals)
 					{
-					final List<Point2D.Double> points = new ArrayList<>(segment_width);
-					points.add(new Point2D.Double(0,bi.getPixelHeight()));
-
-					for(int px=0;px< coverage_array.length;px++) {
-						final double y_avg_cov=  coverage_array[px];
-						final double new_y = bi.getPixelHeight()-(y_avg_cov/maxDepth)*bi.getPixelHeight();
-						points.add(new Point2D.Double(px,new_y));
-						}
-					points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
-					simplifyPoints.accept(points);				
-					points.add(new Point2D.Double(leftx,bi.getPixelHeight()));//close
-					w.writeEmptyElement("polygon");
-					w.writeAttribute("class","area");
-					w.writeAttribute("title",ci.toNiceString());
-					//w.writeAttribute("onclick", clickedAttribute);
-					w.writeAttribute("points",points2str.apply(points));
-					}
-					//w.writeEndElement();//g
-					
-					
-					
-					
-					int depthshift=1;
-					for(;;) {
-						final int numdiv =(int) (maxDepth/depthshift);
-						if(numdiv<=10) break;
-						depthshift*=10;
-						}
-					
-					
-					int depth=depthshift;
-					while(depth<  maxDepth)
+					final GenomicSequence genomicSequence = new GenomicSequence(indexedFastaSequenceFile,ci.getContig());
+					final int gc_percent_width= (int)ci.getPixelWidth();
+					final List<Point2D.Double> points= new ArrayList<>(gc_percent_width);
+					for(int x=0;x< gc_percent_width;++x)
 						{
-						double new_y = bi.getPixelHeight()-(depth/maxDepth)*bi.getPixelHeight();
+						int pos1= ci.getStart()+(int)(((x+0)/ci.getPixelWidth())*ci.getLengthOnReference());
+						int pos2= ci.getStart()+(int)(((x+1)/ci.getPixelWidth())*ci.getLengthOnReference());
+						double gc_percent = getGcPercent(genomicSequence,pos1,pos2);
+						double y = this.sampleTrackHeight - this.sampleTrackHeight*gc_percent;
 						
-						w.writeStartElement("text");
-							w.writeAttribute("class", "linedp");
-							w.writeAttribute("x","1");
-							w.writeAttribute("y",String.valueOf(new_y+1));
-							w.writeCharacters(String.valueOf(depth));
-						w.writeEndElement();//text
-						
-						w.writeStartElement("line");
-							w.writeAttribute("class","linedp");
-							w.writeAttribute("stroke-dasharray","4");
-							w.writeAttribute("x1", "0");
-							w.writeAttribute("x2", String.valueOf(ci.getPixelWidth()));
-							w.writeAttribute("y1", String.valueOf(new_y));
-							w.writeAttribute("y2", String.valueOf(new_y));
-							w.writeStartElement("title");
-								w.writeCharacters(String.valueOf(depth));
-							w.writeEndElement();
-						w.writeEndElement();//line
-						depth+=depthshift;
-						
-						
-
+						points.add(new Point2D.Double(x, y));
 						}
-					// polyline
-					w.writeEmptyElement("use");
-					w.writeAttribute("xlink",XLINK.NS,"href","#z"+ci.getId());
-					w.writeAttribute("x","0");
-					w.writeAttribute("y","0");
-
+					simplifyPoints.accept(points);
 					
-					//click
-					w.writeStartElement("rect");
-					w.writeAttribute("class","clickRgn");
-					w.writeAttribute("onclick", clickedAttribute);
-					w.writeAttribute("x", "0");
-					w.writeAttribute("y", "0");
-					w.writeAttribute("width", String.valueOf(ci.getPixelWidth()));
-					w.writeAttribute("height", String.valueOf(bi.getPixelHeight()));
+					w.writeStartElement("polyline");
+					w.writeAttribute("class","gc");
+					w.writeAttribute("id","z"+ci.getId());
+					w.writeAttribute("points",points2str.apply(points));
+					w.writeStartElement("title");
+					w.writeCharacters("GC %");
 					w.writeEndElement();
+					w.writeEndElement();
+					}
+				
+				w.writeEndElement();//defs
+				
+				
+				w.writeStartElement("script");
+				
+				final StringBuilder openBrowserFunction = new StringBuilder(
+						"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
+						);
+				if(!this.hyperlinkType.isEmpty())
+					{
+					openBrowserFunction.append("var url=\""+this.hyperlinkType.getPattern()+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
+					openBrowserFunction.append("window.open(url,'_blank');\n");
+	
+					}
+				else
+					{
+					//nothing
+					}
+				openBrowserFunction.append("}\n");
+				
+				w.writeCData(
+					openBrowserFunction.toString() +
+					"function clicked(evt,contig,chromStart,chromEnd){\n" +
+				    "    var e = evt.target;\n" +
+				    "    var dim = e.getBoundingClientRect();\n" +
+				    "    var x = 1.0 * evt.clientX - dim.left;\n" + 
+				    "    var cLen = 1.0* (chromEnd - chromStart); if(cLen<1) cLen=1.0;\n" + 
+				    "    var pos1 = chromStart + parseInt(((x+0)/dim.width)*cLen);\n" +
+				    "    var pos2 = chromStart + parseInt(((x+1)/dim.width)*cLen);\n" +
+				    "   openGenomeBrowser(contig,pos1,pos2);\n" +
+				    "}\n");                
+				w.writeEndElement();//script
+				
+				
+				w.writeStartElement("g");
+				w.writeAttribute("class", "maing");
+				
+				double y=0;
+				w.writeStartElement("g");
+				w.writeComment("interval background");
+				for(final CaptureInterval ci:userIntervals)
+					{
+					w.writeStartElement("text");
+						w.writeAttribute("class", "captureLabel");
+						w.writeAttribute("textLength",String.valueOf(ci.getPixelWidth()*0.8));
+						w.writeAttribute("lengthAdjust", "spacing");
+						w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
+						w.writeAttribute("y",String.valueOf(bed_header_height-2));
+						w.writeCharacters(ci.getName());
+						w.writeStartElement("title");
+						w.writeCharacters(ci.toNiceString());
+						w.writeEndElement();//title
+					w.writeEndElement();//text
+	
 					
+					w.writeStartElement("rect");
+						w.writeAttribute("style","stroke:black;fill:none;");
+						w.writeAttribute("x",String.valueOf(ci.getPixelX1()));
+						w.writeAttribute("y", "0");
+						w.writeAttribute("width",String.valueOf(ci.getPixelWidth()));
+						w.writeAttribute("height",String.valueOf(dim.height));
+						w.writeStartElement("title");
+							w.writeCharacters(ci.getName());
+						w.writeEndElement();
+					w.writeEndElement();
+					}
+				w.writeEndElement();//interval background
+				
+				y+= bed_header_height;
+				
+				for(final BamInput bi:this.bamInputs)
+					{	
+					w.writeComment(bi.bamPath.toString());
+					w.writeStartElement("g");
+					w.writeAttribute("transform","translate(0,"+y+")");
 					
-					//genotype
-					if(vcfReader!=null) {
-						try(CloseableIterator<VariantContext> iter = vcfReader.query(ci)) {
-							while(iter.hasNext()) {
-								final VariantContext ctx = iter.next();
-								final Genotype gt = ctx.getGenotype(bi.sample);
-								if(gt==null) break;
-								String allele_id = null;
-								switch(gt.getType()) {
-									case HET: allele_id = "ar"; break;
-									case HOM_REF: allele_id = "rr"; break;
-									case HOM_VAR: allele_id = "aa"; break;
-									default: allele_id=null;break;
-									}
-								if(allele_id!=null) {
-									w.writeEmptyElement("use");
-									w.writeAttribute("xlink",XLINK.NS,"href","#"+allele_id);
-									w.writeAttribute("x",format(((ctx.getStart()-ci.getStart())/(double)ci.getLengthOnReference())*ci.getPixelWidth()));
-									w.writeAttribute("y",format(bi.getPixelHeight()-2*genotype_radius));
-									}
+					if(normalize_on_median_flag) {
+						final double medianDepth = Math.max(1.0,Percentile.median().evaluate(bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).toArray()).orElse(1.0));
+						LOG.info("median"+medianDepth);
+						for(final double[] coverage_array: bi.coverages) {
+							for(int px=0;px< coverage_array.length;px++) {
+								coverage_array[px]/=medianDepth;
 								}
 							}
 						}
 					
+					final double maxDepth = bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).max().orElse(1.0);
+					
+					for(int ridx=0;ridx<userIntervals.size();ridx++) {
+						final CaptureInterval ci = userIntervals.get(ridx);
+						final String clickedAttribute = "clicked(evt,\""+ci.getContig()+"\","+ci.getStart()+","+ci.getEnd()+")";
+						final double[] coverage_array = bi.coverages.get(ridx);
+						final double leftx =ci.getPixelX1();
+						w.writeStartElement("g");
+						w.writeAttribute("transform","translate("+leftx+",0)");
+						
+						final int segment_width = (int)ci.getPixelWidth();
+	
+						//coverage
+						{
+						final List<Point2D.Double> points = new ArrayList<>(segment_width);
+						points.add(new Point2D.Double(0,bi.getPixelHeight()));
+	
+						for(int px=0;px< coverage_array.length;px++) {
+							final double y_avg_cov=  coverage_array[px];
+							final double new_y = bi.getPixelHeight()-(y_avg_cov/maxDepth)*bi.getPixelHeight();
+							points.add(new Point2D.Double(px,new_y));
+							}
+						points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
+						simplifyPoints.accept(points);				
+						points.add(new Point2D.Double(leftx,bi.getPixelHeight()));//close
+						w.writeEmptyElement("polygon");
+						w.writeAttribute("class","area");
+						w.writeAttribute("title",ci.toNiceString());
+						//w.writeAttribute("onclick", clickedAttribute);
+						w.writeAttribute("points",points2str.apply(points));
+						}
+						//w.writeEndElement();//g
+						
+						
+						
+						
+						int depthshift=1;
+						for(;;) {
+							final int numdiv =(int) (maxDepth/depthshift);
+							if(numdiv<=10) break;
+							depthshift*=10;
+							}
+						
+						
+						int depth=depthshift;
+						while(depth<  maxDepth)
+							{
+							double new_y = bi.getPixelHeight()-(depth/maxDepth)*bi.getPixelHeight();
+							
+							w.writeStartElement("text");
+								w.writeAttribute("class", "linedp");
+								w.writeAttribute("x","1");
+								w.writeAttribute("y",String.valueOf(new_y+1));
+								w.writeCharacters(String.valueOf(depth));
+							w.writeEndElement();//text
+							
+							w.writeStartElement("line");
+								w.writeAttribute("class","linedp");
+								w.writeAttribute("stroke-dasharray","4");
+								w.writeAttribute("x1", "0");
+								w.writeAttribute("x2", String.valueOf(ci.getPixelWidth()));
+								w.writeAttribute("y1", String.valueOf(new_y));
+								w.writeAttribute("y2", String.valueOf(new_y));
+								w.writeStartElement("title");
+									w.writeCharacters(String.valueOf(depth));
+								w.writeEndElement();
+							w.writeEndElement();//line
+							depth+=depthshift;
+							
+							
+	
+							}
+						// polyline
+						w.writeEmptyElement("use");
+						w.writeAttribute("xlink",XLINK.NS,"href","#z"+ci.getId());
+						w.writeAttribute("x","0");
+						w.writeAttribute("y","0");
+	
+						
+						//click
+						w.writeStartElement("rect");
+						w.writeAttribute("class","clickRgn");
+						w.writeAttribute("onclick", clickedAttribute);
+						w.writeAttribute("x", "0");
+						w.writeAttribute("y", "0");
+						w.writeAttribute("width", String.valueOf(ci.getPixelWidth()));
+						w.writeAttribute("height", String.valueOf(bi.getPixelHeight()));
+						w.writeEndElement();
+						
+						
+						//genotype
+						if(vcfReader!=null) {
+							try(CloseableIterator<VariantContext> iter = vcfReader.query(ci)) {
+								while(iter.hasNext()) {
+									final VariantContext ctx = iter.next();
+									final Genotype gt = ctx.getGenotype(bi.sample);
+									if(gt==null) break;
+									String allele_id = null;
+									switch(gt.getType()) {
+										case HET: allele_id = "ar"; break;
+										case HOM_REF: allele_id = "rr"; break;
+										case HOM_VAR: allele_id = "aa"; break;
+										default: allele_id=null;break;
+										}
+									if(allele_id!=null) {
+										w.writeEmptyElement("use");
+										w.writeAttribute("xlink",XLINK.NS,"href","#"+allele_id);
+										w.writeAttribute("x",format(((ctx.getStart()-ci.getStart())/(double)ci.getLengthOnReference())*ci.getPixelWidth()));
+										w.writeAttribute("y",format(bi.getPixelHeight()-2*genotype_radius));
+										}
+									}
+								}
+							}
+						
+						
+						w.writeEndElement();//g
+						}
+					
+					//frame for this sample
+					w.writeStartElement("rect");
+						w.writeAttribute("class","sampleFrame");
+						w.writeAttribute("x","0");
+						w.writeAttribute("y", "0");
+						w.writeAttribute("width",String.valueOf(dim.width));
+						w.writeAttribute("height",String.valueOf(bi.getPixelHeight()));
+					w.writeEndElement();//rect
+	
+					
+					w.writeStartElement("text");
+						w.writeAttribute("class", "sampleLabel");
+						w.writeAttribute("x","5");
+						w.writeAttribute("y","12");
+						w.writeStartElement("title");
+						w.writeCharacters(bi.bamPath.toString());
+						w.writeEndElement();
+						w.writeCharacters(bi.sample);
+					w.writeEndElement();//text
+	
 					
 					w.writeEndElement();//g
+					y += bi.getPixelHeight();
 					}
 				
-				//frame for this sample
-				w.writeStartElement("rect");
-					w.writeAttribute("class","sampleFrame");
-					w.writeAttribute("x","0");
-					w.writeAttribute("y", "0");
-					w.writeAttribute("width",String.valueOf(dim.width));
-					w.writeAttribute("height",String.valueOf(bi.getPixelHeight()));
-				w.writeEndElement();//rect
-
-				
-				w.writeStartElement("text");
-					w.writeAttribute("class", "sampleLabel");
-					w.writeAttribute("x","5");
-					w.writeAttribute("y","12");
-					w.writeStartElement("title");
-					w.writeCharacters(bi.bamPath.toString());
-					w.writeEndElement();
-					w.writeCharacters(bi.sample);
-				w.writeEndElement();//text
-
+				w.writeStartElement("g");
+				w.writeComment("interval lines");
+				for(int n=0;n<= userIntervals.size();n++)
+					{
+					w.writeEmptyElement("line");
+					String x1=
+							n< userIntervals.size()?
+							String.valueOf(userIntervals.get(n).getPixelX1()):
+							String.valueOf(dim.width)
+							;
+					w.writeAttribute("x1", x1);
+					w.writeAttribute("y1", "0");
+					w.writeAttribute("x2", x1);
+					w.writeAttribute("y2", String.valueOf(dim.height));
+					}
+				w.writeEndElement();//interval lines
+	
 				
 				w.writeEndElement();//g
-				y += bi.getPixelHeight();
+				w.writeEndElement();//svg
+				w.writeEndDocument();
+				w.flush();
+				w.close();
 				}
-			
-			w.writeStartElement("g");
-			w.writeComment("interval lines");
-			for(int n=0;n<= userIntervals.size();n++)
-				{
-				w.writeEmptyElement("line");
-				String x1=
-						n< userIntervals.size()?
-						String.valueOf(userIntervals.get(n).getPixelX1()):
-						String.valueOf(dim.width)
-						;
-				w.writeAttribute("x1", x1);
-				w.writeAttribute("y1", "0");
-				w.writeAttribute("x2", x1);
-				w.writeAttribute("y2", String.valueOf(dim.height));
-				}
-			w.writeEndElement();//interval lines
-
-			
-			w.writeEndElement();//g
-			w.writeEndElement();//svg
-			w.writeEndDocument();
-			w.flush();
-			w.close();
 			return 0;
 			}
 		catch(final Exception err) {
@@ -756,7 +755,6 @@ public class WesCnvSvg  extends Launcher {
 			CloserUtil.close(w);
 			CloserUtil.close(fout);
 			CloserUtil.close(r);
-			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(this.bamInputs);
 			}
 		}

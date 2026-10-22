@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.test;
+package com.github.lindenb.jvarkit.tools.vcfcombine2snvs;
 
 import java.io.IOException;
 import java.nio.file.Path;

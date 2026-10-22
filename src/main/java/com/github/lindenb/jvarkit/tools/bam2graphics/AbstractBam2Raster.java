@@ -100,7 +100,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected int minDistanceBetweenPairs=2;
 	@Parameter(names={"--spaceyfeature"},description="number of pixels between features")
 	protected int spaceYbetweenFeatures=4;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
 	protected Path referenceFile = null;
 	@Parameter(names={"--highlight"},description="hightligth those positions.",converter=com.beust.jcommander.converters.IntegerConverter.class)
 	protected Set<Integer> highlightPositions = new HashSet<>() ;

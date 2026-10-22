@@ -87,11 +87,11 @@ public class HTMLDocument extends DocumentWrapper {
 	public Element th(Object content) { return element("th",content,null);}
 	public Element td(Object content) { return element("td",content,null);}
 
-	public Node anchor(Object content,String url) {
+	public Element anchor(Object content,String url) {
 		return element("a",content,Maps.of("href", url));
 		}
 	
-	public Node anchor(String url) {
+	public Element anchor(final String url) {
 		return anchor(url,url);
 		}
 
@@ -222,7 +222,7 @@ public class HTMLDocument extends DocumentWrapper {
 		}
 	
 	public Element div(Object content,Map<String,Object> atts) {
-		return element("div");
+		return element("div",content,atts);
 		}
 
 	
@@ -233,6 +233,27 @@ public class HTMLDocument extends DocumentWrapper {
 		return element("p");
 		}
 
+	public Element table() {
+		return element("table");
+		}
+	public Element tr() {
+		return element("tr");
+		}
+	public Element th() {
+		return th(null);
+		}
+	public Element td() {
+		return element("td");
+		}
+	public Element tbody() {
+		return element("tbody");
+		}
+	public Element thead() {
+		return element("thead");
+		}
+	public Element caption(Object content) {
+		return element("caption",content,null);
+		}
 	
 	public Element header(int level) {
 		return element("h"+level);

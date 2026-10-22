@@ -55,6 +55,7 @@ public final Document document;
 public final Element svgElement;
 public final Element styleElement;
 public final Element titleElement;
+public final Element descriptionElement;
 public final Element metaElement;
 public final Element rootElement;
 public final Element defsElement;
@@ -70,11 +71,14 @@ public SVGDocument(final Document document) {
 	this.svgElement = element( "svg",Maps.of("version","1.1"));
 	this.document.appendChild(this.svgElement);
 	this.svgElement.appendChild(document.createComment("jvarkit.version: "+JVarkitVersion.getInstance().getGitHash()));
-
+	
 	
 	this.titleElement = element("title","untitled");
 	this.svgElement.appendChild(this.titleElement);
 
+	this.descriptionElement = element("desc");
+	this.svgElement.appendChild(this.descriptionElement);
+	
 	this.metaElement = element("metadata");
 	this.svgElement.appendChild(this.metaElement);
 	
@@ -152,6 +156,9 @@ public void appendStyle(final String s) {
 public void setTitle(final String s) {
 	removeAllChildren(this.titleElement).appendChild(text(s));
 	}
+public void setDescription(final String s) {
+	removeAllChildren(this.descriptionElement).appendChild(text(s));
+	}
 public void setWidth(final double w) {
 	this.svgElement.setAttribute("width", format(w));
 	}
@@ -223,6 +230,10 @@ public Element text(double x,double y,Object str,Map<String,Object> atts) {
 	return this.element("text",str,m);
 	}
 
+public Element title(Object str) {
+	return this.element("title",str,null);
+}
+
 public Element text(double x,double y,Object str) {
 	return this.text(x, y, str,Collections.emptyMap());
 	}
@@ -254,6 +265,9 @@ public Element group(Map<String,Object> atts) {
 
 public Element clipPath() {
 	return this.element("clipPath");
+	}
+public Element animate() {
+	return this.element("animate");
 	}
 
 public Element path() {
@@ -504,7 +518,7 @@ public Element anchor(final Element wrapped,final String url) {
 
 public Element setTitle(final Element root,final String  s) {
 	if(root==null || StringUtils.isBlank(s)) return root;
-	final Element e= element("title",s);
+	final Element e= title(s);
 	root.appendChild(e);
 	return root;
 	}

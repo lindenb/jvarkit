@@ -350,6 +350,14 @@ public abstract class DocumentWrapper  {
 			throw new RuntimeException(e);
 			}
 		}
-
-
+	/** wrapper to importNode
+	 */
+	public Node importNode(final Node n,boolean deep) {
+		return this.getDocument().importNode(n, deep);
+	}
+	/** wrapper to importNode with deep=true
+	 */
+	public Node importNode(final Node n) {
+		return importNode(n,true);
+	}
 }
