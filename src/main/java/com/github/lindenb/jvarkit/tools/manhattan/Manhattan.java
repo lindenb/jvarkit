@@ -689,7 +689,7 @@ public class Manhattan extends Launcher {
 			handler.dimension = this.dimension;
 			
 			if(this.bedPath!=null) {
-				try(BedLineReader br = new BedLineReader(this.bedPath)) {
+				try(BedLineReader br = BedLineReader.openPath(this.bedPath)) {
 					br.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.dict));
 					br.setValidationStringency(ValidationStringency.LENIENT);
 					while(br.hasNext()) {

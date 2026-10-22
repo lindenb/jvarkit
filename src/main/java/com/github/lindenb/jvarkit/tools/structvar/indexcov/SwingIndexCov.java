@@ -1202,7 +1202,7 @@ public class SwingIndexCov extends Launcher {
 			this.drawingArea.setToolTipText("");
 			
 			if(roiBedPath!=null) {
-				try(BedLineReader br= new BedLineReader(roiBedPath)) {
+				try(BedLineReader br= BedLineReader.openPath(roiBedPath)) {
 					br.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.srcDict));
 					br.stream()
 						.map(B->new Interval(B.getContig(),B.getStart(),B.getEnd(),false,StringUtils.ifBlank( B.getOrDefault(3,""), B.toNiceString())))

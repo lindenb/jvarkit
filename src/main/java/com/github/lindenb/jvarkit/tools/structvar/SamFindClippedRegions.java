@@ -296,7 +296,7 @@ public class SamFindClippedRegions extends Launcher {
 			if(this.bedPath==null) {
 				queryIntervals = null;
 				} else {
-				try(BedLineReader br = new BedLineReader(this.bedPath)){
+				try(BedLineReader br = BedLineReader.openPath(this.bedPath)){
 					br.setValidationStringency(ValidationStringency.LENIENT).
 						setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					queryIntervals = br.optimizeIntervals(dict);

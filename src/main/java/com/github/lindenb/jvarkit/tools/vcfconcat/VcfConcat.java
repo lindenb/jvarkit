@@ -196,7 +196,7 @@ public class VcfConcat extends Launcher
 				}
 			else
 				{
-				try(BedLineReader br= new BedLineReader(this.input_bed_path)) {
+				try(BedLineReader br= BedLineReader.openPath(this.input_bed_path)) {
 					intervals = br.stream()
 							.map(T->T.toInterval())
 							.collect(Collectors.toList()

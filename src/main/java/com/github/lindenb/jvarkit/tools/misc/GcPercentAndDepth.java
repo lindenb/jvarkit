@@ -368,7 +368,7 @@ public class GcPercentAndDepth extends Launcher
 					final List<RegionCaptured> regionsCaptured=new ArrayList<RegionCaptured>();
 					if(bedFile!=null)
 						{
-						try(BedLineReader r=new BedLineReader(bedFile)) {
+						try(BedLineReader r= BedLineReader.openPath(bedFile)) {
 							r.stream().
 								filter(B->B!=null).
 								forEach(B->{

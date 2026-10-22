@@ -399,7 +399,7 @@ public class Biostar336589 extends Launcher{
 				if(!StringUtil.isBlank(filename)) currentTrack.name =  filename;
 				tracks.add(currentTrack);
 				
-				try(BedLineReader br = new BedLineReader(Paths.get(filename))) {
+				try(BedLineReader br = BedLineReader.openPath(Paths.get(filename))) {
 					while(br.hasNext())
 						{
 						final BedLine bedLine = br.next();

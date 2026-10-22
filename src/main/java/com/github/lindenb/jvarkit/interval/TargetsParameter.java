@@ -75,7 +75,7 @@ public class TargetsParameter {
 				bedFile = Paths.get(targets_file_str);
 				negate=false;
 				}
-			try(BedLineReader br=new BedLineReader(bedFile)) {
+			try(BedLineReader br= BedLineReader.openPath(bedFile)) {
 				if(this.dictionary!=null) br.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.dictionary));
 				br.stream().forEach(B->treeMap.put(new Interval(B),Boolean.TRUE));
 				}

@@ -211,7 +211,7 @@ public class VcfROH extends Launcher
 				
 				final IntervalTreeMap<Boolean> treemap;
 				if (this.intervalBedPath!=null) {
-					try(BedLineReader br = new BedLineReader(this.intervalBedPath)) {
+					try(BedLineReader br = BedLineReader.openPath(this.intervalBedPath)) {
 						treemap = br.toIntervalTreeMap(B->Boolean.TRUE);
 					}
 				} else {

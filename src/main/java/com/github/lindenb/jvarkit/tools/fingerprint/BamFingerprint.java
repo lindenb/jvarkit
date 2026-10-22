@@ -274,7 +274,7 @@ public class BamFingerprint extends Launcher {
 				}
 			else
 				{
-				try(final BedLineReader blr = new BedLineReader(this.blackListBed)) {
+				try(final BedLineReader blr = BedLineReader.openPath(this.blackListBed)) {
 					if(this.referenceFile!=null) {
 						blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.referenceFile)));
 						}

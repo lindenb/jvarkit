@@ -211,7 +211,7 @@ public class BedStats
 	
 	private BedSource readBedSource(Path pathOrNull) throws IOException {
 		try(BedLineReader br = pathOrNull==null?new BedLineReader(stdin(),"stdin"):
-					new BedLineReader(pathOrNull)) {
+					BedLineReader.openPath(pathOrNull)) {
 			long N=0;
 			final BedSource src = new BedSource();
 			src.name = (pathOrNull==null?"stdin":IOUtils.getFilenameWithoutCommonSuffixes(pathOrNull));

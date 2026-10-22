@@ -321,7 +321,7 @@ public class ShiftBam extends Launcher {
 				
 				
 				final IntervalTreeMap<Interval> intervalTreeMap=new IntervalTreeMap<>();
-				try(BedLineReader rd = new BedLineReader(this.bedPath)) {
+				try(BedLineReader rd = BedLineReader.openPath(this.bedPath)) {
 					while(rd.hasNext()) {
 						final BedLine bedrec = rd.next();
 						final Interval loc= new Interval(bedrec.getContig(),bedrec.getStart(),bedrec.getEnd(),false,bedrec.getContig()+":"+bedrec.getStart()+"-"+bedrec.getEnd());

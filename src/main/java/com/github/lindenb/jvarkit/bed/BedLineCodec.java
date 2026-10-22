@@ -24,6 +24,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.bed;
 
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
@@ -58,7 +59,7 @@ public class BedLineCodec
 		return stringency;
 		}
 	
-	public BedLineCodec setContigNameConverter(UnaryOperator<String> chromosomeConverter) {
+	public BedLineCodec setContigNameConverter(final UnaryOperator<String> chromosomeConverter) {
 		this.chromosomeConverter = chromosomeConverter;
 		return this;
 		}
@@ -79,7 +80,7 @@ public class BedLineCodec
 	public BedLine decode(final String[] tokens) {
     	if(tokens==null) return null;
     	
-        if(tokens.length<2) {
+        if(tokens.length<3) {
         	raiseError("not enough tokens in BED line",String.join("\t",tokens));
         	return null;
         	}
@@ -137,7 +138,7 @@ public class BedLineCodec
 	
     @Override
     public boolean canDecode(final String path) {
-        return path.toLowerCase().endsWith(".bed");
+        return path.toLowerCase().endsWith(FileExtensions.BED);
     }
 
 }

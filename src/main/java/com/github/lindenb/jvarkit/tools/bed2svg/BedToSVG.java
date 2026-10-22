@@ -477,7 +477,7 @@ public class BedToSVG extends Launcher {
 					;
 				
 				if(this.regions_file!=null) {
-					try(BedLineReader br=new BedLineReader(this.regions_file)) {
+					try(BedLineReader br= BedLineReader.openPath(this.regions_file)) {
 						br.setContigNameConverter(this.wholegenome.ctgConvert);
 						br.stream().forEach(R->regions.add(new SimpleInterval(R)));
 						}

@@ -137,7 +137,7 @@ public class VcfBurdenCNV
 	private final IntervalTree<Boolean> loadBed(final Path path,final SAMSequenceDictionary dict, final String contig) throws IOException {
 		if(path==null) return null;
 		final IntervalTree<Boolean> iTree=new IntervalTree<>();
-		try(BedLineReader blr = new BedLineReader(path)) {
+		try(BedLineReader blr = BedLineReader.openPath(path)) {
 			blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 			blr.stream().
 				filter(B->B.getContig().equals(contig)).
@@ -149,7 +149,7 @@ public class VcfBurdenCNV
 	private final IntervalTree<Double> loadKnown(final SAMSequenceDictionary dict, final String contig) throws IOException {
 		if(this.bedKnownPath==null) return null;
 		final IntervalTree<Double> iTree=new IntervalTree<>();
-		try(BedLineReader blr = new BedLineReader(this.bedKnownPath)) {
+		try(BedLineReader blr = BedLineReader.openPath(this.bedKnownPath)) {
 			blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 			blr.stream().
 				filter(B->B.getContig().equals(contig)).

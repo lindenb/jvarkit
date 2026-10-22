@@ -39,11 +39,13 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -60,7 +62,9 @@ public static final String OPT_DESC="A Bed file: (CHROM)<tab>(START 0-based)<tab
 private final BedLineCodec codec = new BedLineCodec();
 private final BufferedReader br;
 private final String sourceName;
-public BedLineReader(final Path path) {
+
+/** deprecated use static method BedLineReader.openPath */
+protected BedLineReader(final Path path) {
 	this(IOUtil.openFileForBufferedReading(path),path.toString());
 	}
 public BedLineReader(final File path) {
@@ -201,5 +205,51 @@ return toIntervalListTreeMap(X->X);
 @Override
 public String toString() {
 	return "BedLineReader("+sourceName+")";
+	}
+
+/**
+ * Specualized reader that is able to read picard '.interval_list' files 
+ */
+private static class IntervalListBedLineReader extends BedLineReader {
+	IntervalListBedLineReader(final Path path) {
+		super(path);
+		}
+	@Override
+	protected BedLine advance() {
+		try {
+			for(;;) {
+				final String line = super.br.readLine();
+				if(line==null) break;
+				if(StringUtil.isBlank(line) || line.startsWith("@")) {
+					continue;
+					}
+				final String[] tokens = CharSplitter.TAB.split(line);
+				/* convert Interval List to BED */
+				if(tokens.length>1) {
+					tokens[1]=String.valueOf(Integer.parseInt(tokens[1])-1);
+					}
+				final BedLine bed = super.codec.decode(tokens);
+				if (bed==null) {
+					/* no need to display a message because validation stringency set in codec
+					 * LOG.warn("Cannot read bed entry \""+line.replace("\t", "\\t")+"\" in "+sourceName);
+					 */
+					continue;
+					}
+				return bed;
+				}
+		} catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		return null;
+		}
+
+	}
+/** open path as BedLine Reader. This static method is able to use a picard interval_list file and to convert it to bed */
+public static BedLineReader openPath(final Path bed_or_interval_list_file) {
+	IOUtil.assertFileIsReadable(bed_or_interval_list_file);
+	if(bed_or_interval_list_file.getFileName().endsWith(FileExtensions.INTERVAL_LIST) || bed_or_interval_list_file.getFileName().endsWith(FileExtensions.COMPRESSED_INTERVAL_LIST)) {
+		return new IntervalListBedLineReader(bed_or_interval_list_file);
+		}
+	return new BedLineReader(bed_or_interval_list_file);
 	}
 }	

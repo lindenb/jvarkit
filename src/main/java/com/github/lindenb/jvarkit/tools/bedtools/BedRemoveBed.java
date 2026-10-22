@@ -99,7 +99,7 @@ public class BedRemoveBed extends Launcher {
 			if(excludeBed!=null && includeBed==null) {
 				excludeTree = new IntervalTreeMap<>();
 				includeTree = null;
-				try(BedLineReader blr=  new BedLineReader(excludeBed)) {
+				try(BedLineReader blr=  BedLineReader.openPath(excludeBed)) {
 						if(dict!=null) {
 							blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 							}
@@ -112,7 +112,7 @@ public class BedRemoveBed extends Launcher {
 			else if(includeBed!=null && excludeBed==null) {
 					includeTree = new IntervalTreeMap<>();
 					excludeTree = null;
-					try(BedLineReader blr=  new BedLineReader(includeBed)) {
+					try(BedLineReader blr=  BedLineReader.openPath(includeBed)) {
 						if(dict!=null) {
 							blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 							}
@@ -130,7 +130,7 @@ public class BedRemoveBed extends Launcher {
 			
 			try(BedLineReader blr= StringUtils.isBlank(input)?
 					new BedLineReader(stdin(), "STDIN"):
-					new BedLineReader(Paths.get(input))) {
+						BedLineReader.openPath(Paths.get(input))) {
 				if(dict!=null) {
 					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					}

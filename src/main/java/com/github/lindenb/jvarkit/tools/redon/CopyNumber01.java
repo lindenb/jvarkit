@@ -322,7 +322,7 @@ public class CopyNumber01 extends Launcher
 			else
 				{
 				final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
-				try(BedLineReader br =  new BedLineReader(this.bedFile)) {
+				try(BedLineReader br =  BedLineReader.openPath(this.bedFile)) {
 					br.stream().
 						filter(L->!StringUtil.isBlank(converter.apply(L.getContig()))).
 						forEach(B->{

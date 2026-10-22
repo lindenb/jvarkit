@@ -382,7 +382,7 @@ public class FindGVCFsBlocks extends Launcher {
 			final IntervalTreeMap<Boolean> intervalTreeMap;
 			final Predicate<Locatable> inCapture;
 			if (this.bedPath!=null) {
-				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
+				try(BedLineReader blr = BedLineReader.openPath(this.bedPath)) {
 					intervalTreeMap = blr.toIntervalTreeMap(BED->Boolean.TRUE);
 					}
 				inCapture = (L)->intervalTreeMap.containsOverlapping(L);

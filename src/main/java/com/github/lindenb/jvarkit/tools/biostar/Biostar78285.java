@@ -243,7 +243,7 @@ public class Biostar78285 extends Launcher
 				LOG.info("Opening "+this.captureBed);
 				ContigNameConverter.setDefaultAliases(dict);
 				final List<QueryInterval> L = new ArrayList<>();
-				try(BedLineReader li = new BedLineReader(this.captureBed)) {
+				try(BedLineReader li = BedLineReader.openPath(this.captureBed)) {
 					while(li.hasNext()) {
 						final BedLine bed = li.next();
 						if(bed==null) continue;

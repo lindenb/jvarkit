@@ -272,7 +272,7 @@ public class SetFileTools extends Launcher {
 			{
 			BedLineReader br;
 			if(pathOrNull!=null) {
-				br = new BedLineReader(pathOrNull);
+				br =BedLineReader.openPath(pathOrNull);
 				}
 			else {
 				br = new BedLineReader(stdin(),"stdin");

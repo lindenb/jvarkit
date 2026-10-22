@@ -311,7 +311,7 @@ public class VcfFisherCombinatorics extends Launcher
 
 				
 				
-				try(BedLineReader br = new BedLineReader(this.bedPath)) {
+				try(BedLineReader br = BedLineReader.openPath(this.bedPath)) {
 					
 					while(br.hasNext()) {
 						final BedLine bed = br.next();

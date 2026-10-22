@@ -454,7 +454,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			if(this.positionFile!=null) {
 				if(	this.positionFile.toString().endsWith(".bed") || 
 					this.positionFile.toString().endsWith(".bed.gz")) {
-					try(BedLineReader br=new BedLineReader(this.positionFile)) {
+					try(BedLineReader br= BedLineReader.openPath(this.positionFile)) {
 						br.stream().
 						filter(B->B!=null).
 						forEach(bedLine->{

@@ -99,7 +99,7 @@ public class PlotRareVariants extends Launcher {
 				final Hyperlink hyperlink = Hyperlink.compile(dict);
 				List<BedLine> intervals =  new ArrayList<>();
 				
-				try(BedLineReader blr= new BedLineReader(this.bedFile)) {
+				try(BedLineReader blr= BedLineReader.openPath(this.bedFile)) {
 					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					blr.stream().forEach(R->intervals.add(R));
 					}

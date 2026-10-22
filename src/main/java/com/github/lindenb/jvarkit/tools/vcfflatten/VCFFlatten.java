@@ -245,7 +245,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		final IntervalTreeMap<List<Interval>> interval2group=new IntervalTreeMap<>();
 		if(bed_for_groups!=null) {
 			if(this.debug_flag) LOG.debug("reading bed "+this.bed_for_groups);
-			try(BedLineReader blr = new BedLineReader(this.bed_for_groups)) {
+			try(BedLineReader blr = BedLineReader.openPath(this.bed_for_groups)) {
 				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 				blr.stream().forEach(BL->{
 					String name = BL.getOrDefault(3, "");

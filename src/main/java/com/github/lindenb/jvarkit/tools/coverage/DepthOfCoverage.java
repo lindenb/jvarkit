@@ -220,7 +220,7 @@ public class DepthOfCoverage extends Launcher
 							}
 						final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 						final List<QueryInterval> L = new ArrayList<>();
-						try(BedLineReader br= new BedLineReader(this.includeBed)) {
+						try(BedLineReader br= BedLineReader.openPath(this.includeBed)) {
 							while(br.hasNext()) {
 								final BedLine bed = br.next();
 								final String ctg = contigNameConverter.apply(bed.getContig());
@@ -384,7 +384,7 @@ public class DepthOfCoverage extends Launcher
 								/* read mask */
 								if(this.maskBed!=null ) {
 									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-									try(BedLineReader br= new BedLineReader(this.maskBed)) {
+									try(BedLineReader br= BedLineReader.openPath(this.maskBed)) {
 										while(br.hasNext()) {
 											final BedLine bed = br.next();
 											if(bed==null) continue;
@@ -400,7 +400,7 @@ public class DepthOfCoverage extends Launcher
 								else if(this.includeBed!=null) {
 									final List<Locatable> list = new ArrayList<>();
 									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-									try(BedLineReader br= new BedLineReader(this.includeBed)) {
+									try(BedLineReader br= BedLineReader.openPath(this.includeBed)) {
 										while(br.hasNext()) {
 											final BedLine bed = br.next();
 											if(bed==null) continue;

@@ -74,6 +74,16 @@ BEGIN_DOC
 
 filter/annotate a VCF with a GTF. I'm fed up to filter a  GTF, convert the GTF to bed and use the bed to filter the GTF.
 
+
+## Example
+
+```
+bcftools view in.vcf.gz |\
+java -jar jvarkit.jar vcfgtf \
+	--gtf /path/to/gencode.v38.annotation.gtf.gz \
+	--hide-no-overlap 
+```
+
 END_DOC
 */
 @Program(name="vcfgtf",
@@ -90,17 +100,17 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private enum Coding {all,protein_coding};
 	@Parameter(names={"-gtf","--gtf"},description="GTF file",required = true)
 	private Path gtfPath;
-	@Parameter(names={"--biotype"},description="What biotype 'x'  should be used.")
+	@Parameter(names={"--biotype"},description="What feature biotype 'x'  should be used.")
 	private Coding codingType = Coding.all;
-	@Parameter(names={"--bed"},description="only use GTF line overlaping that bed file")
+	@Parameter(names={"--bed"},description="only use GTF lines overlaping that bed file. " + BedLineReader.OPT_DESC)
 	private Path bedPath=null;
 	@Parameter(names={"--extend","--extends","-x","-X"},description="extends each gtf feature by 'x' bases. Multiple separated by commas. Empty will be replaced by '0'. " + DistanceParser.OPT_DESCRIPTION)
 	private String extendStr = "0";
 	@Parameter(names={"--hide-no-overlap","--hide"},description="Don't show variant that have NO intersection with any of the GTF features")
 	private boolean hide_no_overlap_flag = false;
-	@Parameter(names={"--gene_name"},description="Optional comma delimited string or File containing a list of gene names . Filter on attribute gene_name")
+	@Parameter(names={"--gene-name"},description="Optional comma delimited string or File containing a list of gene names . Filter on attribute gene_name")
 	private String gene_name_path = "";
-	@Parameter(names={"--gene_id"},description="Optional comma delimited string or File containing a list of gene IDs . Filter on attribute gene_id. Trailing '.[0-9]+' for version will be removed")
+	@Parameter(names={"--gene-id"},description="Optional comma delimited string or File containing a list of gene IDs . Filter on attribute gene_id. Trailing '.[0-9]+' for version will be removed")
 	private String gene_id_path = "";
 	@Parameter(names={"--no-gene-id"},description="Do not insert gene ids in the output")
 	private boolean hide_gene_ids =false;
@@ -108,16 +118,23 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private boolean hide_gene_names =false;
 	@Parameter(names={"--no-biotype"},description="Do not insert gene biotypes in the output")
 	private boolean hide_biotypes =false;
+	@Parameter(names={"--show-transcript-id"},description="Do show transcript IDs in the output")
+	private boolean show_transcripts_id = false;
+	@Parameter(names={"--show-protein-id"},description="Do show protein IDs in the output")
+	private boolean show_proteins_id = false;
 
 	private static class GTFInterval extends LocatableDelegate<GTFLine> {
 		protected final int extend;
-		GTFInterval(final GTFLine line,int extend) {
+		GTFInterval(final GTFLine line,final int extend) {
 			super(line);
 			this.extend=extend;
 			}
+		protected int trim(int p) {
+			return Math.max(1, p);
+			}
 		@Override
 		public int getStart() {
-			return Math.max(1,getDelegate().getStart()-this.extend);
+			return trim(getDelegate().getStart()-this.extend);
 			}
 		@Override
 		public int getEnd() {
@@ -139,7 +156,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			}
 		@Override
 		public int getStart() {
-			return Math.max(1,getLoc()-this.extend);
+			return trim(getLoc()-this.extend);
 			}
 		@Override
 		public int getEnd() {
@@ -158,15 +175,15 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			if(extend<=0) throw new IllegalStateException();
 			}
 		// each breakend before/after
-		protected int x1() { return Math.max(1,getDelegate().getStart()-this.extend);}
-		protected int x2() { return Math.max(1,getDelegate().getStart()-1);}
+		protected int x1() { return trim(getDelegate().getStart()-this.extend);}
+		protected int x2() { return trim(getDelegate().getStart()-1);}
 		protected int x3() { return getDelegate().getEnd()+1;}
 		protected int x4() { return getDelegate().getEnd()+this.extend;}
 		}
 	
-	/** upstream / downstream gene */
+	/** upstream  gene */
 	private static class GTFGeneUpstream extends GTFGeneXXXStream {
-		protected GTFGeneUpstream(final GTFLine line,int extend) {
+		GTFGeneUpstream(final GTFLine line,int extend) {
 			super(line,extend);
 			}
 		@Override
@@ -179,9 +196,9 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			}
 		}
 	
-	/** upstream / downstream gene */
+	/**  downstream gene */
 	private static class GTFGeneDownstream extends GTFGeneXXXStream {
-		protected GTFGeneDownstream(final GTFLine line,int extend) {
+		GTFGeneDownstream(final GTFLine line,int extend) {
 			super(line,extend);
 			}
 		@Override
@@ -255,22 +272,12 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 		L.add(r);
 		}
 	
-	private static Set<String> getBioTypes(GTFLine feat) {
-		return Arrays.asList(
-				feat.getAttribute("biotype"),
-				feat.getAttribute("gene_biotype"),
-				feat.getAttribute("transcript_biotype")
-				)
-			.stream()
-			.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
-			.collect(Collectors.toSet());
-		}
-	
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator iterin, final VariantContextWriter out) {
 		try {
 			final Set<Integer> all_extends= CharSplitter.COMMA.stream(this.extendStr)
+				.map(S->S.trim())
 				.filter(S->!StringUtils.isBlank(S))
 				.map(S->new DistanceParser().applyAsInt(S))
 				.collect(Collectors.toCollection(TreeSet::new))
@@ -301,7 +308,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			/* load BED file if needed */
 			final IntervalTreeMap<Boolean> bedIntervalMap;
  			if(this.bedPath!=null) {
-				try(BedLineReader blr=new BedLineReader(this.bedPath)) {
+				try(BedLineReader blr= BedLineReader.openPath(this.bedPath)) {
 					blr.setContigNameConverter(ctgConverter);
 					bedIntervalMap= blr.toIntervalTreeMap(B->true);
 					}
@@ -338,7 +345,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 						case all: ok=true; break;
 						case protein_coding:
 							{
-							ok= getBioTypes(feat).contains("protein_coding");
+							ok= feat.getBioTypes().contains("protein_coding");
 							break;
 							}
 						}
@@ -440,10 +447,30 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			if(!this.hide_biotypes) {
 				header.addMetaDataLine(infoGeneBioTypes);
 				}
+			
+			final VCFInfoHeaderLine infoTranscriptIds =new VCFInfoHeaderLine(
+					"transcript_ids",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Transcripts IDs from "+this.gtfPath);
+			if(this.show_transcripts_id) {
+				header.addMetaDataLine(infoTranscriptIds);
+				}
+			
+			final VCFInfoHeaderLine infoProteinIds =new VCFInfoHeaderLine(
+					"protein_ids",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Proteins IDs from "+this.gtfPath);
+			if(this.show_proteins_id) {
+				header.addMetaDataLine(infoProteinIds);
+				}
+			
 			out.writeHeader(header);
 			while(iterin.hasNext()) {
 				final VariantContext ctx = iterin.next();
-				final List<GTFInterval> intervals = intervalTreeMap.getOverlapping(ctx).stream().flatMap(L->L.stream()).collect(Collectors.toList());
+				final List<GTFInterval> intervals = intervalTreeMap
+						.getOverlapping(ctx)
+						.stream()
+						.flatMap(L->L.stream())
+						.collect(Collectors.toList());
+				
 				if(intervals.isEmpty()) {
 					if(this.hide_no_overlap_flag) continue;
 					out.add(ctx);
@@ -481,14 +508,35 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 				/* add biotypes in VCF */
 				if(!this.hide_biotypes) {
 					set = intervals.stream()
-							.flatMap(R->getBioTypes(R.getDelegate()).stream())
+							.flatMap(R->R.getDelegate().getBioTypes().stream())
 							.collect(Collectors.toCollection(TreeSet::new));
 					
 					if(!set.isEmpty()) {
 						vcb.attribute(infoGeneBioTypes.getID(),new ArrayList<>(set));
 						}
 					}
-
+				
+				/* add transcript ids in VCF */
+				if(this.show_transcripts_id) {
+					set = intervals.stream().map(R->R.getDelegate().getTranscriptId())
+							.map(S->removeVersion(S))
+							.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
+							.collect(Collectors.toCollection(TreeSet::new));
+					if(!set.isEmpty()) {
+						vcb.attribute(infoTranscriptIds.getID(),new ArrayList<>(set));
+						}
+					}
+				/* add protein ids in VCF */
+				if(this.show_proteins_id) {
+					set = intervals.stream().map(R->R.getDelegate().getProteinId())
+							.map(S->removeVersion(S))
+							.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
+							.collect(Collectors.toCollection(TreeSet::new));
+					if(!set.isEmpty()) {
+						vcb.attribute(infoProteinIds.getID(),new ArrayList<>(set));
+						}
+					}
+				
 				
 				out.add(vcb.make());
 				}

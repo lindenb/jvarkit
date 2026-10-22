@@ -1569,7 +1569,7 @@ public class OptimizeFisher extends Launcher {
 			
 			if(this.roiPath!=null) {
 				Map<String,RegionOfInterest> id2roi=new HashMap<>();
-				try(BedLineReader blr = new BedLineReader(this.roiPath)) {
+				try(BedLineReader blr = BedLineReader.openPath(this.roiPath)) {
 					while(blr.hasNext()) {
 						final BedLine bl = blr.next();
 						final String roiName =bl.getOrDefault(3, "");

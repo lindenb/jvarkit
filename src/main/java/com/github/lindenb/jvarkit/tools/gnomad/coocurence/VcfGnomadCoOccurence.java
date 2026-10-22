@@ -393,7 +393,7 @@ public class VcfGnomadCoOccurence extends Launcher {
 						}
 					}
 				final List<Locatable> intervals = new ArrayList<>();
-				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
+				try(BedLineReader blr = BedLineReader.openPath(this.bedPath)) {
 					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					blr.forEachRemaining(B->intervals.add(B));
 					}

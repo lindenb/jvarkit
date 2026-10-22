@@ -240,7 +240,7 @@ public int doWork(final List<String> args) {
 			intervals.add(interval);
 			}
 		else if(this.bedPath!=null) {
-			try(BedLineReader br=new BedLineReader(this.bedPath)) {
+			try(BedLineReader br= BedLineReader.openPath(this.bedPath)) {
 				br.setContigNameConverter(ContigNameConverter.fromOneDictionary(refDict));
 				while(br.hasNext()) {
 					intervals.add(br.next());

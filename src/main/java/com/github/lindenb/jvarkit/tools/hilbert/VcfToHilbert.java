@@ -129,7 +129,7 @@ public class VcfToHilbert extends Launcher
 				}
 			else
 				{
-				try(BedLineReader br =new BedLineReader(this.bedIn)) {
+				try(BedLineReader br = BedLineReader.openPath(this.bedIn)) {
 					while(br.hasNext()) {
 						final BedLine bl=br.next();
 						if(dict.getSequence(bl.getContig())==null) {

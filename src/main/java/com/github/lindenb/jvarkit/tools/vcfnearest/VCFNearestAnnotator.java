@@ -95,7 +95,7 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 			{
 			final SAMSequenceDictionary dict= header.getSequenceDictionary();
 			final UnaryOperator<String> converter = dict==null?C->C: ContigNameConverter.fromOneDictionary(dict);
-			try(BedLineReader br = new BedLineReader(bedPath)) {
+			try(BedLineReader br = BedLineReader.openPath(bedPath)) {
 				br.setContigNameConverter(converter);
 				br.stream().forEach(this::addInterval);
 				}

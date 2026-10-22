@@ -309,7 +309,7 @@ public class BamCmpCoverage extends Launcher
 			{
 			intervals=new IntervalTreeMap<Boolean>();
 			}
-		try(BedLineReader r=new BedLineReader(bedFile)) {
+		try(BedLineReader r= BedLineReader.openPath(bedFile)) {
 			while(r.hasNext())
 				{
 				final BedLine bedLine = r.next();

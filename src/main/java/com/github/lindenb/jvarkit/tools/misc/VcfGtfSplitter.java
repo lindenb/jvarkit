@@ -62,7 +62,6 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.index.tabix.TabixFormat;

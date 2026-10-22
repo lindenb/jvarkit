@@ -23,9 +23,10 @@ Usage: vcfgtf [options] Files
       checked 2019-11-15)
       Default: false
     --bed
-      only use GTF line overlaping that bed file
+      only use GTF lines overlaping that bed file. A Bed file: 
+      (CHROM)<tab>(START 0-based)<tab>(END)[<tab>otherfields...].
     --biotype
-      What biotype 'x'  should be used.
+      What feature biotype 'x'  should be used.
       Default: all
       Possible Values: [all, protein_coding]
     --extend, --extends, -x, -X
@@ -34,12 +35,12 @@ Usage: vcfgtf [options] Files
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb,g,gb 
       Default: 0
-    --gene_id
+    --gene-id
       Optional comma delimited string or File containing a list of gene IDs . 
       Filter on attribute gene_id. Trailing '.[0-9]+' for version will be 
       removed 
       Default: <empty string>
-    --gene_name
+    --gene-name
       Optional comma delimited string or File containing a list of gene names 
       . Filter on attribute gene_name
       Default: <empty string>
@@ -67,6 +68,12 @@ Usage: vcfgtf [options] Files
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --show-protein-id
+      Do show protein IDs in the output
+      Default: false
+    --show-transcript-id
+      Do show transcript IDs in the output
+      Default: false
     --version
       print version and exit
 
@@ -118,5 +125,15 @@ The current reference is:
 ## Motivation
 
 filter/annotate a VCF with a GTF. I'm fed up to filter a  GTF, convert the GTF to bed and use the bed to filter the GTF.
+
+
+## Example
+
+```
+bcftools view in.vcf.gz |\
+java -jar jvarkit.jar vcfgtf \
+	--gtf /path/to/gencode.v38.annotation.gtf.gz \
+	--hide-no-overlap 
+```
 
 

@@ -303,7 +303,7 @@ public class VcfToIntervals extends Launcher
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					final OrderChecker<VariantContext> orderChecker = new OrderChecker<>(dict, false);
 					/* loop over each record in the bed */
-					try(BedLineReader blr = new BedLineReader(this.bedIn)) {
+					try(BedLineReader blr = BedLineReader.openPath(this.bedIn)) {
 						blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 						try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 							writeHeader(pw,dict,header);

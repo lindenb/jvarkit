@@ -112,7 +112,7 @@ public class ReferenceToVCF extends Launcher
 			if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
 			try
 				{
-				try(final BedLineReader r = new BedLineReader(this.bedFile)) {
+				try(final BedLineReader r = BedLineReader.openPath(this.bedFile)) {
 					while(r.hasNext())
 						{
 						final BedLine record = r.next();

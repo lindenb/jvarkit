@@ -228,7 +228,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 			final List<Gene> genes;
 			final Predicate<Locatable> acceptInterval;
 			if(regions_file_bed!=null) {
-				try(BedLineReader blr=new BedLineReader(this.regions_file_bed)) {
+				try(BedLineReader blr=BedLineReader.openPath(this.regions_file_bed)) {
 					blr.setContigNameConverter(ctgConverter);
 					final IntervalTreeMap<Boolean> treeMap= blr.toIntervalTreeMap(B->true);
 					acceptInterval = L->treeMap.containsOverlapping(L);

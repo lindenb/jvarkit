@@ -257,7 +257,7 @@ public class VCFBed extends OnePassVcfLauncher
 	/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
 	private IntervalTreeMap<List<BedLine>>  readBedFileAsIntervalTreeMap(final Path file) throws java.io.IOException
 		{
-		try(BedLineReader blr = new BedLineReader(file)) {
+		try(BedLineReader blr = BedLineReader.openPath(file)) {
 			final  htsjdk.samtools.util.IntervalTreeMap<List<com.github.lindenb.jvarkit.bed.BedLine>> intervals = new
 					 htsjdk.samtools.util.IntervalTreeMap<>();
 			while(blr.hasNext())

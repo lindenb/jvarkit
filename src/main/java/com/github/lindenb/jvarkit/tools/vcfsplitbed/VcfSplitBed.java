@@ -107,7 +107,7 @@ public class VcfSplitBed
 				final VCFHeader header0  = vcfFileReader.getHeader();
 				/* load bed */
 				final SAMSequenceDictionary dict = header0.getSequenceDictionary();
-				try(BedLineReader br= new BedLineReader(this.userBed)) {
+				try(BedLineReader br= BedLineReader.openPath(this.userBed)) {
 					if(dict!=null) br.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					while(br.hasNext()) {
 						final BedLine rec = br.next();

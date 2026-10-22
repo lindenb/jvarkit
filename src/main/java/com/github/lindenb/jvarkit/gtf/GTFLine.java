@@ -26,10 +26,17 @@ package com.github.lindenb.jvarkit.gtf;
 
 import htsjdk.tribble.Feature;
 
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 
+/**
+ * A line in a GTF file
+ */
 public interface GTFLine 
 	extends ExtendedLocatable,Feature
 
@@ -56,8 +63,13 @@ public interface GTFLine
 	public default String getGeneId() {
 		return getAttribute("gene_id");
 		}
+	/** shortcut to getAttribute("transcript_id") */
 	public default String getTranscriptId() {
 		return getAttribute("transcript_id");
+		}
+	/** shortcut to getAttribute("protein_id") */
+	public default String getProteinId() {
+		return getAttribute("protein_id");
 		}
 	public default boolean isGene() {
 		return getType().equals("gene");
@@ -76,5 +88,16 @@ public interface GTFLine
 		}
 	public default boolean isNegativeStrand() {
 		return getStrand()=='-';
+		}
+	/** find all available biotypes using attributes biotype/gene_biotype/transcript_biotype . Never null, may be empty */
+	public default Set<String> getBioTypes() {
+		return Arrays.asList(
+				this.getAttribute("biotype"),
+				this.getAttribute("gene_biotype"),
+				this.getAttribute("transcript_biotype")
+				)
+			.stream()
+			.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
+			.collect(Collectors.toSet());
 		}
 	}

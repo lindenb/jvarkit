@@ -83,7 +83,7 @@ public class AtacSeqDiff extends Launcher {
 		
 		try {
 			final List<Interval> intervals;
-			try(BedLineReader blr=new BedLineReader(this.bedForPeaks)) {
+			try(BedLineReader blr= BedLineReader.openPath(this.bedForPeaks)) {
 				intervals = blr.stream().map(B->new Interval(B)).collect(Collectors.toList());
 				}
 			

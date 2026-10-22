@@ -310,7 +310,7 @@ public int doWork(final List<String> args) {
 		if(this.includePath!=null) {
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
 			final IntervalTreeMap<Boolean> map = new IntervalTreeMap<>();
-			try(BedLineReader blr = new BedLineReader(this.includePath)) {
+			try(BedLineReader blr = BedLineReader.openPath(this.includePath)) {
 				blr.setContigNameConverter(converter);
 				blr.stream().
 					filter(L->L!=null).

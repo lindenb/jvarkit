@@ -1252,7 +1252,7 @@ public class SwingBamCov extends Launcher
 			
 			if(intervalBed!=null) {
 				JMenu rMenu = null;
-				try(BedLineReader blr = new BedLineReader(intervalBed)) {
+				try(BedLineReader blr = BedLineReader.openPath(intervalBed)) {
 					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict)).
 						setValidationStringency(ValidationStringency.LENIENT);
 					while(blr.hasNext()) {
