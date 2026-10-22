@@ -2,24 +2,37 @@ Bootstrap: docker
 From: ubuntu:24.04
 
 %post
-    apt-get -y update
-    apt-get -y install git wget openjdk-17-jdk make
-    git clone -b dev "https://github.com/lindenb/jvarkit.git" jvarkit.tmp
-    (cd jvarkit.tmp && git reset --hard 16aff8a16c20de4b5708763acfbaf3f798085be1 && make)
+    apt-get -y update && apt-get -y install \
+        git wget openjdk-17-jdk make
+    git clone --recurse-submodules --recursive --branch v2026.04.30 https://github.com/lindenb/jvarkit.git
+    cd jvarkit
+    # Fix for special character on compilation (since commit #c8ccc25):
+    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+    make
+    cd ../
     mkdir -p /opt
-    mv "jvarkit.tmp" "/opt/jvarkit"
-    echo "export JVARKIT_DIST=/opt/jvarkit/dist" >> $SINGULARITY_ENVIRONMENT
+    mv "/jvarkit" "/opt/"
+    echo '#!/bin/bash' > /usr/local/bin/jvarkit 
+    echo 'java -jar /opt/jvarkit/dist/jvarkit.jar "$@"' >> /usr/local/bin/jvarkit
+    chmod +x /usr/local/bin/jvarkit
 
+%environment
+    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+    export PATH=/usr/local/bin:$PATH
 
 %test
-	echo "JVARKIT_DIST=${JVARKIT_DIST}"
-	java -jar /opt/jvarkit/dist/jvarkit.jar --help
+	echo "Version: $(jvarkit --version)"
 	
 %runscript
-	java -jar /opt/jvarkit/dist/jvarkit.jar "$@"
+	jvarkit "$@"
 
 %labels
 	Author Pierre Lindenbaum
+    Refactoring Charles VAN GOETHEM
+    Version v2026.04.30 (#fc2356a34)
+    Description Java utilities for Bioinformatics (jvarkit.readthedocs.io/)
+
 %help
 	This is a container for jvarkit.
-	Run as `java -jar ${SINGULARITYENV_JVARKIT_DIST}/jvarkit.jar`
+	Create the image as : `apptainer build jvarkit_2026.04.30.sif jvarkit.def`
+	Run as : `apptainer exec jvarkit`
