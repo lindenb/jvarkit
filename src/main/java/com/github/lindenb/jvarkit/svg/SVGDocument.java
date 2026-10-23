@@ -202,7 +202,7 @@ public String style2class(final String className,final String style) {
 	}
 
 
-public Element line(double x1,double y1,double x2,double y2,Map<String,Object> atts) {
+public Element line(double x1,double y1,double x2,double y2, final Map<String,Object> atts) {
 	final Map<String,Object> m =Maps.of("x1",x1,"y1",y1,"x2",x2,"y2",y2);
 	if(atts!=null) m.putAll(atts);
 	return  this.element("line",null,m);

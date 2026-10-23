@@ -108,7 +108,7 @@ END_DOC
 description="Merge Vcf from Manta VCF.",
 keywords= {"sv","manta","vcf"},
 creationDate="20190916",
-modificationDate="20260111",
+modificationDate="20261023",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
@@ -118,15 +118,15 @@ public class MantaMerger extends Launcher {
 	private Path outputFile = null;
 	@ParametersDelegate
 	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
-	@Parameter(names={"-c","--contig"},description="limit to this contig")
-	private String limitContig = null;
+	@Parameter(names={"-c","--contig","--contig-regex"},description="limit to the contig matching that regular expression. Empty = all chromosome")
+	private String limitContigRegex = "(chr)?[0-9XY]+";
 	@Parameter(names={"--no-bnd"},description="discar BND")
 	private boolean discard_bnd = false;
 	@Parameter(names={"-B","--bed"},description="Keep regions in this bed file.")
 	private Path includePath = null;
 
 	/**
-	 * Minimap description of a genotype: a sample, a genotype type
+	 * Mini description of a genotype: a sample, a genotype type
 	 *
 	 */
 	private static class MiniGT {
@@ -169,7 +169,7 @@ public class MantaMerger extends Launcher {
 			return !isHet() && !isHomVar();
 			}
 		}
-	/** A unique SV key. A key is defined by a contit, start,reference, and must match the svComparator */
+	/** A unique SV key. A key is defined by a contig, start,reference, and must match the svComparator */
 	private class SVKey implements Locatable {
 		private final VariantContext archetype;
 		SVKey(final VariantContext archetype) {
@@ -300,8 +300,8 @@ public int doWork(final List<String> args) {
 			return -1;
 			}
 		
-		if(!StringUtils.isBlank(this.limitContig) && dict.getSequence(this.limitContig)==null) {
-			LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(this.limitContig, dict));
+		if(!StringUtils.isBlank(this.limitContigRegex) && dict.getSequences().stream().noneMatch(SSR->SSR.getContig().matches(limitContigRegex))) {
+			LOG.error("No contig in the dictionary matches the regular expression "+this.limitContigRegex);
 			return -1;
 			}
 		
@@ -359,8 +359,8 @@ public int doWork(final List<String> args) {
 			out.writeHeader(header);
 			//loop over each contig in the dictionary
 			for(final SAMSequenceRecord ssr: dict.getSequences()) {
-				if(!StringUtils.isBlank(this.limitContig)) {
-					if(!ssr.getSequenceName().equals(this.limitContig)) continue;
+				if(!StringUtils.isBlank(this.limitContigRegex)) {
+					if(!ssr.getSequenceName().matches(this.limitContigRegex)) continue;
 					}
 				if(!bedPredicate.test(ssr)) continue;
 				if(isDecoy(ssr.getSequenceName())) continue;

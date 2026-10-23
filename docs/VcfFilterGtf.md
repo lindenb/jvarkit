@@ -33,7 +33,7 @@ Usage: vcfgtf [options] Files
       The GTF feature should not enclose the variant. This is interesting for 
       the SV like the DUP or the INV where  we want that the variant 'cut' a 
       genomic feature. Features where the whole Variant is contained will be 
-      ignore. 
+      ignored. 
       Default: false
     --extend, --extends, -x, -X
       extends each gtf feature by 'x' bases. Multiple separated by commas. 
@@ -42,13 +42,13 @@ Usage: vcfgtf [options] Files
       b,bp,k,kb,m,mb,g,gb 
       Default: 0
     --gene-id
-      Optional comma delimited string or File containing a list of gene IDs . 
-      Filter on attribute gene_id. Trailing '.[0-9]+' for version will be 
-      removed 
+      Optional comma delimited string or File with the '.txt' suffix 
+      containing a list of gene IDs . Filter on attribute gene_id. Trailing 
+      '.[0-9]+' for version will be removed
       Default: <empty string>
     --gene-name
-      Optional comma delimited string or File containing a list of gene names 
-      . Filter on attribute gene_name
+      Optional comma delimited string or File with the '.txt' suffix 
+      containing a list of gene names . Filter on attribute gene_name
       Default: <empty string>
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -135,11 +135,40 @@ filter/annotate a VCF with a GTF. I'm fed up to filter a  GTF, convert the GTF t
 
 ## Example
 
+Filter to protein-coding genes only
+
 ```
-bcftools view in.vcf.gz |\
 java -jar jvarkit.jar vcfgtf \
-	--gtf /path/to/gencode.v38.annotation.gtf.gz \
-	--hide-no-overlap 
+    --gtf annotations.gtf.gz \
+    --biotype protein_coding \
+    --hide-no-overlap \
+    --extend 0,1kb \
+    -o annotated.vcf
 ```
+
+Annotate structural variants with cut-mode
+
+```
+java -jar jvarkit.jar vcfgtf \
+    --gtf gencode.v44.gtf \
+    --cut \
+    --extend 0,100 \
+    --show-transcript-id \
+    --show-protein-id \
+    -o sv_annotated.vcf
+```
+
+Filter to a subset of genes via file
+
+```
+# genes.txt contains one gene name per line
+java -jar jvarkit.jar vcfgtf \
+    --gtf ref.gtf \
+    --gene-name genes.txt \
+    --hide-no-overlap \
+    -o filtered.vcf
+```
+
+
 
 

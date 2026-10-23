@@ -73,6 +73,7 @@ import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
@@ -84,13 +85,15 @@ import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
-import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster.SamRecordPair;
+import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -108,9 +111,12 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.SamLocusIterator;
+import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
@@ -157,8 +163,7 @@ public class BamToDOM extends SVGDocument {
 	private Path fastaReference = null;
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private SAMSequenceDictionary referenceDict=null;
-	private CharSequence genomicSequence=null;
-	private Locatable interval=null;
+	private GenomicSequence genomicSequence=null;
 	private final List<Region> all_regions = new ArrayList<>();
 	
 	
@@ -191,14 +196,37 @@ public class BamToDOM extends SVGDocument {
 		public double getWidth() {
 			return width;
 			}
+		public double getMaxX() {
+			return getX()+getWidth();
+			}
 		int trimPosition(int genomic1) {
 			return Math.min(Math.max(genomic1, this.getStart()),this.getEnd());
 			}
-		double toPixel(int genomic1) {
+		
+		double getBaseWidth() {
+			return (1.0/(double)getLengthOnReference())*this.getWidth();
+			}
+		
+		double baseToPixel(int genomic1) {
 			return this.getX() + ((genomic1-getStart())/(double)getLengthOnReference())*this.getWidth();
 			}
-		QueryInterval toQueryInterval() {
-			return new QueryInterval(referenceDict.getSequenceIndex(getContig()), getStart(), getEnd());
+		
+		double baseToPixelTrim(int genomic1) {
+			return Math.min(Math.max(baseToPixel(genomic1), this.getX()),this.getMaxX());
+			}
+		
+		QueryInterval toQueryInterval(int extend) {
+			return new QueryInterval(referenceDict.getSequenceIndex(getContig()),
+					Math.max(getStart()-extend,1), 
+					getEnd()+extend
+					);
+			}
+		
+		boolean overlaps(int start2,int end2) {
+			return CoordMath.overlaps(getStart(), getEnd(), start2, end2);
+			}
+		GenomicSequence getGenomicSequence() {
+			return BamToDOM.this.getGenomicSequence(getContig());
 			}
 		
 		// BAM stuff
@@ -230,20 +258,18 @@ public class BamToDOM extends SVGDocument {
 		}
 	
 	public void plot(Path path,SamReader samReader) {
+		final int extend=150;
 		final SAMFileHeader samHeader = samReader.getFileHeader();
 		final String sampleName= samHeader.getReadGroups().stream()
 				.map(RG->RG.getSample())
 				.filter(SN->!StringUtils.isBlank(SN))
 				.findFirst()
 				.orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
-		final QueryInterval[] query_intervals= QueryInterval.optimizeIntervals(
-				all_regions.stream().map(R->R.toQueryInterval()).toArray(N->new QueryInterval[N])
-				);
 		final IntervalTreeMap<Region> regionMap=new IntervalTreeMap<BamToDOM.Region>();
 		for(Region r: this.all_regions) {
 			regionMap.put(new Interval(r), r);
 			}
-		try(CloseableIterator<SAMRecord> iter=samReader.query(query_intervals, false)) {
+		try(CloseableIterator<SAMRecord> iter=samReader.query(optimizeIntervals(extend), false)) {
 			while(iter.hasNext()) {
 				final SAMRecord rec=iter.next();
 				regionMap.getOverlapping(rec).stream().forEach(R->R.addSAMRecord(samHeader,rec));
@@ -260,6 +286,13 @@ public class BamToDOM extends SVGDocument {
 
 		}
 	
+	private QueryInterval[]  optimizeIntervals(int extend) {
+		return QueryInterval.optimizeIntervals( this.all_regions
+				.stream()
+				.map(R->R.toQueryInterval(extend))
+				.toArray(n->new QueryInterval[n])
+				);
+		}
 	
 	private Collection<SamRecordPair> viewAsPaired(final List<SAMRecord> records) {
 		final Map<String,SamRecordPair> hash=new HashMap<String, BamToDOM.SamRecordPair>();
@@ -277,70 +310,23 @@ public class BamToDOM extends SVGDocument {
 		return hash.values();
 		}
 	
-	private class Context
-		{
-		String sampleName;
-		Path path;
-		List<List<SAMRecord>> lines= null;//filled by pileup
-		final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
-		int HEIGHT_RULER=200;
-		double featureHeight =1;
-		double featureWidth =1;
-		
-		public double getHeight()
-			{
-			double dim_height= HEIGHT_SAMPLE_NAME;
-			dim_height+= HEIGHT_RULER;
-			dim_height+= this.featureHeight;//ref seq
-			dim_height+= this.featureHeight;//consensus
-			if(!pos2variant.isEmpty())dim_height+=  this.featureHeight;//variants
-			dim_height+= this.lines.size()* this.featureHeight;//consensus
-			if(gtfFile!=null) dim_height+=this.featureHeight;
-			return dim_height;
-			}
-		
-		private void readVariantFile(final Path vcf)  throws IOException
-			{
-			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
-				r.query(BamToDOM.this.interval).stream().
-					filter(V->V.getGenotype(this.sampleName)!=null).
-					forEach(ctx->this.pos2variant.add(ctx));
-				}
-			LOG.info("num variants "+this.pos2variant.size());
-			}
-		
+	public void setShowClipping(boolean showClipping) {
+		this.showClipping = showClipping;
 		}
-		
-	private class SvgOutput {
-		String sampleName;
-		String svgFilename;
-		Dimension dimension;
-		final Set<String> rsIds = new HashSet<>();
-		final Set<String> geneNames = new HashSet<>();
-		}
-	
-	
-
-	/** trim position in this.interval */
-	private int trim(final int pos0)
-		{
-		return Math.min(Math.max(pos0, interval.getStart()),interval.getEnd()+1);
+	public boolean isShowClipping() {
+		return showClipping;
 		}
 	
 	private int left(final SAMRecord rec)
 		{
-		return (this.showClipping?rec.getUnclippedStart():rec.getAlignmentStart());
+		return (isShowClipping()?rec.getUnclippedStart():rec.getAlignmentStart());
 		}
 
 	private int right(final SAMRecord rec)
 		{
-		return (this.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
+		return (isShowClipping()?rec.getUnclippedEnd():rec.getAlignmentEnd());
 		}
 	
-	private double baseToPixel(int pos)
-		{
-		return  ((pos - this.interval.getStart())/(double)(this.interval.getLengthOnReference()))*(this.drawinAreaWidth);
-		}
 	
 		
 	/** get read name that is displayed in the popup window */
@@ -379,12 +365,228 @@ public class BamToDOM extends SVGDocument {
 		sb.append("\n");
 		return sb.toString().trim();
 		}
-		
 	
-	private SvgOutput printDocument(
+	
+	private void defsForBases(double w,double h) {
+
+		//base
+		for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
+			{
+			final Element path = super.path();
+			super.defsElement.appendChild(path);
+			path.setAttribute("id","b"+base);
+			path.setAttribute("class","b"+base.toUpperCase());
+			path.setAttribute("d",this.hershey.svgPath(
+					base,
+					0,
+					0,
+					w,
+					h
+					));
+			setTitle(path,base);
+			}
+		}
+	
+	private GenomicSequence getGenomicSequence(final String ctg) {
+		if(this.genomicSequence==null || !this.genomicSequence.hasName(ctg)) {
+			this.genomicSequence= new GenomicSequence(this.indexedFastaSequenceFile,ctg);
+			}
+		return this.genomicSequence;
+		}
+	
+	private Node writeRef( ) {
+		double y=0;
+		final Node root= group();
+		/* write REFERENCE */
+		root.appendChild(comment("BEGIN REFERENCE"));
+		for(Region region : this.all_regions) {
+			final Node g= group();
+			root.appendChild(g);
+			for(int pos=region.getStart();
+					region.getBaseWidth() > 5 && //ignore if too small
+					pos<=region.getEnd();++pos)
+				{
+				final char c= region.getGenomicSequence().charAt(pos-1);
+				final Element use = this.use(
+						 region.baseToPixel(pos),
+						 y,
+						 "#b"+c
+						 );
+				
+				setTitle(use, String.valueOf(c)+" "+StringUtils.niceInt(pos));
+				g.appendChild(use);
+				}
+			}
+		root.appendChild(comment("END REFERENCE"));
+		return root;
+		}
+	
+	Element ruler() {
+		double y=0;
+		double height=10;
+		final double featureHeight = 10;
+		Element root= super.group();
+		for(Region interval: this.all_regions) {
+			final Element g= super.group();
+			root.appendChild(g);
+			/* write ruler */
+			int prev_ruler_printed=-1;
+			double prev_ruler_printed_x=-1;
+
+			for(int pos= interval.getStart(); pos<= interval.getEnd();++pos)
+				{
+				double x= interval.baseToPixel(pos);
+				if(prev_ruler_printed_x!=-1 &&  prev_ruler_printed_x+ Math.max(20.0,featureHeight) >= x)continue;
+				prev_ruler_printed_x = x;
+				
+				Element rect = super.rect(x, y, 0.5, (height-y));
+				rect.setAttribute("class", "rulerline");
+				setTitle(rect,StringUtils.niceInt(pos));
+				g.appendChild(rect);
+				
+				if(prev_ruler_printed==-1 ||  interval.baseToPixel(prev_ruler_printed)+featureHeight < x)
+					{
+					x= (interval.baseToPixel(pos)+interval.baseToPixel(pos+1))/2.0;
+					Element txt = super.text(0, 0,StringUtils.niceInt(pos));
+					txt.setAttribute("class", "rulerlabel");
+					txt.setAttribute("transform", "translate("+format(x)+","+y+") rotate(90) ");
+					
+					g.appendChild(txt);
+					
+					
+					prev_ruler_printed=pos;
+					}
+				
+				}
+			}
+		
+		return root;
+		}
+	
+	
+	private DocumentFragment defsMutations(double featureWidth) {
+		final DocumentFragment root=fragment();
+		//mutations
+	
+		Element rect = super.rect(0, 0, featureWidth, featureWidth);
+		rect.setAttribute("id", "nocall");
+		rect.setAttribute("class", "nocall");
+		
+		root.appendChild(rect);
+		
+		rect = super.rect(0, 0, featureWidth, featureWidth);
+		rect.setAttribute("id", "homref");
+		rect.setAttribute("class", "homref");
+		root.appendChild(rect);
+		
+		rect = super.rect(0, 0, featureWidth, featureWidth);
+		rect.setAttribute("id", "homvar");
+		rect.setAttribute("class", "homvar");
+		root.appendChild(rect);
+		
+		
+		Element group = super.group();
+		group.setAttribute("id","het");
+		group.setAttribute("class","het");
+		rect = super.rect(0, 0,featureWidth/2.0,featureWidth/2.0);
+		group.appendChild(rect);
+		rect = super.rect(featureWidth/2.0,featureWidth/2.0,featureWidth/2.0,featureWidth/2.0);
+		group.appendChild(rect);
+		rect = super.rect(0, 0, featureWidth, featureWidth);
+		rect.setAttribute("style", "fill:none");
+		group.appendChild(rect);
+		root.appendChild(group);
+
+					
+				
+				
+		
+
+		//mutation
+		
+		Element circle = super.circle((featureWidth/2.0), (featureWidth/2.0), (featureWidth/2.0));
+		circle.setAttribute("id","mut");
+		circle.setAttribute("class","mutation");
+		setTitle(circle,"mutation");
+		root.appendChild(circle);
+				
+		return root;
+		}
+	
+	Element writeConsensus(SamReader samReader) {
+		double consensus_y=0;
+		double featureHeight =10;
+		Element root= group();
+		root.appendChild(comment("BEGIN_CONSENSUS"));
+		final AutoMap<SimplePosition,Counter<Character>,Counter<Character>> pos2count = AutoMap.make(()->new Counter<Character>());
+		
+		try(CloseableIterator<SAMRecord> iter=samReader.query(optimizeIntervals(0),false)) {
+			while(iter.hasNext()) {
+				SAMRecord rec= iter.next();
+				byte[] bases = rec.getReadBases();
+				if(bases.equals(SAMRecord.NULL_SEQUENCE)) continue;
+				for(AlignmentBlock ab: rec.getAlignmentBlocks())
+					{
+					for(int i=0;i< ab.getLength();i++) {
+						final char base = (char) Character.toUpperCase(bases[(ab.getReadStart()-1)+i]);
+						pos2count.insert(new SimplePosition(rec.getContig(), ab.getReferenceStart()+i)).incr(base);
+						}
+					}
+				}
+			}
+				
+		/* write consensus */
+		final int max_depth = (int) pos2count.entrySet().stream().mapToLong(KV->KV.getValue().getTotal()).max().orElse(0L);
+			for(Region interval:this.all_regions) {
+			for(int pos= interval.getStart();
+				max_depth > 0L &&
+				interval.getBaseWidth() >5 && //ignore if too small
+				pos<= interval.getEnd();++pos)
+				{
+				final char rc= interval.getGenomicSequence().charAt(pos-1);
+				final Counter<Character> cons = pos2count.get(new SimplePosition(interval.getContig(),pos));
+				if(cons==null) continue;
+				final char ac=cons.getMostFrequent();
+				final double cov_height = (cons.getTotal()/(double)max_depth)*(featureHeight-1);
+				if(cons.getCountCategories()==1 && ac==rc) {
+					final double x0  = interval.baseToPixel(pos);
+					final Element rect = super.rect(
+							x0,
+							(consensus_y+ featureHeight-cov_height),
+							(interval.getBaseWidth()-1),
+							(cov_height)
+							);
+					rect.setAttribute("style", "stroke:none;fill:gray;");
+					setTitle(rect,String.valueOf(ac)+" "+cons.count(ac));
+					}
+				else
+					{
+					double x0  = interval.baseToPixel(pos);
+					for(Character a : cons.keySetDecreasing()) {
+						final double aw = (interval.getBaseWidth()-1)*((double)cons.count(a)/cons.getTotal());
+						final Element rect = super.rect(
+							x0,
+							(consensus_y+ featureHeight-cov_height),
+							aw,
+							cov_height
+							);
+						rect.setAttribute("style",  "stroke:none;fill:"+AcidNucleics.cssColor(a));
+						setTitle(rect, ""+a+" "+cons.count(a)+"/"+cons.getTotal()+" "+(int)(100.0*(double)cons.count(a)/cons.getTotal())+"%");
+						x0+=aw;
+						}
+					}
+				}
+			}
+		return root;
+		}
+	
+	
+
+	
+	
+	private void printDocument(
 		final XMLStreamWriter w,
-		final SAMSequenceDictionary dict,	
-		final Context context
+		final SAMSequenceDictionary dict
 		) 
 		throws XMLStreamException
 		{
@@ -397,27 +599,10 @@ public class BamToDOM extends SVGDocument {
 		
 		
 		
-		super.svgElement.setAttribute("width", format(dim.width));
-		w.setAttribute("height", format(dim.height+insets.top+insets.bottom));
-		w.writeDefaultNamespace(SVG.NS);
-		w.writeNamespace("u",IDT_XNS);
-		w.writeNamespace("rdf",RDF.NS);
-		w.writeNamespace("xlink", XLINK.NS);
 
 		
-		super.setTitle(context.sampleName+" : "+this.interval.toNiceString());
 		
-		
-		
-		w.writeStartElement("description");
-		w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
-		w.writeCharacters("Version:"+getVersion()+"\n");
-		w.writeCharacters("Author: Pierre Lindenbaum\n");
-		w.writeEndElement();
-		
-		
-		w.writeStartElement("style");
-		w.writeCharacters(
+		appendStyle(
 				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
 				".frame {stroke:darkgray;fill:none;}\n"+
 				".maintitle {stroke:blue;fill:none;}\n"+
@@ -436,88 +621,14 @@ public class BamToDOM extends SVGDocument {
 				""
 				);
 		for(char base : new char[] {'A','C','G','T','N'}) {
-			w.writeCharacters(".b"+base+" {stroke:"+AcidNucleics.cssColor(base)+";stroke-width:"+(context.featureWidth<5?0.5:1.0)+"px}\n");
+			appendStyle(".b"+base+" {stroke:"+AcidNucleics.cssColor(base)+";stroke-width:"+(context.featureWidth<5?0.5:1.0)+"px}\n");
 			}
 		w.writeEndElement();//style
 		
 		w.writeStartElement("defs");
 		
-		//mutations
-		if(!context.pos2variant.isEmpty())
-			{
-			Element rect = super.rect(0, 0, context.featureWidth, context.featureWidth);
-			rect.setAttribute("id", "nocall");
-			rect.setAttribute("class", "nocall");
-			
-			super.defsElement.appendChild(rect);
-			
-			rect = super.rect(0, 0, context.featureWidth, context.featureWidth);
-			rect.setAttribute("id", "homref");
-			rect.setAttribute("class", "homref");
-			super.defsElement.appendChild(rect);
-			
-			rect = super.rect(0, 0, context.featureWidth, context.featureWidth);
-			rect.setAttribute("id", "homvar");
-			rect.setAttribute("class", "homvar");
-			super.defsElement.appendChild(rect);
-			
-			
-			Element group = super.group();
-			group.setAttribute("id","het");
-			group.setAttribute("class","het");
-			rect = super.rect(0, 0, context.featureWidth/2.0, context.featureWidth/2.0);
-			group.appendChild(rect);
-			rect = super.rect(context.featureWidth/2.0, context.featureWidth/2.0, context.featureWidth/2.0, context.featureWidth/2.0);
-			group.appendChild(rect);
-			rect = super.rect(0, 0, context.featureWidth, context.featureWidth);
-			rect.setAttribute("style", "fill:none");
-			group.appendChild(rect);
-			super.defsElement.appendChild(group);
-
-			
-			}
-		
-		
-
-		//base
-		for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
-			{
-			Element path = super.path();
-			super.defsElement.appendChild(path);
-			path.setAttribute("id","b"+base);
-			path.setAttribute("class","b"+base.toUpperCase());
-			path.setAttribute("d",this.hershey.svgPath(
-					base,
-					0,
-					0,
-					context.featureWidth*0.95,
-					context.featureHeight*0.95
-					));
-			setTitle(path,base);
-			w.writeEndElement();
-			}
-		//mutation
-		
-		Element circle = super.circle((context.featureWidth/2.0), (context.featureWidth/2.0), (context.featureWidth/2.0));
-		circle.setAttribute("id","mut");
-		circle.setAttribute("class","mutation");
-		setTitle(circle,"mutation");
-		//TODO add 
-		
-		w.writeEndElement();//defs
 		
 		Element g = super.group();
-		g.setAttribute("transform", "translate("+insets.left+","+insets.top+")");
-		g.setAttribute("class","maing");
-		
-		double y=0;//not insets top because translate above
-		/* write title */
-		
-		final Hyperlink hyperlink = Hyperlink.compile(dict);
-		if(hyperlink.apply(this.interval).isPresent()) {
-			w.writeStartElement("a");
-			w.setAttribute("href",hyperlink.apply(this.interval).orElse(""));
-			}
 		
 		Element text = super.text(
 				(this.drawinAreaWidth/2.0), 
@@ -532,87 +643,32 @@ public class BamToDOM extends SVGDocument {
 			}
 		y+=HEIGHT_MAIN_TITLE;
 		
-		/* write ruler */
-		int prev_ruler_printed=-1;
-		double prev_ruler_printed_x=-1;
-		w.writeStartElement("g");
-		for(int pos=this.interval.getStart(); pos<=this.interval.getEnd();++pos)
-			{
-			double x= this.baseToPixel(pos);
-			if(prev_ruler_printed_x!=-1 &&  prev_ruler_printed_x+ Math.max(20.0,context.featureHeight) >= x)continue;
-			prev_ruler_printed_x = x;
-			
-			Element rect = super.rect(x, y, 0.5, (dim.height-y));
-			rect.setAttribute("class", "rulerline");
-			setTitle(rect,StringUtils.niceInt(pos));
-			//TODO append
-			
-			if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+context.featureHeight < x)
-				{
-				x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
-				Element txt = super.text(0, 0,StringUtils.niceInt(pos));
-				txt.setAttribute("class", "rulerlabel");
-				txt.setAttribute("transform", "translate("+format(x)+","+y+") rotate(90) ");
-				//TODO append
-				
-				
-				prev_ruler_printed=pos;
-				}
-			
-			}
-		w.writeEndElement();//g for ruler
-		y+=context.HEIGHT_RULER;
 		
 		
 		
-		/* write REFERENCE */
-		w.writeStartElement("g");
-		w.writeComment("REFERENCE");
-		for(int pos=this.interval.getStart();
-				context.featureWidth>5 && //ignore if too small
-				pos<=this.interval.getEnd();++pos)
-			{
-			final char c= this.genomicSequence.charAt(pos-1);
-			final Element use = super.element("use");
-			use.setAttribute("x",format( baseToPixel(pos)));
-			use.setAttribute("y",format(y));
-			use.setAttribute("href", "#b"+c);
-			setTitle(use, String.valueOf(c)+" "+StringUtils.niceInt(pos));
-			//TODO add 
-			}
-		w.writeEndElement();//g
-		y+= context.featureHeight;
 		
-		/* skip line for later consensus */
-		final double consensus_y=y;
-		y+=context.featureHeight;
-		final Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
 		
-		/* print variants */
-		if(!context.pos2variant.isEmpty())
-			{
-			for(VariantContext ctx:context.pos2variant)
-				{
-				final Genotype gt=ctx.getGenotype(context.sampleName);
-				if(gt==null) continue;
+		}
+	
+	Element variants(VCFReader vcfReader)	{
+		double y=0;
+		final Element root= group();
+		for(Region interval: this.all_regions) {
+			final Element g= group();
+			root.appendChild(g);
+			try(CloseableIterator<VariantContext> iter=vcfReader.query(interval)) {
+				while(iter.hasNext()) {
+					VariantContext ctx=iter.next();
+					final Genotype gt=ctx.getGenotype(context.sampleName);
+					if(gt==null) continue;
+					String url = null;
+					if(ctx.hasID()) {
+						url = urlSupplier.of(ctx.getID()).stream().map(G->G.getUrl()).findFirst().orElse(null);
+						}
+					if(url==null) {
+						url = hyperlink.apply(ctx).orElse(null);
+						}
 				
-				
-				if(ctx.getEnd()< this.interval.getStart()) continue;
-				if(ctx.getStart()> this.interval.getEnd()) continue;
-				
-				String url = null;
-				if(ctx.hasID()) {
-					url = urlSupplier.of(ctx.getID()).stream().map(G->G.getUrl()).findFirst().orElse(null);
-					}
-				if(url==null) {
-					url = hyperlink.apply(ctx).orElse(null);
-					}
-				
-				
-				final double x0  = baseToPixel(ctx.getStart());
-				Element use = super.element("use");
-				use.setAttribute("x",format(x0));
-				use.setAttribute("y",format(y));
 				final String svType;
 				switch(gt.getType()) {
 					case HET:
@@ -621,6 +677,15 @@ public class BamToDOM extends SVGDocument {
 					case NO_CALL: svType = gt.getType().name().toLowerCase().replace("_", "");break;
 					default: svType="";
 					}
+				final double x0  = interval.baseToPixel(ctx.getStart());
+				Element use = super.use(
+						x0,
+						y,
+						svType
+						);
+				use.setAttribute("x",format(x0));
+				use.setAttribute("y",format(y));
+				
 				
 				use.setAttribute("href", "#"+svType);
 				final StringBuilder sb = new StringBuilder();
@@ -634,160 +699,105 @@ public class BamToDOM extends SVGDocument {
 				if(gt.hasAD()) sb.append("AD:"+IntStream.of(gt.getAD()).mapToObj(V->String.valueOf(V)).collect(Collectors.joining(","))).append("\n");
 				if(gt.hasPL()) sb.append("PL:"+IntStream.of(gt.getPL()).mapToObj(V->String.valueOf(V)).collect(Collectors.joining(","))).append("\n");
 				setTitle(use,sb.toString());
-				w.writeEndElement();//use
+				
 				use = super.anchor(use, url);
 				
-				//TODO append use
+				g.appendChild(use);
 				}
-			y+=context.featureHeight;
+				}
 			}
-		
-		/* print all lines */
-		super.comment("Alignments");
-		for(int nLine=0;nLine< context.lines.size();++nLine)
+	
+		return root;
+		}
+	
+	
+	Node makeGTF(
+			double y,
+			double featureHeight,
+			TabixReader tbr
+				) throws IOException
 			{
-			Element g_align = super.group();
-			g_align.setAttribute("transform", "translate(0,"+format(y)+")");
-			List<SAMRecord> line= context.lines.get(nLine);
-			//loop over records on that line
-			for(SAMRecord record: line)
-				{
-				printSamRecord(wcontext,record,pos2consensus);
-				}
-			y+=context.featureHeight;
-			}
-		
-		
-		/* write consensus */
-		w.writeComment("Consensus");
-		final int max_depth = (int) pos2consensus.entrySet().stream().mapToLong(KV->KV.getValue().getTotal()).max().orElse(0L);
-		for(int pos=this.interval.getStart();
-				max_depth > 0L &&
-				context.featureWidth>5 && //ignore if too small
-				pos<=this.interval.getEnd();++pos)
-			{
-			final char rc= this.genomicSequence.charAt(pos-1);
-			final Counter<Character> cons = pos2consensus.get(pos);
-			if(cons==null) continue;
-			final char ac=cons.getMostFrequent();
-			final double cov_height = (cons.getTotal()/(double)max_depth)*(context.featureHeight-1);
-			if(cons.getCountCategories()==1 && ac==rc) {
-				final double x0  = baseToPixel(pos);
-				final Element rect = super.rect(
-						x0,
-						(consensus_y+context.featureHeight-cov_height),
-						(context.featureWidth-1),
-						(cov_height)
+			final Node  root = group();
+			root.appendChild(comment("BEGIN GTF"));
+			for(Region region: this.all_regions) {
+				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				 final String ctg = cvt.apply(region.getContig());
+				 if(StringUtils.isBlank(ctg)) continue;
+				 final Node  g = group();
+				 root.appendChild(g);
+				 final List<GTFLine> genes  = new ArrayList<>();
+				 final List<GTFLine> exons  = new ArrayList<>();
+				 final Set<String> gene_names = new HashSet<>();
+				 final GTFCodec codec = new GTFCodec();
+				 final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
+				 for(;;) {
+					 final String line = iter.next();
+					 if(line==null) break;
+					 if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+					 final GTFLine gtfline = codec.decode(line);
+					 if(gtfline==null) continue;
+					 if(gtfline.isGene()) {
+						 genes.add(gtfline);
+						 final String geneName = gtfline.getGeneName();
+						 if(!(StringUtils.isBlank(geneName)) || geneName.equals(".")) {
+							 gene_names.add(geneName);
+						 	}
+					 	 }
+					 else if(gtfline.getType().equals("exon")) {
+						 exons.add(gtfline);
+					 	 }
+				 	}/* end for */
+			 for(GTFLine gtf:genes) {
+				final Element e= line(
+						region.baseToPixelTrim(gtf.getStart()),
+						(y+ featureHeight*0.5),
+						region.baseToPixelTrim(gtf.getEnd()+1),
+						(y+ featureHeight*0.5),
+						Maps.of("class", "gene")
 						);
-				rect.setAttribute("style", "stroke:none;fill:gray;");
-				setTitle(rect,String.valueOf(ac)+" "+cons.count(ac));
-				}
-			else
-				{
-				double x0  = baseToPixel(pos);
-				for(Character a : cons.keySetDecreasing()) {
-					final double aw = (context.featureWidth-1)*((double)cons.count(a)/cons.getTotal());
-					final Element rect = super.rect(
-						x0,
-						(consensus_y+context.featureHeight-cov_height),
-						aw,
-						cov_height
-						);
-					rect.setAttribute("style",  "stroke:none;fill:"+AcidNucleics.cssColor(a));
-					setTitle(rect, ""+a+" "+cons.count(a)+"/"+cons.getTotal()+" "+(int)(100.0*(double)cons.count(a)/cons.getTotal())+"%");
-					w.writeEndElement();
-					x0+=aw;
-					}
-				}
+				setTitle(e, gtf.getGeneName());
+				g.appendChild(e);
+			 	}
+			 for(GTFLine gtf:exons) {
+				 final double x1 = region.baseToPixelTrim(gtf.getStart());
+				 final double x2 = region.baseToPixelTrim(gtf.getEnd()+1);
+	
+				 final Element e= rect(
+							x1,
+							y,
+							(x2-x1),
+							(featureHeight-1),
+							Maps.of("class", "exon")
+							);
+					
+				 setTitle(e, gtf.getGeneName());
+				 g.appendChild(e);
+			 	 }
+			 }/* end if contig!null */
+			root.appendChild(comment("END GTF"));
+			return root;
+	 		}
+	
+	private static class PseudoByteArray {
+		final byte[] array;
+		final int len;
+		final char c;
+		PseudoByteArray(byte[] array) {
+			this.array=array;
+			this.len = array.length;
+			this.c='\0';
 			}
-
-		
-		final Set<String> gene_names  = new HashSet<>();
-		/* draw genes */
-		 if(this.gtfFile!=null) {
-			 w.writeStartElement("g");
-			 try(TabixReader tbr= new TabixReader(this.gtfFile.toString())) {
-				 final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-				 final String ctg = cvt.apply(this.interval.getContig());
-				 if(!StringUtils.isBlank(ctg)) {
-					 final List<GTFLine> genes  = new ArrayList<>();
-					 final List<GTFLine> exons  = new ArrayList<>();
-					 final GTFCodec codec = new GTFCodec();
-					 final TabixReader.Iterator iter=tbr.query(ctg,this.interval.getStart(),this.interval.getEnd());
-					 for(;;) {
-						 final String line = iter.next();
-						 if(line==null) break;
-						 if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-						 final GTFLine gtfline = codec.decode(line);
-						 if(gtfline==null) continue;
-						 if(gtfline.getType().equals("gene")) {
-							 genes.add(gtfline);
-							 
-							 gtfline.getAttributes().entrySet().stream().
-							 	filter(KV->KV.getKey().equals("gene_name")).
-							 	map(KV->KV.getValue()).
-							 	forEach(G->gene_names.add(G));
-						 }
-						 else if(gtfline.getType().equals("exon")) {
-							 exons.add(gtfline);
-						 }
-					 	}/* end for */
-				 for(GTFLine gtf:genes) {
-					 w.writeStartElement("line");
-	                 w.setAttribute("class", "gene");
-	                 w.setAttribute("x1", format(baseToPixel(trim(gtf.getStart()))));
-	                 w.setAttribute("x2", format(baseToPixel(trim(gtf.getEnd()+1))));
-	                 w.setAttribute("y1", format(y+context.featureHeight*0.5));
-	                 w.setAttribute("y2", format(y+context.featureHeight*0.5));
-	                 writeTitle(w,gtf.getAttributes().entrySet().stream().filter(KV->KV.getKey().equals("gene_name")).map(KV->KV.getValue()).findFirst().orElse(null));
-	                 w.writeEndElement();
-				 	 }
-				 for(GTFLine gtf:exons) {
-					 final double x1 = baseToPixel(trim(gtf.getStart()));
-					 final double x2 = baseToPixel(trim(gtf.getEnd()+1));
-					 w.writeStartElement("rect");
-	                 w.setAttribute("class", "exon");
-	                 w.setAttribute("x", format(x1));
-	                 w.setAttribute("width", format(x2-x1));
-	                 w.setAttribute("y1", format(y));
-	                 w.setAttribute("y2", format(y+context.featureHeight-1));
-	                 writeTitle(w,gtf.getAttributes().entrySet().stream().filter(KV->KV.getKey().equals("gene_name")).map(KV->KV.getValue()).findFirst().orElse(null));
-	                 w.writeEndElement();
-				 	 }
-				 }/* end if contig!null */
-			 } /* end tabix open */
-		catch(final IOException err) {
-			throw new RuntimeIOException(err);
+		PseudoByteArray(int len, char c) {
+			this.array=null;
+			this.len=len;
+			this.c=c;
 			}
-		w.writeEndElement();
-		y+=context.featureHeight;
-		 } /* end gtf */
-		
-		w.writeEndElement();//g for sample
-		w.writeComment("END SAMPLE: "+context.sampleName);
-
-		y+= insets.bottom;
-		/* surrounding frame for that sample */
-		w.writeEmptyElement("rect");
-		w.setAttribute("class","frame");
-		w.setAttribute("x",format(0));
-		w.setAttribute("y",format(0));
-		w.setAttribute("width",format(drawinAreaWidth-1+insets.left+insets.right));
-		w.setAttribute("height",format(y-1));
-
-		
-		
-
-		//w.writeEndElement();//g
-		w.writeEndElement();//svg
-		
-		final SvgOutput svgOutput = new SvgOutput();
-		svgOutput.sampleName = context.sampleName;
-		dim.height+=insets.top+insets.bottom;
-		svgOutput.dimension = dim;
-		svgOutput.rsIds.addAll(context.pos2variant.stream().filter(V->V.hasID()).map(V->V.getID()).collect(Collectors.toSet()));
-		svgOutput.geneNames.addAll(gene_names);
-		return svgOutput;
+		public int length() {
+			return this.len;
+			}
+		public char at(int i) {
+			return this.array==null?this.c:(char)this.array[i];
+			}
 		}
 	
 	Node makeSamRecord(
@@ -806,12 +816,17 @@ public class BamToDOM extends SVGDocument {
 			final int unclipped_start= record.getUnclippedStart();
 			final Cigar cigar = record.getCigar();
 			if(cigar==null) return fragment();
-			final byte bases[]=record.getReadBases();
-			if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) {
-				return fragment();
-				}
-			final byte qualities[]=record.getBaseQualities();
-			if(qualities==null||qualities.equals(SAMRecord.NULL_QUALS)) return fragment();
+			final PseudoByteArray bases = 
+					record.getReadBases().equals(SAMRecord.NULL_SEQUENCE)?
+					new PseudoByteArray(cigar.getReadLength(),'N'):
+					new PseudoByteArray(record.getReadBases());
+					;
+			
+			final PseudoByteArray qualities =
+					record.getBaseQualities().equals(SAMRecord.NULL_QUALS)?
+					new PseudoByteArray(cigar.getReadLength(),'#'):
+					new PseudoByteArray(record.getBaseQualities());
+
 			
 			Element g = super.group();
 			setTitle(g,getReadNameForPopup(record));
@@ -858,32 +873,34 @@ public class BamToDOM extends SVGDocument {
 					case D://cont
 					case N:
 						{
-						int c_start = trim(refPos);
-						int c_end   = trim(refPos + ce.getLength());
-						if(c_start<c_end)
+						final double x1 = region.baseToPixelTrim(refPos);
+						final double x2 = region.baseToPixelTrim(refPos+ ce.getLength());
+						if(x1<x2 && region.overlaps(refPos, refPos+ ce.getLength()) )
 							{
 							final Element line = super.line(
-									baseToPixel(c_start),
+									x1,
 									mid_y,
-									baseToPixel(c_end),
-									mid_y
+									x2,
+									mid_y,
+									Maps.of("class","indel")
 									);
 							setTitle(line, op.name()+ce.getLength());
-							line.setAttribute("class", "indel");
 							g.appendChild(line);
-							}
-						
+							}						
 						refPos += ce.getLength();
 						break;
 						}
 					case I: 
 						{
-						final StringBuilder sb=new StringBuilder();
-						for(int i=0;i< ce.getLength();++i)
-							{
-							sb.append((char)bases[readPos++]);
+						if(region.overlaps(refPos, refPos) ) {
+							final StringBuilder sb=new StringBuilder(ce.getLength());
+							for(int i=0;i< ce.getLength();++i)
+								{
+								sb.append((char)bases.at(readPos+i));
+								}
+							pos2insertions.put(refPos, sb.toString());
 							}
-						pos2insertions.put(refPos, sb.toString());
+						readPos+=ce.getLength();
 						break;
 						}
 					case H:
@@ -913,24 +930,31 @@ public class BamToDOM extends SVGDocument {
 						{
 						int match_start = refPos;
 						int match_end = refPos + ce.getLength();
-						
+						final Element path;
 						//print sam background
 						final StringBuilder sb=new StringBuilder();
 						if(record.getReadNegativeStrandFlag() &&
-							match_start >= this.interval.getStart() && 
-							match_start <= this.interval.getEnd() &&
+							match_start >= region.getStart() && 
+							match_start <= region.getEnd() &&
 							cidx==arrow_cigar_index)
 							{
+							path = this.createShape()
+								.moveTo( region.baseToPixel(match_start)+arrow_w, y_top5)
+								.horizonalR( region.baseToPixel(trim(match_end))-region.baseToPixel(match_start)-arrow_w)
+								.verticalR(y_h95)
+								.make()
+								;
+							
 							sb.append(" M ").append(format(baseToPixel(match_start)+arrow_w)).append(',').append(y_top5);
-							sb.append(" h ").append(format(baseToPixel(trim(match_end))-baseToPixel(match_start)-arrow_w));
+							sb.append(" h ").append(format());
 							sb.append(" v ").append(format(y_h95));
 							sb.append(" h ").append(format(-(baseToPixel(trim(match_end))-baseToPixel(match_start)-arrow_w)));
 							sb.append(" L ").append(format(baseToPixel(match_start))).append(',').append(mid_y);
 							sb.append(" Z");
 							}
 						else if(!record.getReadNegativeStrandFlag() &&
-								match_end >= this.interval.getStart() && 
-								match_end <= this.interval.getEnd() &&
+								match_end >= region.getStart() && 
+								match_end <= region.getEnd() &&
 								cidx==arrow_cigar_index
 								)
 							{
@@ -949,7 +973,7 @@ public class BamToDOM extends SVGDocument {
 							sb.append(" h ").append(format(-(baseToPixel(trim(match_end))-baseToPixel(trim(match_start)))));
 							sb.append(" Z");
 							}
-						final Element path = super.path();
+						
 						path.setAttribute("d",sb.toString().trim());
 						if( ce.getOperator()==CigarOperator.H || ce.getOperator()==CigarOperator.S)
 							{
@@ -984,8 +1008,8 @@ public class BamToDOM extends SVGDocument {
 							for(int i=0;i< ce.getLength();++i)
 								{
 								final int pos_i = refPos+i;
-								boolean pos_in_interval =  (this.interval.getStart() <= pos_i && pos_i<=this.interval.getEnd() );
-								char ca=(char)bases[readPos];
+								boolean pos_in_interval =  (region.getStart() <= pos_i && pos_i<=region.getEnd() );
+								char ca=(char)bases.at(readPos);
 								if(!in_clip)
 									{
 									Counter<Character> count= consensus.get(pos_i) ;
@@ -1008,7 +1032,7 @@ public class BamToDOM extends SVGDocument {
 									}
 								
 								if( pos_in_interval && 
-									((this.print_bases&&context.featureWidth>5) || (cb!=ca ))
+									((this.print_bases&& context.featureWidth>5) || (cb!=ca ))
 									 )
 									{
 									final Element use = super.element("use");
@@ -1034,12 +1058,12 @@ public class BamToDOM extends SVGDocument {
 			
 			for(Integer pos:pos2insertions.keySet())
 				{
-				if(pos < this.interval.getStart())  continue;
-				if(pos > this.interval.getEnd())  continue;
+				if(pos < region.getStart())  continue;
+				if(pos > region.getEnd())  continue;
 				final String insertion=pos2insertions.get(pos);
 				
 				
-				final double x= baseToPixel(pos);
+				final double x= region.baseToPixel(pos);
 				final Element line = super.line(x, x, y_top5, y_bot5);
 				setTitle(line, "Insertion "+insertion);
 				line.setAttribute("class", "insert");
@@ -1051,171 +1075,13 @@ public class BamToDOM extends SVGDocument {
 			}
 		
 	
+			
+			
+					
 		
-		private SvgOutput plotSVG(
-				final ArchiveFactory archive,
-				final PrintWriter manifest,
-				final Path path
-				) throws IOException,XMLStreamException {
-			XMLStreamWriter w=null;
-			
-			final SamReaderFactory sfrf= SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.referenceFile);
-
-			final Context context = new Context();
-			context.path = path;
-			
-			try(SamReader samReader = sfrf.open(path)) {
-				final SAMFileHeader header= samReader.getFileHeader();
-				final boolean is_phased = IlluminaConstants.isDragenProximityEnabled(header);
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-				SequenceUtil.assertSequenceDictionariesEqual(dict, this.referenceDict);
-				context.sampleName = header.getReadGroups().stream().
-						map(RG->RG.getSample()).
-						filter(S->!StringUtils.isBlank(S)).
-						findFirst().
-						orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
-				
-				final int extend_for_clip = 100;//get a chance to get clipping close to bounds
-				// read SamRecord
-				try(CloseableIterator<SAMRecord> iter= samReader.query(this.interval.getContig(),
-						Math.max(1, this.interval.getStart() - extend_for_clip),this.interval.getEnd() + extend_for_clip,false)) {
-					final Pileup<SAMRecord> pileup = new Pileup<>((A,B)->!CoordMath.overlaps(left(A)-1,right(A)+1,left(B),right(B)));
-					while(iter.hasNext())
-						{
-						final SAMRecord rec = iter.next();
-						if(rec.getReadUnmappedFlag()) continue;
-						if(is_phased) {
-							
-							}
-						
-						//if( this.samRecordFilter.filterOut(rec)) continue;
-						if(!SAMRecordDefaultFilter.accept(rec, this.mappingQuality)) continue;
-						if( !rec.getReferenceName().equals(this.interval.getContig())) continue;
-						if( right(rec)  < this.interval.getStart()) continue;
-						if( left(rec)  > this.interval.getEnd())continue;
-						pileup.add(rec);
-						}
-					context.lines = pileup.getRows();
-					}
-				}
-				
-			if(this.vcf!=null)
-				{
-				context.readVariantFile(vcf);
-				}
-			
-			
-			
-			context.featureWidth=  this.drawinAreaWidth/(double)(this.interval.getLengthOnReference()); 
-			context.featureHeight= Math.min(Math.max(5.0,context.featureWidth),30); 
-			context.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*context.featureHeight+5);
-			LOG.info("Feature height:"+context.featureHeight);
-			
-			final String buildName= SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("");
-			final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+ IOUtils.escapePath( this.interval.getContig())+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
-			
-
-			LOG.info("writing "+ filename);
-			manifest.print(context.sampleName);
-			manifest.print("\t");
-			manifest.print(path);
-			manifest.print("\t");
-			manifest.print(this.interval);
-			manifest.print("\t");
-			manifest.print(this.referenceFile);
-			manifest.print("\t");
-			manifest.print(filename);
-			manifest.println();
-
-			final SvgOutput svgOutput;
-			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			try(OutputStream fout= archive.openOuputStream(filename)) {
-				w=xof.createXMLStreamWriter(fout, "UTF-8");
-				w.writeStartDocument("UTF-8", "1.0");
-				svgOutput = printDocument(w,this.referenceDict,context);
-				w.writeEndDocument();
-				w.flush();
-				w.close();
-				fout.flush();
-				}
-			svgOutput.svgFilename = filename;
-			return svgOutput;
-			}
-		
-		
-		@Override
-		public int doWork(final List<String> args) {
-			/* parse interval */
-			if(StringUtils.isBlank(this.intervalStr))
-				{
-				LOG.error("Interval undefined");
-				return -1;
-				}
-			
-			
-			
-			try
-				{
-				this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
-				this.referenceDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-				this.interval  =  new IntervalParser(referenceDict).
-					apply(this.intervalStr).
-					orElseThrow(IntervalParser.exception(this.intervalStr))
-					;
-				
-				final GenomicSequence gSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
-				this.genomicSequence = new DelegateCharSequence(gSequence) {
-					@Override
-					public char charAt(int index) {
-						if(index<0 || index >= gSequence.length()) return 'N';
-						return Character.toUpperCase(gSequence.charAt(index));
-						}
-					};
-				this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
-				
-				
-				
-				final List<Path> inputFiles = IOUtils.unrollPaths(args);
-				/* read SAM data */
-				if(inputFiles.isEmpty())
-					{
-					LOG.error("No BAM");
-					return -1;
-					}
-				
-				return 0;
-				}
-			catch(final Throwable err)
-				{
-				LOG.error(err);
-				return -1;
-				}
-			
-			}
 		
 	public void setDrawinAreaWidth(int drawinAreaWidth) {
 		this.drawinAreaWidth = drawinAreaWidth;
 		}
 		
-	public void build(final SamReader samReader,final Path fastaReference, final Locatable loc) {
-		this.fastaReference = Objects.requireNonNull(fastaReference, "null reference");
-		try 
-			{
-			this.indexedFastaSequenceFile = indexedFastaSequenceFile;
-			this.referenceDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-			Objects.requireNonNull(this.indexedFastaSequenceFile, "null reference");
-			Objects.requireNonNull(this.referenceDict, "null dict");
-			super.removeAllChildren(super.rootElement);
-			this.interval =Objects.requireNonNull(loc, "null interval");
-			if(this.referenceDict.getSequence(loc.getContig())==null) {
-				throw new JvarkitException.ContigNotFoundInDictionary(loc.getContig(), this.referenceDict);
-				}
-			
-			}
-		finally
-			{
-			
-			}
 	}

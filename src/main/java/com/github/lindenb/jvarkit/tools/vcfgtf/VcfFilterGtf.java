@@ -56,6 +56,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -78,12 +79,41 @@ filter/annotate a VCF with a GTF. I'm fed up to filter a  GTF, convert the GTF t
 
 ## Example
 
+Filter to protein-coding genes only
+
 ```
-bcftools view in.vcf.gz |\
 java -jar jvarkit.jar vcfgtf \
-	--gtf /path/to/gencode.v38.annotation.gtf.gz \
-	--hide-no-overlap 
+    --gtf annotations.gtf.gz \
+    --biotype protein_coding \
+    --hide-no-overlap \
+    --extend 0,1kb \
+    -o annotated.vcf
 ```
+
+Annotate structural variants with cut-mode
+
+```
+java -jar jvarkit.jar vcfgtf \
+    --gtf gencode.v44.gtf \
+    --cut \
+    --extend 0,100 \
+    --show-transcript-id \
+    --show-protein-id \
+    -o sv_annotated.vcf
+```
+
+Filter to a subset of genes via file
+
+```
+# genes.txt contains one gene name per line
+java -jar jvarkit.jar vcfgtf \
+    --gtf ref.gtf \
+    --gene-name genes.txt \
+    --hide-no-overlap \
+    -o filtered.vcf
+```
+
+
 
 END_DOC
 */
@@ -91,7 +121,7 @@ END_DOC
 	description="Filter/Annotate VCF using a GTF file",
 	keywords={"vcf","gtf"},
 	creationDate="20230703",
-	modificationDate="20261021",
+	modificationDate="20261023",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
@@ -109,9 +139,9 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private String extendStr = "0";
 	@Parameter(names={"--hide-no-overlap","--hide"},description="Don't show variant that have NO intersection with any of the GTF features")
 	private boolean hide_no_overlap_flag = false;
-	@Parameter(names={"--gene-name"},description="Optional comma delimited string or File containing a list of gene names . Filter on attribute gene_name")
+	@Parameter(names={"--gene-name"},description="Optional comma delimited string or File with the '.txt' suffix containing a list of gene names . Filter on attribute gene_name")
 	private String gene_name_path = "";
-	@Parameter(names={"--gene-id"},description="Optional comma delimited string or File containing a list of gene IDs . Filter on attribute gene_id. Trailing '.[0-9]+' for version will be removed")
+	@Parameter(names={"--gene-id"},description="Optional comma delimited string or File with the '.txt' suffix containing a list of gene IDs . Filter on attribute gene_id. Trailing '.[0-9]+' for version will be removed")
 	private String gene_id_path = "";
 	@Parameter(names={"--no-gene-id"},description="Do not insert gene ids in the output")
 	private boolean hide_gene_ids =false;
@@ -123,7 +153,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private boolean show_transcripts_id = false;
 	@Parameter(names={"--show-protein-id"},description="Do show protein IDs in the output")
 	private boolean show_proteins_id = false;
-	@Parameter(names={"--cut"},description="The GTF feature should not enclose the variant. This is interesting for the SV like the DUP or the INV where  we want that the variant 'cut' a genomic feature. Features where the whole Variant is contained will be ignore.")
+	@Parameter(names={"--cut"},description="The GTF feature should not enclose the variant. This is interesting for the SV like the DUP or the INV where  we want that the variant 'cut' a genomic feature. Features where the whole Variant is contained will be ignored.")
 	private boolean cut_flag = false;
 
 	private static class GTFInterval extends LocatableDelegate<GTFLine> {
@@ -150,7 +180,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	
 	private static class GTFExonBoundaries extends GTFInterval {
 		final int side;
-		GTFExonBoundaries(GTFLine line,int side,int extend) {
+		GTFExonBoundaries(final GTFLine line,int side,int extend) {
 			super(line,extend);
 			this.side = side;
 			}
@@ -236,27 +266,22 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 		if(StringUtils.isBlank(stringOrFile)) {
 			return null;
 			}
-		Path as_file =null;
-		try {
-			as_file =Paths.get(stringOrFile);
-			if(!Files.exists(as_file)) as_file = null;
-			}
-		catch(Throwable err) {
-			as_file=null;
-			}
-		if(as_file==null) {
-			return Arrays.stream(stringOrFile.split("[ ,]")).
-				map(T->T.trim()).
-				map(T->(remove_version?removeVersion(T):T)).
-				filter(S->!StringUtils.isBlank(S)).
-				collect(Collectors.toSet())
-				;
+		
+		if(stringOrFile.endsWith(".txt")) {
+			final Path p = Paths.get(stringOrFile);
+			IOUtil.assertFileIsReadable(p);
+			return Files.readAllLines(p).
+					stream().
+					filter(S->!S.startsWith("#")).
+					map(T->T.trim()).
+					map(T->(remove_version?removeVersion(T):T)).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet())
+					;
 			}
 		else
 			{
-			return Files.readAllLines(as_file).
-				stream().
-				filter(S->!S.startsWith("#")).
+			return Arrays.stream(stringOrFile.split("[ ,]")).
 				map(T->T.trim()).
 				map(T->(remove_version?removeVersion(T):T)).
 				filter(S->!StringUtils.isBlank(S)).
@@ -335,6 +360,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
  				}
 			/* load GTF file if needed */
 			final GTFCodec codec = new GTFCodec();
+			
 			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.gtfPath)) {
 				String line;
 				while((line=br.readLine())!=null) {

@@ -27,8 +27,10 @@ Usage: mantamerger [options] Files
       When comparing two BND, check that their mate (using the ALT allele) are 
       the same too
       Default: false
-    -c, --contig
-      limit to this contig
+    -c, --contig, --contig-regex
+      limit to the contig matching that regular expression. Empty = all 
+      chromosome 
+      Default: (chr)?[0-9XY]+
     --force-svtype
       When comparing two SV variants, their INFO/SVTYPE should be the same. 
       Default is to just use coordinates to compare non-BND variants.
