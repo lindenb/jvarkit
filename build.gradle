@@ -1753,7 +1753,7 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.test.VcfPhasedCombineSNVs"
+        mainClass = "com.github.lindenb.jvarkit.tools.test.Minikit"
         jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
         });
 all2.add(task("jeter2", type: CompileJVarkit) {

@@ -57,7 +57,7 @@ public interface Transcript extends StrandedLocatable {
     public default boolean hasExon() {
     	return getExonCount()>0;
     }
-    /** get all CDS in this exon */
+    /** get all CDS in this transcrip */
 	public List<Cds> getAllCds();
 
 	/** returns true hasCodonStrop && hasCodonStart */

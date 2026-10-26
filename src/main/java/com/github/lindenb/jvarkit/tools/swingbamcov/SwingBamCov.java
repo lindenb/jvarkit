@@ -142,6 +142,7 @@ import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -177,7 +178,7 @@ END_DOC
 description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
-modificationDate="20261007",
+modificationDate="20261023",
 biostars= {9603151},
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
@@ -198,20 +199,20 @@ public class SwingBamCov extends Launcher
 	private String defaultRegion="";
 	@Parameter(names={"-q","--mapq"},description="min mapq")
 	private int minmapq=1;
-	@Parameter(names={"--gtf","--gff"},description="GFF3 file indexed with tabix to plot the genes.")
+	@Parameter(names={"--gff3","--gff"},description="GFF3 file indexed with tabix to plot the genes.")
 	private String gffPath = null;
 	@Parameter(names={"--small"},description="Display the reads when the region is small than 'x' bp. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int smallRegionLength = 200;
 	@Parameter(names={"--bed"},description="Load this bed file and use the intervals as a set of menus to jump to a specific location.")
 	private Path intervalBed = null;
-	@Parameter(names={"--disable-truepath"},description="Disable detection of phasing with illumina truepath.")
-	private boolean disable_illumina_truepath_detection = false;
+	@Parameter(names={"--disable-trupath"},description="Disable detection of phasing with illumina trupath.")
+	private boolean disable_illumina_trupath_detection = false;
 
 	private static class BamInfo {
 		final Path bamPath;
 		String sample;
 		/** activate splitting for phasing */
-		boolean is_illumina_truepath = false;
+		boolean is_illumina_trupath = false;
 		BamInfo(final Path bamPath) {
 			this.bamPath = bamPath;
 			}
@@ -254,6 +255,7 @@ public class SwingBamCov extends Launcher
 		final String gffPath;
 		private final JMenu jmenuHyperlinks;
 		private final SwingGff3TableModel gff3TableModel;
+		private final List<Interval> regions_of_interest = new Vector<>();
 
 		/** abstract action to change the genomic view (zooming/shifting) */
 		private abstract class ChangeViewAction extends AbstractAction {
@@ -350,12 +352,14 @@ public class SwingBamCov extends Launcher
 			final List<BamInfo> bamInfos;
 			final SamReaderFactory srf;
 			final boolean disable_phasing;
+			final IntervalTreeMap<Locatable> roiIntervalTreeMap;
 			DrawingThread(
 					BufferedImage img,
 					final SimpleInterval location,
 					final OptionalInt optCap,
 					final List<BamInfo> bamInfos,
-					boolean disable_phasing
+					boolean disable_phasing,
+					final IntervalTreeMap<Locatable> roiIntervalTreeMap
 					) {
 				this.img = img;
 				this.location=location;
@@ -365,6 +369,7 @@ public class SwingBamCov extends Launcher
 				this.srf = SamReaderFactory.makeDefault()
 						.referenceSequence(XFrame.this.referenceFile)
 						.validationStringency(ValidationStringency.LENIENT);
+				this.roiIntervalTreeMap = roiIntervalTreeMap;
 				}
 			@Override
 			public void run()
@@ -464,13 +469,14 @@ public class SwingBamCov extends Launcher
 				final Rectangle2D rect_frame,
 				final boolean disable_phasing
 				){
-			final boolean is_phased= (!disable_phasing && bam.is_illumina_truepath);
+			final boolean is_phased= (!disable_phasing && bam.is_illumina_trupath);
 			final List<HaplotypePileup> hapData= new ArrayList<>();
 			final Shape oldClip = g.getClip();
 			final Stroke oldStroke = g.getStroke();	
 			g.setClip(rect_frame); 
 		    final int margin_top=12;
 			try {
+				
 				final Hershey hershey = new Hershey();
 				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect_frame.getWidth() + rect_frame.getX();
 				for(int i=0;i< (is_phased?3:1);i++) {
@@ -563,6 +569,8 @@ public class SwingBamCov extends Launcher
 			    	 g.setColor(hap.color);
 					 g.fill(hap.rect);
 				     
+					 drawRegionsOfInterest(g,region,hap.rect);
+					 
 				     g.setStroke(new BasicStroke(0.5f));
 				     g.setColor(Color.WHITE);
 				     
@@ -727,6 +735,30 @@ public class SwingBamCov extends Launcher
 			repaintDrawingArea();
 			}
 		
+		private void drawRegionsOfInterest(
+				final Graphics2D g,
+				final Locatable region,
+				final Rectangle2D rect_frame
+				) {
+			final Composite oldComposite = g.getComposite();
+			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+			final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect_frame.getWidth() + rect_frame.getX();
+			g.setColor(Color.YELLOW);
+			this.roiIntervalTreeMap.getOverlapping(region).stream().forEach(ROI->{
+				
+				final double x0 = Math.max(rect_frame.getX(),   position2pixel.applyAsDouble(ROI.getStart()));
+				final double x1 = Math.min(rect_frame.getMaxX(),position2pixel.applyAsDouble(ROI.getEnd()+1));
+				
+	    		g.fill(new Rectangle2D.Double(
+	    				x0,
+	    				rect_frame.getY(),
+	    				(x1-x0),
+	    				rect_frame.getHeight()
+	    				));
+				});
+			g.setComposite(oldComposite);
+			}
+		
 		private double[] scaleMedian(final int[] coverage,final int width_pixel) {
 			final double[] array = new double[width_pixel];
 			final DiscreteMedian<Integer> med = new DiscreteMedian<>();
@@ -751,7 +783,7 @@ public class SwingBamCov extends Launcher
 				final Rectangle2D rect_frame,
 				final boolean disable_phasing
 				) {
-			final boolean is_phased  = bam.is_illumina_truepath && !disable_phasing;
+			final boolean is_phased  = bam.is_illumina_trupath && !disable_phasing;
 			final Shape oldClip = g.getClip();
 			g.setClip(rect_frame);
 			try {
@@ -794,7 +826,7 @@ public class SwingBamCov extends Launcher
 							final int phase_idx;
 							if(is_phased) {
 								// detect haplotype block boundaries
-								final Object block_tag =  rec.getAttribute(IlluminaConstants.TRUEPATH_PS);
+								final Object block_tag =  rec.getAttribute(IlluminaConstants.TRUPATH_PS);
 								if(block_tag!=null ) {
 									if(prev_block_tag!=null && !prev_block_tag.equals(block_tag)) {
 										final int p = rec.getStart();
@@ -806,7 +838,7 @@ public class SwingBamCov extends Launcher
 									}
 								
 								
-								final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+								final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUPATH_HP);
 								if(hp_tag==null || !(hp_tag instanceof Number)) {
 									phase_idx = 1;
 									}
@@ -891,6 +923,10 @@ public class SwingBamCov extends Launcher
 						g.setClip(hap.rect);
 						g.setColor(hap.color);
 						g.fill(hap.rect);
+						
+						
+						drawRegionsOfInterest(g,loc,hap.rect);
+						
 						g.setColor(new Color(240,240,240));
 						g.draw(hap.rect);
 						
@@ -1258,7 +1294,7 @@ public class SwingBamCov extends Launcher
 					while(blr.hasNext()) {
 						final BedLine rec=blr.next();
 						final Interval r = new Interval(rec.getContig(),rec.getStart(),rec.getEnd(),false,rec.getOrDefault(3, "."));
-						
+						this.regions_of_interest.add(r);
 						final JMenuItem rItem = new JMenuItem(new AbstractAction(new SimpleInterval(r).toNiceString()+" ("+ StringUtils.niceInt(r.getLengthOnReference())+" bp.)") {
 								@Override
 								public void actionPerformed(ActionEvent e) {
@@ -1480,14 +1516,22 @@ public class SwingBamCov extends Launcher
 							paths.add(bamPaths.get(idx));
 							}
 						}
-					drawingThread = new DrawingThread(this.offScreenImage,
+					
+					final IntervalTreeMap<Locatable> roiIntervalTreeMap= new IntervalTreeMap<>();
+					
+					for(Interval r:regions_of_interest) {
+						roiIntervalTreeMap.put(r, r);
+						}
+					
+					this.drawingThread = new DrawingThread(this.offScreenImage,
 							location.orElse(null),
 							optCap,
 							paths,
-							this.jcboxDisablePhasing.isSelected()
+							this.jcboxDisablePhasing.isSelected(),
+							roiIntervalTreeMap
 							);
 					this.progressBar.setIndeterminate(true);
-					drawingThread.start();
+					this.drawingThread.start();
 					}
 				else
 					{
@@ -1528,10 +1572,10 @@ public class SwingBamCov extends Launcher
 					
 					
 					
-					// detect illumina truepath
-					if(!this.disable_illumina_truepath_detection &&  IlluminaConstants.isDragenProximityEnabled(header)) {
-						bi.is_illumina_truepath = true;
-						LOG.info("TruePath detected for "+bi.bamPath);	
+					// detect illumina trupath
+					if(!this.disable_illumina_trupath_detection &&  IlluminaConstants.isDragenProximityEnabled(header)) {
+						bi.is_illumina_trupath = true;
+						LOG.info("TruPath detected for "+bi.bamPath);	
 						}
 					}
 				catch(final IOException err) {

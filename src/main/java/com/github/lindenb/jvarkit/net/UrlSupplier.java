@@ -393,6 +393,14 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						));
 				}
 			
+			urls.add(new LabelledUrlImpl("AlphaGenome",
+					variantid+"/"+alt.getDisplayString(),
+					"https://deepmind.google.com/science/alphagenome/atlas?q="+
+					StringUtils.escapeHttp(ctx.getContig()) + ":" +
+					ctx.getStart() +":"+ctx.getReference().getDisplayString()+">"+alt.getDisplayString()
+					));
+			
+			
 			if(!StringUtils.isBlank(ucscCtg)) {
 				urls.add(new LabelledUrlImpl("Decaf Decode",
 						variantid+"/"+alt.getDisplayString(),

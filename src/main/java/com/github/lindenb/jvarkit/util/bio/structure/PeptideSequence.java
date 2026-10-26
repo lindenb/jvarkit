@@ -36,10 +36,10 @@ public interface PeptideSequence<T extends CharSequence> extends CharSequence {
 	public GeneticCode getGeneticCode();
 	
 	@Override
-	public default char charAt(int index) {
-		char b1 = getCodingRNA().charAt(index*3 + 0);
-		char b2 = getCodingRNA().charAt(index*3 + 1);
-		char b3 = getCodingRNA().charAt(index*3 + 2);
+	public default char charAt(final int index) {
+		final char b1 = getCodingRNA().charAt(index*3 + 0);
+		final char b2 = getCodingRNA().charAt(index*3 + 1);
+		final char b3 = getCodingRNA().charAt(index*3 + 2);
 		return this.getGeneticCode().translate(b1, b2, b3);
 		}
 
@@ -48,22 +48,41 @@ public interface PeptideSequence<T extends CharSequence> extends CharSequence {
 		return getCodingRNA().length()/3;
 		}
 	
+	/** scan the peptide, stop when it finds a stop, otherwise return this */
+	public default PeptideSequence<? extends CharSequence> getPeptideUntilStop() {
+		final GeneticCode code = getGeneticCode(); 
+		for(int i=0;i< this.length();i++) {
+			char aa = charAt(i);
+			if(code.isStop(aa)) {
+				if(i+1==length()) return this;
+				final CharSequence subRNA= getCodingRNA().subSequence(0, i*3+2);
+				return PeptideSequence.of(subRNA, code);
+				}
+			}
+		return this;
+		}
+	
+	
+	/** create a default Peptide with RNA Length, with default genetic code */
 	public static <T extends CharSequence> PeptideSequence<T> of(T cDNA) {
 		return of(cDNA,null);
 	}
-	
-	public static <T extends CharSequence>  PeptideSequence<T> of(T cDNA,GeneticCode code) {
-		if(code==null) code=GeneticCode.getStandard();
-		return new PeptideSequenceImpl<T>(cDNA,code);
-	}
+	/** create a default Peptide with RNA Length, with default genetic code if code is null*/
+	public static <T extends CharSequence>  PeptideSequence<T> of(final T cDNA,final GeneticCode code) {
+		return new PeptideSequenceImpl<T>(
+				cDNA,
+				code==null?GeneticCode.getStandard(): code
+				);
+		}
 	
 	static class PeptideSequenceImpl<T extends CharSequence> extends AbstractCharSequence implements PeptideSequence<T> {
-		final T cDNA;
-		final GeneticCode geneticCode;
+		private final T cDNA;
+		private final GeneticCode geneticCode;
 		PeptideSequenceImpl(final T cDNA,GeneticCode geneticCode) {
 			this.cDNA= cDNA;
 			this.geneticCode = geneticCode;
 			}
+		
 		@Override
 		public T getCodingRNA() {
 			return this.cDNA	;

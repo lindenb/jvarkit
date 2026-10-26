@@ -177,7 +177,7 @@ public class SwingBamView extends Launcher {
 		String sn;
 		SAMFileHeader header= null;
 		SamReader sr = null;
-		boolean is_truepath_phased=false;
+		boolean is_trupath_phased=false;
 		BamFile(final Path path) {
 			this.path = path;
 			this.sn = IOUtils.getFilenameWithoutCommonSuffixes(path);
@@ -192,7 +192,7 @@ public class SwingBamView extends Launcher {
 			srf.referenceSequence(referenceFile);
 			this.sr = srf.open(this.path);
 			this.header = sr.getFileHeader();
-			this.is_truepath_phased = IlluminaConstants.isDragenProximityEnabled(header);
+			this.is_trupath_phased = IlluminaConstants.isDragenProximityEnabled(header);
 			}
 		
 		void close() {
@@ -251,7 +251,7 @@ public class SwingBamView extends Launcher {
 		private final JMenuItem jmenuMappingQuality;
 		private final JMenu jMenuHyperlinks;
 		
-		/** haplotype for truepath phasing */
+		/** haplotype for trupath phasing */
 		private static class Haplotype {
 			private final List<List<XFrame.Read>> rows = new Vector<>();
 			}
@@ -276,7 +276,7 @@ public class SwingBamView extends Launcher {
 			
 			/** return Illumina TruePath haplotype 0 hap1, 1 undetermined, 2: hap 2*/
 			public int getHaplotype() {
-				 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+				 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUPATH_HP);
 					if(hp_tag==null || !(hp_tag instanceof Number)) {
 						return 1;
 						}
@@ -866,7 +866,7 @@ public class SwingBamView extends Launcher {
 			final boolean show_mismatches = this.jmenuShowMismatches.isSelected();
 			for(int hap_index=0;hap_index< this.haplotypes.size();++hap_index) {
 				final Haplotype hap =  haplotypes.get(hap_index);
-				if(bamFile.is_truepath_phased) {
+				if(bamFile.is_trupath_phased) {
 					g.setColor(HAP_COLORS[hap_index]);
 					g.fill(new Rectangle2D.Double(
 						this.drawingArea.getX(),

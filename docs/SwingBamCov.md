@@ -19,10 +19,10 @@ Usage: swingbamcov [options] Files
     --bed
       Load this bed file and use the intervals as a set of menus to jump to a 
       specific location.
-    --disable-truepath
-      Disable detection of phasing with illumina truepath.
+    --disable-trupath
+      Disable detection of phasing with illumina trupath.
       Default: false
-    --gtf, --gff
+    --gff3, --gff
       GFF3 file indexed with tabix to plot the genes.
     -h, --help
       print help and exit

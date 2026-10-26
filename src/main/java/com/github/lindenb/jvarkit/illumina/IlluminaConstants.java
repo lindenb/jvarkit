@@ -36,11 +36,11 @@ public class IlluminaConstants {
 	public static enum TruePathPhase { Phase_1, Phase_2, Phase_undefined };
 	
 	/** Phasing probability in Phred-scale  */
-	public static final String TRUEPATH_PP = "pp";
+	public static final String TRUPATH_PP = "pp";
 	/** Haplotype tag for all reads where abs(pp)>=10 often 1 or 2: HP:i:1 HP:i:2 */
-	public static final String TRUEPATH_HP = "HP";
+	public static final String TRUPATH_HP = "HP";
 	/** Phase block tag */
-	public static final String TRUEPATH_PS = "PS";
+	public static final String TRUPATH_PS = "PS";
 	
 	/** return true if any program record in the header looks like a dragen command line with 'proximity ensabled' */
 	public static boolean isDragenProximityEnabled(final SAMFileHeader header) {
@@ -51,9 +51,9 @@ public class IlluminaConstants {
 		
 		}
 	
-	/** extract truepath Phase from SamRecord */
+	/** extract trupath Phase from SamRecord */
 	public static TruePathPhase getTruePathPhase(final SAMRecord rec) {
-		 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+		 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUPATH_HP);
 		if(hp_tag==null ) {
 			return TruePathPhase.Phase_undefined;
 			}

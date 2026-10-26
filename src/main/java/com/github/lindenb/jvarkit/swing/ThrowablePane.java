@@ -68,15 +68,23 @@ public class ThrowablePane extends JPanel
      * Constructor with a throwable
      * @param throwable
      */
-    public ThrowablePane(Throwable throwable,String message)
+    private ThrowablePane()
         {
         super(new BorderLayout());
+        }
+
+    /** display an alert via OptionPane.showMessageDialog */
+    static public void show(final Component owner, String message,final Throwable throwable)
+        {
+        try {
+            final ThrowablePane tp = new ThrowablePane();
+
         if(message==null) message=throwable.getLocalizedMessage();
         if(message==null) message=throwable.getMessage();
         Dimension screen= Toolkit.getDefaultToolkit().getScreenSize();
-        setPreferredSize(new Dimension(screen.width/2,screen.height/2));
-        setBorder(BorderFactory.createLineBorder(Color.RED,2));
-        List<StackTraceElement> rows = new ArrayList<>();
+        tp.setPreferredSize(new Dimension(screen.width/2,screen.height/2));
+        tp.setBorder(BorderFactory.createLineBorder(Color.RED,2));
+        final List<StackTraceElement> rows = new ArrayList<>();
         for(final StackTraceElement ste: throwable.getStackTrace())
         	{
         	rows.add(ste);
@@ -89,8 +97,8 @@ public class ThrowablePane extends JPanel
         		new ColumnDef<StackTraceElement>("Line",Integer.class,E->E.getLineNumber())
         		),rows);
         
-        JTabbedPane tabbedPane=new JTabbedPane(JTabbedPane.SCROLL_TAB_LAYOUT);
-        this.add(tabbedPane,BorderLayout.CENTER);
+        final JTabbedPane tabbedPane=new JTabbedPane(JTabbedPane.SCROLL_TAB_LAYOUT);
+        tp.add(tabbedPane,BorderLayout.CENTER);
         JTextField tf= new JTextField(throwable.getClass()+" : "+message);
         tf.setToolTipText(tf.getText());
         tf.setEditable(false);
@@ -103,7 +111,7 @@ public class ThrowablePane extends JPanel
         tabbedPane.addTab("Trace", pane);
         StringWriter statckTrace= new StringWriter();
         throwable.printStackTrace(new PrintWriter(statckTrace));
-        JTextArea msg= new JTextArea(throwable.getClass().getName()+
+        final JTextArea msg= new JTextArea(throwable.getClass().getName()+
                 "\n"+
                 statckTrace.toString());
         msg.setEditable(false);
@@ -164,7 +172,7 @@ public class ThrowablePane extends JPanel
         	classname="/"+classname+".java";
         	InputStream in = null;
         	try {
-        		in= getClass().getResourceAsStream(classname);
+        		in= tp.getClass().getResourceAsStream(classname);
             	if(in==null) continue;
             	final String javaFile = IOUtil.readFully(in);
             	final JTextArea area= new JTextArea(javaFile.toString());
@@ -182,32 +190,27 @@ public class ThrowablePane extends JPanel
         		if(in!=null) try {
         			in.close();
         			} catch(Throwable e2) {}
-        		}		
+        		}
         	break;
         	}
-        
-        setBackground(Color.RED);
+        tp.setBackground(Color.RED);
         pane.setOpaque(true);
         pane.setBackground(Color.RED);
+
+
+
+			JOptionPane.showMessageDialog(owner,tp ,"Error",JOptionPane.ERROR_MESSAGE,null);
+			}
+        catch (final HeadlessException e)
+			{
+			e.printStackTrace(System.err);
+			}
         }
 
     /** display an alert via OptionPane.showMessageDialog */
-    static public void show(Component owner, String message,Throwable t)
-        {
-        try {
-			JOptionPane.showMessageDialog(owner,new ThrowablePane(t,message),"Error",JOptionPane.ERROR_MESSAGE,null);
-			}
-        catch (HeadlessException e)
-			{
-			t.printStackTrace(System.err);
-			}
-        }
-    
-    /** display an alert via OptionPane.showMessageDialog */
-    static public void show(Component owner, Throwable t)
+    static public void show(final Component owner, final Throwable t)
         {
     	show(owner,null,t);
         }
-    
 
 }
