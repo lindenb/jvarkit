@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfphasedpep;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -115,8 +114,6 @@ public class VcfPhasedPeptide extends Launcher {
 	@Parameter(names={"--accept-filtered"},description="Accept Filtered Genotype (default is to skip FILTERed genotypes")
 	protected boolean accept_filtered_genotype_flag =false;
 
-	/** reference genome */
-	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 
 	
 	private static class Base {
@@ -184,344 +181,336 @@ public class VcfPhasedPeptide extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final Path vcfPath = Paths.get(oneAndOnlyOneFile(args));
-			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referencePath);
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-			//final String buildName = SequenceDictionaryUtils.getBuildName(dict).orElse(null);
-			//final Hyperlink hyperlink = Hyperlink.compile(dict);
-			ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(dict);
-			GenomicSequence genomicSequence = null;
-			final List<Gene> genes;
-			final Predicate<Locatable> acceptInterval;
-			if(regions_file_bed!=null) {
-				try(BedLineReader blr=BedLineReader.openPath(this.regions_file_bed)) {
-					blr.setContigNameConverter(ctgConverter);
-					final IntervalTreeMap<Boolean> treeMap= blr.toIntervalTreeMap(B->true);
-					acceptInterval = L->treeMap.containsOverlapping(L);
+			try( ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referencePath)) {
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+				//final String buildName = SequenceDictionaryUtils.getBuildName(dict).orElse(null);
+				//final Hyperlink hyperlink = Hyperlink.compile(dict);
+				ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(dict);
+				GenomicSequence genomicSequence = null;
+				final List<Gene> genes;
+				final Predicate<Locatable> acceptInterval;
+				if(this.regions_file_bed!=null) {
+					try(BedLineReader blr=BedLineReader.openPath(this.regions_file_bed)) {
+						blr.setContigNameConverter(ctgConverter);
+						final IntervalTreeMap<Boolean> treeMap= blr.toIntervalTreeMap(B->true);
+						acceptInterval = L->treeMap.containsOverlapping(L);
+						}
 					}
-				}
-			else
-				{
-				acceptInterval = L->true;
-				}
-			
-			try (GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-				gtfReader.setContigNameConverter(ctgConverter);
-				genes = gtfReader.getAllGenes()
-					.stream()
-					.filter(G->acceptInterval.test(G))
-					.filter(G->G.getTranscripts().stream() .anyMatch(T->T.isCoding() && T.hasCodonStartDefined() && T.hasCodonStopDefined()))
-					.sorted(new ContigDictComparator(dict).createLocatableComparator())
-					.collect(Collectors.toList());
-				}
-			if(this.debug_flag) {
-				LOG.error("number of genes: "+ genes.size());
-				LOG.error("number of transcripts: "+ genes.stream().mapToLong(G->G.getTranscripts().stream().count()).sum());
-				}
-			
-			if(genes.isEmpty()) {
-				LOG.error("no gene was found");
-				return -1;
-				}
-			
-			final RNASequenceFactory rnaSequenceFactory = new RNASequenceFactory(this.indexedFastaSequenceFile);
-			
-			try(VCFFileReader vcfReader0 = new VCFFileReader(vcfPath,true)) {
-				final VCFHeader header = vcfReader0.getFileHeader();
-				if(!header.hasGenotypingData()) {
-					LOG.error("no genotype in "+vcfPath);
+				else
+					{
+					acceptInterval = L->true;
+					}
+				
+				try (GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+					gtfReader.setContigNameConverter(ctgConverter);
+					genes = gtfReader.getAllGenes()
+						.stream()
+						.filter(G->acceptInterval.test(G))
+						.filter(G->G.getTranscripts().stream() .anyMatch(T->T.isCoding() && T.hasCodonStartDefined() && T.hasCodonStopDefined()))
+						.sorted(new ContigDictComparator(dict).createLocatableComparator())
+						.collect(Collectors.toList());
+					}
+				if(this.debug_flag) {
+					LOG.error("number of genes: "+ genes.size());
+					LOG.error("number of transcripts: "+ genes.stream().mapToLong(G->G.getTranscripts().stream().count()).sum());
+					}
+				
+				if(genes.isEmpty()) {
+					LOG.error("no gene was found");
 					return -1;
 					}
-				final int buffer_size= 100_000;
-				try(BufferedVCFReader vcfReader=new BufferedVCFReader(vcfReader0, buffer_size)) {
-					try(JsonWriter js = new JsonWriter(super.openPathOrStdoutAsPrintWriter(this.outputFile))) {
-						js.beginArray();
-						for(Gene gene: genes) {
-							if(this.debug_flag) {
-								LOG.debug(gene.getGeneName()+" "+gene.getContig()+":"+gene.getStart()+"-"+gene.getEnd());
-								}
-							/* loop over transcripts */
-							for(Transcript transcript: gene.getTranscripts()) {
-								if(!transcript.isCoding()) continue;
-								if(!transcript.hasCodonStartDefined()) continue;
-								if(!transcript.hasCodonStopDefined()) continue;
+				final RNASequenceFactory rnaSequenceFactory = new RNASequenceFactory(indexedFastaSequenceFile);
+				
+				try(VCFFileReader vcfReader0 = new VCFFileReader(vcfPath,true)) {
+					final VCFHeader header = vcfReader0.getFileHeader();
+					if(!header.hasGenotypingData()) {
+						LOG.error("no genotype in "+vcfPath);
+						return -1;
+						}
+					final int buffer_size= 100_000;
+					try(BufferedVCFReader vcfReader=new BufferedVCFReader(vcfReader0, buffer_size)) {
+						try(JsonWriter js = new JsonWriter(super.openPathOrStdoutAsPrintWriter(this.outputFile))) {
+							js.beginArray();
+							for(Gene gene: genes) {
 								if(this.debug_flag) {
-									LOG.debug(transcript.getId()+" "+transcript.getContig()+":"+transcript.getStart()+"-"+transcript.getEnd());
+									LOG.debug(gene.getGeneName()+" "+gene.getContig()+":"+gene.getStart()+"-"+gene.getEnd());
 									}
-								
-								//position used to detect if a variant is in UTR ?
-								final OptionalInt leftmost_cds = transcript.getAllCds().stream().mapToInt(X->X.getStart()).min();
-								final OptionalInt righttmost_cds = transcript.getAllCds().stream().mapToInt(X->X.getEnd()).max();
-
-								
-								RNASequence codingRNA = null;
-								PeptideSequence<CharSequence> wildProt = null;
-								String wildPepUntilStop = null;
-								
-								/* loop over samples */
-								for(String sn: header.getGenotypeSamples()) {
+								/* loop over transcripts */
+								for(Transcript transcript: gene.getTranscripts()) {
+									if(!transcript.isCoding()) continue;
+									if(!transcript.hasCodonStartDefined()) continue;
+									if(!transcript.hasCodonStopDefined()) continue;
 									if(this.debug_flag) {
-										LOG.debug("sample "+sn);
-										}
-									/* skip that sample ?*/
-									if(this.regexSamples!=null && !sn.matches(regexSamples)) {
-										if(this.debug_flag) {
-											LOG.debug("skipping sample "+sn);
-											}
-										continue;
+										LOG.debug(transcript.getId()+" "+transcript.getContig()+":"+transcript.getStart()+"-"+transcript.getEnd());
 										}
 									
+									//position used to detect if a variant is in UTR ?
+									final OptionalInt leftmost_cds = transcript.getAllCds().stream().mapToInt(X->X.getStart()).min();
+									final OptionalInt righttmost_cds = transcript.getAllCds().stream().mapToInt(X->X.getEnd()).max();
+	
 									
-									final List<VariantContext> variants = new ArrayList<>(transcript.getLengthOnReference());
-									boolean non_diploid_flag=false;
-									try(CloseableIterator<VariantContext> iter =  vcfReader.query(transcript)) {
-										while(iter.hasNext()) {
-											final VariantContext ctx = iter.next();
-											
-											final Genotype gt = ctx.getGenotype(sn);
-											if(gt.getPloidy()!=2) {
-												if(this.debug_flag) {
-													LOG.debug("found non-diploid");
-													}
-												non_diploid_flag =  true;
-												break;
-												}
-											
-											variants.add(new VariantContextBuilder(ctx)
-												.attributes(Collections.emptyMap())
-												.genotypes(Collections.singletonList(gt))
-												.make());
-											}
-										}
-									if(non_diploid_flag) {
-										if(this.debug_flag) {
-											LOG.debug("skipping "+sn+" "+transcript.getId()+" because found non-diploid");
-											}
-										continue;
-										}
-									// at least one genotype with ALT allele
-									if(variants.stream()
-											.flatMap(G->G.getGenotypes().stream())
-											.flatMap(L->L.getAlleles().stream())
-											.noneMatch(A->isAltAllele(A))
-											) {
-										if(this.debug_flag) {
-											LOG.info("not ALT variants in the interval for "+sn);
-											}
-										continue;
-										}
-									if(this.debug_flag) {
-										LOG.info("number of variants : "+variants.size()+" for "+sn);
-										}
-									if(codingRNA==null) {
-										codingRNA = rnaSequenceFactory.getCodingRNA(transcript);
-										wildProt = PeptideSequence.of(codingRNA);
-										wildPepUntilStop = peptideSeqUntilStop(wildProt);
-										}
+									RNASequence codingRNA = null;
+									PeptideSequence<CharSequence> wildProt = null;
+									String wildPepUntilStop = null;
 									
-									
-									final CharSequence[] mutated_peptides_each_phase=new CharSequence[] {null,null};
-									/** loop over each phase for variant 1*/
-									for(int phase1_idx=0;phase1_idx<2;++phase1_idx) {
+									/* loop over samples */
+									for(String sn: header.getGenotypeSamples()) {
 										if(this.debug_flag) {
-											LOG.info("phase1=" + phase1_idx +" for "+sn);
+											LOG.debug("sample "+sn);
 											}
-										int prev_variant_index=0;
-										boolean phase_interrupted=false;
-										final List<Base> bases= new ArrayList<Base>();
-										int transcript_index1=transcript.getStart();
-										
-										while(transcript_index1<=transcript.getEnd() && !phase_interrupted) {
-											
-											
-											boolean got_base_flag=false;
-											for(int i=prev_variant_index;i< variants.size() && !got_base_flag;i++) {
-												final VariantContext ctx= variants.get(i);
-												if(!accept_filtered_genotype_flag && ctx.isFiltered()) {
-													continue;
-													}
-												final Genotype gt = ctx.getGenotype(sn);
-												if(!gt.isPhased() && transcript.isPositiveStrand()) {
-													//could be a variant in UTR ?
-													if(leftmost_cds.getAsInt()<= transcript_index1) {
-														phase_interrupted=true;
-														if(this.debug_flag) {
-															LOG.info("phase is interrupted for "+sn+" at "+toString(ctx)+" for "+transcript.getId());
-															}
-														break;
-														}
-													}
-												if(ctx.getStart() > transcript_index1) {
-													break;
-													}
-												if(ctx.getStart()==transcript_index1) {
-													
-													// unphased downstream ?
-													if(transcript.isNegativeStrand()) {
-														//test variants after that one
-														for(int j=i+1;j< variants.size();j++) {
-															final VariantContext ctx_downstream= variants.get(j);
-															if(ctx_downstream.getEnd()>=righttmost_cds.getAsInt()) break;
-															if(!this.accept_filtered_genotype_flag &&  ctx_downstream.isFiltered()) {
-																continue;
-																}
-															final Genotype gt_downstream = ctx_downstream.getGenotype(sn);
-															if(!gt_downstream.isPhased() && ctx_downstream.getEnd() <= righttmost_cds.getAsInt()) {
-																phase_interrupted=true;
-																if(this.debug_flag) {
-																	LOG.info("phase is interrupted downstream for "+sn+" at "+toString(ctx_downstream)+" for "+transcript.getId());
-																	}
-																break;
-																}
-															}
-														}
-													
-													
-													prev_variant_index = i;
-													final Allele alt_allele = gt.getAllele(phase1_idx);
-													// test wether position falls in transcript
-													final OptionalInt rnaIndex0 =  codingRNA.convertGenomic0ToRnaIndex0(ctx.getStart()-1);
-													if(isAltAllele(alt_allele) && rnaIndex0.isPresent()) {
-														final Allele refAllele = ctx.getReference();
-														if(refAllele.length()<0) throw new IllegalArgumentException();
-														final String dna = alt_allele.getBaseString();
-														
-														if(this.debug_flag) {
-															LOG.info("got variant in cdna for sample "+sn+" at position "+transcript_index1);
-															}
-														
-														for(int z=0;z< dna.length();z++) {
-															final BaseIsAlt altbase=new BaseIsAlt();
-															altbase.variant = ctx;
-															altbase.base = dna.charAt(z);
-															
-															bases.add(altbase);
-															got_base_flag=true;
-															}
-														transcript_index1+=refAllele.length();
-														}
-													break;
-													}
-												}
-											//no variant found overlaping position, use reference sequence
-											if(!got_base_flag) {
-												if(codingRNA.convertGenomic0ToRnaIndex0( transcript_index1-1).isPresent()) {
-													if(genomicSequence==null || !genomicSequence.hasName(transcript.getContig())) {
-														genomicSequence = new GenomicSequence(indexedFastaSequenceFile, transcript.getContig());
-														}
-													final BaseIsRef refbase = new BaseIsRef();
-													refbase.genomic0 = transcript_index1-1;
-													refbase.base = genomicSequence.charAt(refbase.genomic0);
-													bases.add(refbase);
-													}
-												++transcript_index1;
-												}
-											}
-										
-										if(phase_interrupted) {
+										/* skip that sample ?*/
+										if(this.regexSamples!=null && !sn.matches(regexSamples)) {
 											if(this.debug_flag) {
-												LOG.info("phase is interrupted for "+sn);
+												LOG.debug("skipping sample "+sn);
 												}
 											continue;
 											}
 										
-										if(transcript.isNegativeStrand()) {
+										
+										final List<VariantContext> variants = new ArrayList<>(transcript.getLengthOnReference());
+										boolean non_diploid_flag=false;
+										try(CloseableIterator<VariantContext> iter =  vcfReader.query(transcript)) {
+											while(iter.hasNext()) {
+												final VariantContext ctx = iter.next();
+												
+												final Genotype gt = ctx.getGenotype(sn);
+												if(gt.getPloidy()!=2) {
+													if(this.debug_flag) {
+														LOG.debug("found non-diploid");
+														}
+													non_diploid_flag =  true;
+													break;
+													}
+												
+												variants.add(new VariantContextBuilder(ctx)
+													.attributes(Collections.emptyMap())
+													.genotypes(Collections.singletonList(gt))
+													.make());
+												}
+											}
+										if(non_diploid_flag) {
 											if(this.debug_flag) {
-												LOG.info("reverse complementing "+transcript.getId()+" "+transcript.getStrand());
+												LOG.debug("skipping "+sn+" "+transcript.getId()+" because found non-diploid");
 												}
-											Collections.reverse(bases);
-											for(int i=0;i< bases.size();i++) {
-												final Base b = bases.get(i);
-												b.base = AcidNucleics.complement(b.base);
-												}
+											continue;
 											}
-										
-										
-										
-										final SequenceOfBases mutatedRNA = new SequenceOfBases(bases);
-										final PeptideSequence<CharSequence> mutatedProt = PeptideSequence.of(mutatedRNA);
-										
-										final String pepMut = peptideSeqUntilStop(mutatedProt);
-										if(wildPepUntilStop.length()!= pepMut.length()) {
+										// at least one genotype with ALT allele
+										if(variants.stream()
+												.flatMap(G->G.getGenotypes().stream())
+												.flatMap(L->L.getAlleles().stream())
+												.noneMatch(A->isAltAllele(A))
+												) {
 											if(this.debug_flag) {
-												LOG.info("got a bad guy ! "+transcript.getId()+" "+transcript.getStrand()+" "+
-														wildPepUntilStop.length()+" vs "+ pepMut.length()
-														);
+												LOG.info("not ALT variants in the interval for "+sn);
 												}
-											mutated_peptides_each_phase[phase1_idx] = pepMut;
+											continue;
 											}
-										else
-											{
-											if(this.both_phases_must_be_altered) {
-												break;
-												}
-											}
-										} // phase
-									if(mutated_peptides_each_phase[0]==null && mutated_peptides_each_phase[1]==null) {
-
 										if(this.debug_flag) {
-											LOG.info("both sequences are ok ! "+transcript.getId()+" "+transcript.getStrand());
+											LOG.info("number of variants : "+variants.size()+" for "+sn);
 											}
-										continue;
-										}
-									
-									if(this.both_phases_must_be_altered && (mutated_peptides_each_phase[0]==null || mutated_peptides_each_phase[1]==null)) {
-										if(this.debug_flag) {
-											LOG.info("both sequences altered=false false "+transcript.getId()+" "+transcript.getStrand());
+										if(codingRNA==null) {
+											codingRNA = rnaSequenceFactory.getCodingRNA(transcript);
+											wildProt = PeptideSequence.of(codingRNA);
+											wildPepUntilStop = peptideSeqUntilStop(wildProt);
 											}
-										continue;
-										}
 										
-									
-									
-									if(this.debug_flag) {
-										LOG.info("Pushing JSON");
-										}
-									js.beginObject();
-									js.name("contig"); js.value(transcript.getContig());
-									js.name("transcript_start"); js.value(transcript.getStart());
-									js.name("transcript_end"); js.value(transcript.getEnd());
-									js.name("strand"); js.value(String.valueOf(transcript.getStrand()));
-									js.name("transcript_id"); js.value(transcript.getId());
-									js.name("gene_id"); js.value(transcript.getGene().getId());
-									js.name("gene_name"); js.value(transcript.getGene().getGeneName());
-									js.name("wild_peptide"); js.value(wildPepUntilStop);
-									js.name("wild_peptide_length"); js.value(wildPepUntilStop.length());
-									js.name("sample"); js.value(sn);
-									js.name("both_phases_are_mutated"); js.value(mutated_peptides_each_phase[0]!=null && mutated_peptides_each_phase[1]!=null);
-									js.name("phases"); 
-									js.beginArray();
-									for(int phase1_idx=0;phase1_idx<2;++phase1_idx) {
-										if(mutated_peptides_each_phase[phase1_idx]==null) continue;
+										
+										final CharSequence[] mutated_peptides_each_phase=new CharSequence[] {null,null};
+										/** loop over each phase for variant 1*/
+										for(int phase1_idx=0;phase1_idx<2;++phase1_idx) {
+											if(this.debug_flag) {
+												LOG.info("phase1=" + phase1_idx +" for "+sn);
+												}
+											int prev_variant_index=0;
+											boolean phase_interrupted=false;
+											final List<Base> bases= new ArrayList<Base>();
+											int transcript_index1=transcript.getStart();
+											
+											while(transcript_index1<=transcript.getEnd() && !phase_interrupted) {
+												
+												
+												boolean got_base_flag=false;
+												for(int i=prev_variant_index;i< variants.size() && !got_base_flag;i++) {
+													final VariantContext ctx= variants.get(i);
+													if(!accept_filtered_genotype_flag && ctx.isFiltered()) {
+														continue;
+														}
+													final Genotype gt = ctx.getGenotype(sn);
+													if(!gt.isPhased() && transcript.isPositiveStrand()) {
+														//could be a variant in UTR ?
+														if(leftmost_cds.getAsInt()<= transcript_index1) {
+															phase_interrupted=true;
+															if(this.debug_flag) {
+																LOG.info("phase is interrupted for "+sn+" at "+toString(ctx)+" for "+transcript.getId());
+																}
+															break;
+															}
+														}
+													if(ctx.getStart() > transcript_index1) {
+														break;
+														}
+													if(ctx.getStart()==transcript_index1) {
+														
+														// unphased downstream ?
+														if(transcript.isNegativeStrand()) {
+															//test variants after that one
+															for(int j=i+1;j< variants.size();j++) {
+																final VariantContext ctx_downstream= variants.get(j);
+																if(ctx_downstream.getEnd()>=righttmost_cds.getAsInt()) break;
+																if(!this.accept_filtered_genotype_flag &&  ctx_downstream.isFiltered()) {
+																	continue;
+																	}
+																final Genotype gt_downstream = ctx_downstream.getGenotype(sn);
+																if(!gt_downstream.isPhased() && ctx_downstream.getEnd() <= righttmost_cds.getAsInt()) {
+																	phase_interrupted=true;
+																	if(this.debug_flag) {
+																		LOG.info("phase is interrupted downstream for "+sn+" at "+toString(ctx_downstream)+" for "+transcript.getId());
+																		}
+																	break;
+																	}
+																}
+															}
+														
+														
+														prev_variant_index = i;
+														final Allele alt_allele = gt.getAllele(phase1_idx);
+														// test wether position falls in transcript
+														final OptionalInt rnaIndex0 =  codingRNA.convertGenomic0ToRnaIndex0(ctx.getStart()-1);
+														if(isAltAllele(alt_allele) && rnaIndex0.isPresent()) {
+															final Allele refAllele = ctx.getReference();
+															if(refAllele.length()<0) throw new IllegalArgumentException();
+															final String dna = alt_allele.getBaseString();
+															
+															if(this.debug_flag) {
+																LOG.info("got variant in cdna for sample "+sn+" at position "+transcript_index1);
+																}
+															
+															for(int z=0;z< dna.length();z++) {
+																final BaseIsAlt altbase=new BaseIsAlt();
+																altbase.variant = ctx;
+																altbase.base = dna.charAt(z);
+																
+																bases.add(altbase);
+																got_base_flag=true;
+																}
+															transcript_index1+=refAllele.length();
+															}
+														break;
+														}
+													}
+												//no variant found overlaping position, use reference sequence
+												if(!got_base_flag) {
+													if(codingRNA.convertGenomic0ToRnaIndex0( transcript_index1-1).isPresent()) {
+														if(genomicSequence==null || !genomicSequence.hasName(transcript.getContig())) {
+															genomicSequence = new GenomicSequence(indexedFastaSequenceFile, transcript.getContig());
+															}
+														final BaseIsRef refbase = new BaseIsRef();
+														refbase.genomic0 = transcript_index1-1;
+														refbase.base = genomicSequence.charAt(refbase.genomic0);
+														bases.add(refbase);
+														}
+													++transcript_index1;
+													}
+												}
+											
+											if(phase_interrupted) {
+												if(this.debug_flag) {
+													LOG.info("phase is interrupted for "+sn);
+													}
+												continue;
+												}
+											
+											if(transcript.isNegativeStrand()) {
+												if(this.debug_flag) {
+													LOG.info("reverse complementing "+transcript.getId()+" "+transcript.getStrand());
+													}
+												Collections.reverse(bases);
+												for(int i=0;i< bases.size();i++) {
+													final Base b = bases.get(i);
+													b.base = AcidNucleics.complement(b.base);
+													}
+												}
+											
+											
+											
+											final SequenceOfBases mutatedRNA = new SequenceOfBases(bases);
+											final PeptideSequence<CharSequence> mutatedProt = PeptideSequence.of(mutatedRNA);
+											
+											final String pepMut = peptideSeqUntilStop(mutatedProt);
+											if(wildPepUntilStop.length()!= pepMut.length()) {
+												if(this.debug_flag) {
+													LOG.info("got a bad guy ! "+transcript.getId()+" "+transcript.getStrand()+" "+
+															wildPepUntilStop.length()+" vs "+ pepMut.length()
+															);
+													}
+												mutated_peptides_each_phase[phase1_idx] = pepMut;
+												}
+											else
+												{
+												if(this.both_phases_must_be_altered) {
+													break;
+													}
+												}
+											} // phase
+										if(mutated_peptides_each_phase[0]==null && mutated_peptides_each_phase[1]==null) {
+	
+											if(this.debug_flag) {
+												LOG.info("both sequences are ok ! "+transcript.getId()+" "+transcript.getStrand());
+												}
+											continue;
+											}
+										
+										if(this.both_phases_must_be_altered && (mutated_peptides_each_phase[0]==null || mutated_peptides_each_phase[1]==null)) {
+											if(this.debug_flag) {
+												LOG.info("both sequences altered=false false "+transcript.getId()+" "+transcript.getStrand());
+												}
+											continue;
+											}
+											
+										
+										
+										if(this.debug_flag) {
+											LOG.info("Pushing JSON");
+											}
 										js.beginObject();
-										js.name("phase"); js.value(phase1_idx+1);
-										js.name("mutated_peptide"); js.value(mutated_peptides_each_phase[phase1_idx].toString());
-										js.name("mutated_peptide_length"); js.value(mutated_peptides_each_phase[phase1_idx].length());
+										js.name("contig"); js.value(transcript.getContig());
+										js.name("transcript_start"); js.value(transcript.getStart());
+										js.name("transcript_end"); js.value(transcript.getEnd());
+										js.name("strand"); js.value(String.valueOf(transcript.getStrand()));
+										js.name("transcript_id"); js.value(transcript.getId());
+										js.name("gene_id"); js.value(transcript.getGene().getId());
+										js.name("gene_name"); js.value(transcript.getGene().getGeneName());
+										js.name("wild_peptide"); js.value(wildPepUntilStop);
+										js.name("wild_peptide_length"); js.value(wildPepUntilStop.length());
+										js.name("sample"); js.value(sn);
+										js.name("both_phases_are_mutated"); js.value(mutated_peptides_each_phase[0]!=null && mutated_peptides_each_phase[1]!=null);
+										js.name("phases"); 
+										js.beginArray();
+										for(int phase1_idx=0;phase1_idx<2;++phase1_idx) {
+											if(mutated_peptides_each_phase[phase1_idx]==null) continue;
+											js.beginObject();
+											js.name("phase"); js.value(phase1_idx+1);
+											js.name("mutated_peptide"); js.value(mutated_peptides_each_phase[phase1_idx].toString());
+											js.name("mutated_peptide_length"); js.value(mutated_peptides_each_phase[phase1_idx].length());
+											js.endObject();
+											}
+										
+										js.endArray();
 										js.endObject();
-										}
-									
-									js.endArray();
-									js.endObject();
-									}
-								}
-							}
-						js.endArray();
-						js.flush();
-						}// end of output writer
-					}
-				}
+										} // samples
+									} // end transcripts
+								}//end genes
+							js.endArray();
+							js.flush();
+							}// end of output writer
+						}
+					}//end open VCF
+				} //end open fasta
 			return 0;
 			}
-		catch(Throwable err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}
-		finally {
-			if(indexedFastaSequenceFile!=null) {
-				try {
-					indexedFastaSequenceFile.close();
-					}
-				catch(IOException err) {}
-				}
 			}
 		}
 

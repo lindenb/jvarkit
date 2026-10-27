@@ -77,12 +77,13 @@ public class Counter<T>
 			}
 		}
 	
-	
+	/** set key to count=0 if it was never seen before */
 	public void initializeIfNotExists(final T key)
 		{
 		initializeIfNotExists(key,0L);
 		}
 	
+	/** set key to count=initialValue if it was never seen before */
 	public void initializeIfNotExists(final T key,long initialValue)
 		{
 		if(!this.object2count.containsKey(key))
@@ -100,6 +101,23 @@ public class Counter<T>
 		this.object2count.values().stream().forEach(V->avg.accept(V));
 		return avg.get();
 		}
+	
+	/** get standard deviation of count */
+	public OptionalDouble getStandardDeviation() {
+		if(isEmpty()) return OptionalDouble.empty();
+		final double mean=getAverageCount().getAsDouble();
+		 double standardDeviation = 0;
+	     
+
+        for (Long c: this.object2count.values()) {
+            standardDeviation+= Math.pow((c.longValue() - mean), 2);
+        	}
+      
+        double sq = standardDeviation / getCountCategories();
+        double res = Math.sqrt(sq);
+        return OptionalDouble.of(res);
+		}
+	
 	
 	/** increase by 1 returns the new count */
 	public long incr(final T object)
