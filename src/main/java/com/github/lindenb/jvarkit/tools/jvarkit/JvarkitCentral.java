@@ -350,6 +350,7 @@ import com.github.lindenb.jvarkit.tools.vcfmulti2oneallele.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo.VcfMultiToOneInfo;
 import com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearest;
 import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
+import com.github.lindenb.jvarkit.tools.vcfphasedpep.VcfPhasedPeptide;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfregulomedb.VcfRegulomeDB;
@@ -975,6 +976,7 @@ public class JvarkitCentral {
 		command(VcfBurdenMAF.class);
 		command(VcfLiftOver.class);
 		command(VcfPeekAf.class);
+		command(VcfPhasedPeptide.class);
 		command(VcfGeneSplitter.class);
 		command(VcfCollapse.class);
 		command(VcfSplitBed.class);

@@ -6,19 +6,16 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.bio.GranthamScoreTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.tools.vcfcombine2snvs.VCFCombineTwoSnvs;
-import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 public class VCFCombineTwoSnvsTest {
-	private final TestSupport support =new TestSupport();
+	
 	
 	@Test
 	public void test01() throws IOException
 		{
+		final TestSupport support =new TestSupport();
 		try {
 			Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(new VCFCombineTwoSnvs().instanceMain(new String[] {

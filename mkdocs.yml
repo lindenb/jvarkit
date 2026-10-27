@@ -316,6 +316,7 @@ nav:
         - "vcfpeekvcf" : VcfPeekVcf.md
         - "vcfphased01" : VcfPhased01.md
         - "vcfphasedcombinesnvs" : VcfPhasedCombineSNVs.md
+        - "vcfphasedpep" : VcfPhasedPeptide.md
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md
         - "vcfregulomedb" : VcfRegulomeDB.md

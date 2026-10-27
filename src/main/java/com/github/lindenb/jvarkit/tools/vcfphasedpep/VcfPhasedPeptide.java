@@ -1,48 +1,48 @@
-package com.github.lindenb.jvarkit.tools.test;
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+package com.github.lindenb.jvarkit.tools.vcfphasedpep;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Random;
-import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import org.testng.annotations.Parameters;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.bio.AminoAcids;
 import com.github.lindenb.jvarkit.bio.GeneticCode;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.bio.AminoAcids.AminoAcid;
-import com.github.lindenb.jvarkit.grantham.GranthamScore;
-import com.github.lindenb.jvarkit.io.FileHeader;
-import com.github.lindenb.jvarkit.io.SampleSheet;
-import com.github.lindenb.jvarkit.io.SampleSheetFactory;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.net.Hyperlink;
-import com.github.lindenb.jvarkit.pedigree.SampleSet;
-import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
@@ -52,37 +52,51 @@ import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
-import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.google.gson.stream.JsonWriter;
 
-import htsjdk.samtools.AlignmentBlock;
-import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.filter.AlignedFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StopWatch;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFIterator;
+/**
+BEGIN_DOC
 
-@SuppressWarnings("unused")
-public class Minikit extends Launcher {
-	private static final Logger LOG = Logger.of(Minikit.class);
-	int deletionBasesRemaining=0;
-	private static final byte[] NO_BASES = {};
+# Input/Output
+
+Input is an indexed VCF file
+
+Output is a JSON file containing the predictions for each transcript
+
+# Example
+
+```
+$ java -jar dist/jvarkit.jar vcfphasedpep -R ref.fa --gtf input.gtf.gz input.vcf.gz > out.json
+
+(...)
+```
+END_DOC
+
+ */
+
+@Program(name="vcfphasedpep",
+description="Find altered peptides in phased VCF",
+keywords= {"protein","phased","vcf"},
+creationDate="20261026",
+modificationDate="20261027",
+jvarkit_amalgamion = true,
+menu="VCF Manipulation"
+)
+public class VcfPhasedPeptide extends Launcher {
+	private static final Logger LOG = Logger.of(VcfPhasedPeptide.class);
 	
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true )
 	private Path referencePath;
@@ -98,6 +112,8 @@ public class Minikit extends Launcher {
 	protected String regexSamples=null;
 	@Parameter(names={"--both-phases"},description="both phases must be altered")
 	protected boolean both_phases_must_be_altered=false;
+	@Parameter(names={"--accept-filtered"},description="Accept Filtered Genotype (default is to skip FILTERed genotypes")
+	protected boolean accept_filtered_genotype_flag =false;
 
 	/** reference genome */
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
@@ -112,6 +128,7 @@ public class Minikit extends Launcher {
 		
 		}
 	private static class BaseIsAlt extends Base {
+		@SuppressWarnings("unused")
 		VariantContext variant;
 		}        
 
@@ -148,16 +165,7 @@ public class Minikit extends Launcher {
 				.toString();
 		}
 	
-	private static String toString(final VariantContext ctx,final Allele alt) {
-		return  new StringBuilder(ctx.getContig())
-				.append(":")
-				.append(ctx.getStart())
-				.append(":")
-				.append(ctx.getReference().getDisplayString())
-				.append("/")
-				.append(alt.getDisplayString())
-				.toString();
-		}
+	
 	
 	
 	private String peptideSeqUntilStop(final PeptideSequence<CharSequence>  pep) {
@@ -178,8 +186,8 @@ public class Minikit extends Launcher {
 			final Path vcfPath = Paths.get(oneAndOnlyOneFile(args));
 			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referencePath);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-			final String buildName = SequenceDictionaryUtils.getBuildName(dict).orElse(null);
-			final Hyperlink hyperlink = Hyperlink.compile(dict);
+			//final String buildName = SequenceDictionaryUtils.getBuildName(dict).orElse(null);
+			//final Hyperlink hyperlink = Hyperlink.compile(dict);
 			ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(dict);
 			GenomicSequence genomicSequence = null;
 			final List<Gene> genes;
@@ -328,7 +336,9 @@ public class Minikit extends Launcher {
 											boolean got_base_flag=false;
 											for(int i=prev_variant_index;i< variants.size() && !got_base_flag;i++) {
 												final VariantContext ctx= variants.get(i);
-												if(ctx.isFiltered()) continue;
+												if(!accept_filtered_genotype_flag && ctx.isFiltered()) {
+													continue;
+													}
 												final Genotype gt = ctx.getGenotype(sn);
 												if(!gt.isPhased() && transcript.isPositiveStrand()) {
 													//could be a variant in UTR ?
@@ -351,7 +361,9 @@ public class Minikit extends Launcher {
 														for(int j=i+1;j< variants.size();j++) {
 															final VariantContext ctx_downstream= variants.get(j);
 															if(ctx_downstream.getEnd()>=righttmost_cds.getAsInt()) break;
-															if(ctx_downstream.isFiltered()) continue;
+															if(!this.accept_filtered_genotype_flag &&  ctx_downstream.isFiltered()) {
+																continue;
+																}
 															final Genotype gt_downstream = ctx_downstream.getGenotype(sn);
 															if(!gt_downstream.isPhased() && ctx_downstream.getEnd() <= righttmost_cds.getAsInt()) {
 																phase_interrupted=true;
@@ -489,8 +501,6 @@ public class Minikit extends Launcher {
 									
 									js.endArray();
 									js.endObject();
-									
-									
 									}
 								}
 							}
@@ -516,6 +526,6 @@ public class Minikit extends Launcher {
 		}
 
 public static void main(final String[] args) {
-	new Minikit().instanceMain(args);
+	new VcfPhasedPeptide().instanceMain(args);
 	}
 }

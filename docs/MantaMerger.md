@@ -117,7 +117,7 @@ input is a list of indexed vcf files or one file with the '.list' suffix contain
 
 ```
 $ find src -type f -name "manta*.vcf.gz" > jeter.list
-$ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
+$ java -jar jvarkit.jar mantamerger jeter.list 2> /dev/null
 
 (...)
 ```
