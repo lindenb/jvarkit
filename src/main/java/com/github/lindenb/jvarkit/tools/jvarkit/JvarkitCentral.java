@@ -154,6 +154,7 @@ import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
 import com.github.lindenb.jvarkit.tools.dict2vcf.DictToVcf;
 import com.github.lindenb.jvarkit.tools.dict2xml.DictToXml;
 import com.github.lindenb.jvarkit.tools.drageninv.DragenBndToInversion;
+import com.github.lindenb.jvarkit.tools.dragentransloc.DragenTransloc;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
 import com.github.lindenb.jvarkit.tools.expansionhunter.ExpansionHunterMerge;
 import com.github.lindenb.jvarkit.tools.extendref.ExtendReferenceWithReads;
@@ -777,6 +778,7 @@ public class JvarkitCentral {
 		command(DictToR.class);
 		command(DictToVcf.class);
 		command(DragenBndToInversion.class);
+		command(DragenTransloc.class);
 		command(CompareBamAndBuild.class);
 		command(ConvertLiftOverChain.class);
 		command(CommBams.class);

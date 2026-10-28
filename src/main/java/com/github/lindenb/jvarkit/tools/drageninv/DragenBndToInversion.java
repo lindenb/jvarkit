@@ -76,6 +76,12 @@ public class DragenBndToInversion extends OnePassVcfLauncher {
 	@Parameter(names={"--emit-original"},description="emit original BND variants that makes an NV")
 	private boolean emit_original = false;
 	
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator iter, VariantContextWriter out) {
 		final VCFHeader header= iter.getHeader();

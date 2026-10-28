@@ -31,7 +31,9 @@ import java.util.function.ToLongFunction;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
 
-
+/**
+ * A class parsing literal distances like '100kb'
+ */
 public class DistanceParser implements ToIntFunction<String>,ToLongFunction<String> {
 	public static final String OPT_DESCRIPTION =
 			"A distance specified as a positive integer."
@@ -48,7 +50,7 @@ public class DistanceParser implements ToIntFunction<String>,ToLongFunction<Stri
 				final DistanceParser parser = new DistanceParser();
 			      return parser.applyAsInt(distStr);
 			    } catch(final Throwable ex) {
-			      throw new ParameterException("Bad distance \""+distStr+"\"",ex);
+			      throw new ParameterException("DistanceParser: Bad distance \""+distStr+"\"",ex);
 			    }
 			}
 		}
@@ -62,7 +64,7 @@ public class DistanceParser implements ToIntFunction<String>,ToLongFunction<Stri
 			final DistanceParser parser = new DistanceParser();
 		      return parser.applyAsLong(distStr);
 		    } catch(final Throwable ex) {
-		      throw new ParameterException("Bad distance \""+distStr+"\"",ex);
+		      throw new ParameterException("DistanceParser: Bad distance \""+distStr+"\"",ex);
 		    }
 		}
 	}

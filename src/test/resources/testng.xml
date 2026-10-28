@@ -98,6 +98,7 @@
       <class name="com.github.lindenb.jvarkit.tools.bed2svg.BedToSVGTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfgtf.VcfFilterGtfTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfphasedpep.VcfPhasedPeptideTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.dragentransloc.DragenTranslocTest"/>
     </classes>
   </test>
 </suite>
