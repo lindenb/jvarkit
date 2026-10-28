@@ -1,196 +1,99 @@
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##ALT=<ID=NON_REF,Description="Represents any possible alternative allele not already represented at this location by REF and ALT">
-##FILTER=<ID=BAD_SO,Description="Variant non having SO terms :SO:0001595(plus_2_frameshift_variant), SO:0001578(stop_lost), SO:0001583(missense_variant), SO:0001822(inframe_deletion), SO:0001591(frame_restoring_variant), SO:0001992(nonsynonymous_variant), SO:0001587(stop_gained), SO:0001592(minus_1_frameshift_variant), SO:0001575(splice_donor_variant), SO:0001585(conservative_missense_variant), SO:0001589(frameshift_variant), SO:0001626(incomplete_terminal_codon_variant), SO:0002009(selenocysteine_loss), SO:0001826(disruptive_inframe_deletion), SO:0001594(plus_1_frameshift_variant), SO:0001586(non_conservative_missense_variant), SO:0001825(conservative_inframe_deletion), SO:0001593(minus_2_frameshift_variant), SO:0001650(inframe_variant), SO:0002010(pyrrolysine_loss), SO:0001574(splice_acceptor_variant), SO:0001821(inframe_insertion), SO:0001909(frameshift_elongation), SO:0002012(start_lost), SO:0001818(protein_altering_variant), SO:0001823(conservative_inframe_insertion), SO:0001820(inframe_indel), SO:0002008(rare_amino_acid_variant), SO:0001910(frameshift_truncation), SO:0001824(disruptive_inframe_insertion)">
-##FILTER=<ID=GNOMAD_GENOME_AC0,Description="[gnomad-genome]Allele count is zero after filtering out low-confidence genotypes (GQ < 20; DP < 10; and AB < 0.2 for het calls) in gnomad.genomes.r2.1.sites.vcf.gz">
-##FILTER=<ID=GNOMAD_GENOME_BAD_AF,Description="AF if not between 0.0<= 'af' <=1.0E-4 for gnomad.genomes.r2.1.sites.vcf.gz">
-##FILTER=<ID=GNOMAD_GENOME_InbreedingCoeff,Description="[gnomad-genome]InbreedingCoeff < -0.3 in gnomad.genomes.r2.1.sites.vcf.gz">
-##FILTER=<ID=GNOMAD_GENOME_RF,Description="[gnomad-genome]Failed random forest filtering thresholds of 0.2634762834546574, 0.22213813189901457 (probabilities of being a true positive variant) for SNPs, indels in gnomad.genomes.r2.1.sites.vcf.gz">
-##FILTER=<ID=HET_BAD_AD_RATIO,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=HIGH_DEPTH,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=HIGH_FS,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=HIGH_SOR,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_DEPTH,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_GQ,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_MQ,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_MQRankSum,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_QD,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LOW_ReadPosRankSum,Description="Custom FILTER inserted with VcfFilterJdk">
-##FILTER=<ID=LowQual,Description="Low quality">
-##GATKCommandLine=<ID=CombineGVCFs,CommandLine="CombineGVCFs --output TMP/combined.1.g.vcf.gz --variant ./TMP/split.aaaaaaaau.list --reference _reference.fa --annotation-group StandardAnnotation --annotation-group AS_StandardAnnotation --convert-to-base-pair-resolution false --break-bands-at-multiples-of 0 --input-is-somatic false --drop-somatic-filtering-annotations false --call-genotypes false --ignore-variants-starting-outside-interval false --combine-variants-distance 0 --max-distance 2147483647 --ref-padding 1 --interval-set-rule UNION --interval-padding 0 --interval-exclusion-padding 0 --interval-merging-rule ALL --read-validation-stringency SILENT --seconds-between-progress-updates 10.0 --disable-sequence-dictionary-validation false --create-output-bam-index true --create-output-bam-md5 false --create-output-variant-index true --create-output-variant-md5 false --max-variants-per-shard 0 --lenient false --add-output-sam-program-record true --add-output-vcf-command-line true --cloud-prefetch-buffer 40 --cloud-index-prefetch-buffer -1 --disable-bam-index-caching false --sites-only-vcf-output false --help false --version false --showHidden false --verbosity INFO --QUIET false --use-jdk-deflater false --use-jdk-inflater false --gcs-max-retries 20 --gcs-project-for-requester-pays  --disable-tool-default-read-filters false --disable-tool-default-annotations false --enable-all-annotations false --allow-old-rms-mapping-quality-annotation-data false",Version="4.6.2.0",Date="April 17, 2026, 5:41:50?AM CEST">
-##GATKCommandLine=<ID=GenotypeGVCFs,CommandLine="GenotypeGVCFs --output TMP/genotyped.vcf.gz --variant TMP/combined.all.g.vcf.gz --intervals list1000chr1_1653080_1653080.000000004.merge.bed --reference _reference.fa --annotation-group StandardAnnotation --annotation-group AS_StandardAnnotation --pedigree ultrares.pedigree4gatk.ped --include-non-variant-sites false --merge-input-intervals false --input-is-somatic false --tumor-lod-to-emit 3.5 --allele-fraction-error 0.001 --keep-combined-raw-annotations false --use-posteriors-to-calculate-qual false --dont-use-dragstr-priors false --use-new-qual-calculator true --annotate-with-num-discovered-alleles false --heterozygosity 0.001 --indel-heterozygosity 1.25E-4 --heterozygosity-stdev 0.01 --standard-min-confidence-threshold-for-calling 30.0 --max-alternate-alleles 6 --max-genotype-count 1024 --sample-ploidy 2 --num-reference-samples-if-no-call 0 --genotype-assignment-method USE_PLS_TO_ASSIGN --genomicsdb-max-alternate-alleles 50 --call-genotypes false --genomicsdb-use-bcf-codec false --genomicsdb-shared-posixfs-optimizations false --genomicsdb-use-gcs-hdfs-connector false --only-output-calls-starting-in-intervals false --interval-set-rule UNION --interval-padding 0 --interval-exclusion-padding 0 --interval-merging-rule ALL --read-validation-stringency SILENT --seconds-between-progress-updates 10.0 --disable-sequence-dictionary-validation false --create-output-bam-index true --create-output-bam-md5 false --create-output-variant-index true --create-output-variant-md5 false --max-variants-per-shard 0 --lenient false --add-output-sam-program-record true --add-output-vcf-command-line true --cloud-prefetch-buffer 40 --cloud-index-prefetch-buffer -1 --disable-bam-index-caching false --sites-only-vcf-output false --help false --version false --showHidden false --verbosity INFO --QUIET false --use-jdk-deflater false --use-jdk-inflater false --gcs-max-retries 20 --gcs-project-for-requester-pays  --disable-tool-default-read-filters false --disable-tool-default-annotations false --enable-all-annotations false --allow-old-rms-mapping-quality-annotation-data false",Version="4.6.2.0",Date="April 17, 2026, 5:43:36?AM CEST">
-##SnpEffCmd="SnpEff  GRCh37.75 "
-##SnpEffVersion="5.3a (build 2025-09-02 10:24), by Pablo Cingolani"
-##VEP-command-line='vep --assembly GRCh37 --buffer_size 1000 --cache --cache_version 104 --database 0 --dir vep/ --fasta hs37d5_all_chr.fasta --force_overwrite --format vcf --merged --no_stats --offline --output_file [PATH]/jeter.vcf --polyphen b --quiet --sift b --symbol --vcf'
-##VEP="v113.0" API="v113" time="2026-04-17 09:09:46" cache="vep/homo_sapiens_merged/104_GRCh37" ensembl=113.58650ec ensembl-compara=113.9cf749d ensembl-funcgen=113.e30608c ensembl-io=113.bee6816 ensembl-variation=113.ebfce74 1000genomes="phase3" COSMIC="92" ClinVar="202012" HGMD-PUBLIC="20204" assembly="GRCh37.p13" dbSNP="154" gencode="GENCODE 19" genebuild="2011-04" gnomAD="r2.1" polyphen="2.2.2" refseq="2020-10-26 17:03:42 - GCF_000001405.25_GRCh37.p13_genomic.gff" regbuild="1.0" sift="sift5.2.2"
-##bcftools/csqCommand=csq --threads 1 --local-csq --force --ncsq 10000 --fasta-ref hs37d5_all_chr.fasta --gff-annot Homo_sapiens.GRCh37.87.chr_patch_hapl_scaff.gff3.gz -O z -o TMP/K5edba57ce7d69d2b9b5437f673e6baf4.bcsq.vcf.gz 2060416.rare.shortQT.famB.prego_1E2.gnomad_1E4.hs37d5.list_all.sort.split.00001.vcf.gz; Date=Fri Apr 17 09:09:20 2026
-##bcftools/csqVersion=1.21+htslib-1.21
-##bcftools_normCommand=norm -d none --multiallelics -both --old-rec-tag MULTIALLELIC --fasta-ref hs37d5_all_chr.fasta -O u; Date=Fri Apr 17 05:43:51 2026
-##bcftools_normVersion=1.21+htslib-1.21
-##bcftools_viewCommand=view --apply-filters PASS,. -O z -o TMP/jeter.vcf.gz; Date=Fri Apr 17 05:44:53 2026
-##bcftools_viewCommand=view --regions chr22 2060416.rare.shortQT.famB.prego_1E2.gnomad_1E4.hs37d5.list_all.sort.vcf.gz; Date=Fri Apr 17 05:53:29 2026
-##bcftools_viewCommand=view -O u list1000chr1_1653080_1653080.000000004.merge.bed.vcf.gz; Date=Fri Apr 17 05:43:51 2026
-##bcftools_viewCommand=view -O z -o TMP/jeter.vcf.gz TMP/jeter.vcf; Date=Fri Apr 17 09:09:46 2026
-##bcftools_viewCommand=view -O z -o TMP/jeter.vcf.gz; Date=Fri Apr 17 05:44:25 2026
-##bcftools_viewCommand=view -O z -o TMP/jeter.vcf.gz; Date=Fri Apr 17 05:45:46 2026
-##bcftools_viewCommand=view -O z -o TMP/jeter2.vcf.gz; Date=Fri Apr 17 05:45:48 2026
-##bcftools_viewCommand=view -O z -o TMP/list_all.lowqual.vcf.gz; Date=Fri Apr 17 05:49:55 2026
-##bcftools_viewCommand=view -i ALT!="*" -O z -o TMP/list1000chr1_1653080_1653080.000000004.merge.norm.vcf.gz; Date=Fri Apr 17 05:43:51 2026
-##bcftools_viewCommand=view K5edba57ce7d69d2b9b5437f673e6baf4.bcsq.vcf.gz; Date=Fri Apr 17 09:09:45 2026
-##bcftools_viewCommand=view K5edba57ce7d69d2b9b5437f673e6baf4.vep.vcf.gz; Date=Fri Apr 17 09:10:13 2026
-##bcftools_viewCommand=view TMP/jeter.vcf.gz; Date=Fri Apr 17 05:45:47 2026
-##bcftools_viewCommand=view list1000chr1_1653080_1653080.000000004.merge.filterjdk.vcf.gz; Date=Fri Apr 17 05:44:52 2026
-##bcftools_viewCommand=view list1000chr1_1653080_1653080.000000004.merge.gnomad.vcf.gz; Date=Fri Apr 17 05:45:23 2026
-##bcftools_viewCommand=view list1000chr1_1653080_1653080.000000004.merge.norm.vcf.gz; Date=Fri Apr 17 05:44:22 2026
-##bcftools_viewCommand=view list_all.concat.vcf.gz; Date=Fri Apr 17 05:49:52 2026
-##bcftools_viewVersion=1.21+htslib-1.21
-##contig=<ID=chr1,length=249250621>
-##contig=<ID=chr2,length=243199373>
-##contig=<ID=chr3,length=198022430>
-##contig=<ID=chr4,length=191154276>
-##contig=<ID=chr5,length=180915260>
-##contig=<ID=chr6,length=171115067>
-##contig=<ID=chr7,length=159138663>
-##contig=<ID=chr8,length=146364022>
-##contig=<ID=chr9,length=141213431>
-##contig=<ID=chr10,length=135534747>
-##contig=<ID=chr11,length=135006516>
-##contig=<ID=chr12,length=133851895>
-##contig=<ID=chr13,length=115169878>
-##contig=<ID=chr14,length=107349540>
-##contig=<ID=chr15,length=102531392>
-##contig=<ID=chr16,length=90354753>
-##contig=<ID=chr17,length=81195210>
-##contig=<ID=chr18,length=78077248>
-##contig=<ID=chr19,length=59128983>
-##contig=<ID=chr20,length=63025520>
-##contig=<ID=chr21,length=48129895>
-##contig=<ID=chr22,length=51304566>
-##contig=<ID=chrX,length=155270560>
-##contig=<ID=chrY,length=59373566>
-##contig=<ID=chrMT,length=16569>
-##contig=<ID=GL000207.1,length=4262>
-##contig=<ID=GL000226.1,length=15008>
-##contig=<ID=GL000229.1,length=19913>
-##contig=<ID=GL000231.1,length=27386>
-##contig=<ID=GL000210.1,length=27682>
-##contig=<ID=GL000239.1,length=33824>
-##contig=<ID=GL000235.1,length=34474>
-##contig=<ID=GL000201.1,length=36148>
-##contig=<ID=GL000247.1,length=36422>
-##contig=<ID=GL000245.1,length=36651>
-##contig=<ID=GL000197.1,length=37175>
-##contig=<ID=GL000203.1,length=37498>
-##contig=<ID=GL000246.1,length=38154>
-##contig=<ID=GL000249.1,length=38502>
-##contig=<ID=GL000196.1,length=38914>
-##contig=<ID=GL000248.1,length=39786>
-##contig=<ID=GL000244.1,length=39929>
-##contig=<ID=GL000238.1,length=39939>
-##contig=<ID=GL000202.1,length=40103>
-##contig=<ID=GL000234.1,length=40531>
-##contig=<ID=GL000232.1,length=40652>
-##contig=<ID=GL000206.1,length=41001>
-##contig=<ID=GL000240.1,length=41933>
-##contig=<ID=GL000236.1,length=41934>
-##contig=<ID=GL000241.1,length=42152>
-##contig=<ID=GL000243.1,length=43341>
-##contig=<ID=GL000242.1,length=43523>
-##contig=<ID=GL000230.1,length=43691>
-##contig=<ID=GL000237.1,length=45867>
-##contig=<ID=GL000233.1,length=45941>
-##contig=<ID=GL000204.1,length=81310>
-##contig=<ID=GL000198.1,length=90085>
-##contig=<ID=GL000208.1,length=92689>
-##contig=<ID=GL000191.1,length=106433>
-##contig=<ID=GL000227.1,length=128374>
-##contig=<ID=GL000228.1,length=129120>
-##contig=<ID=GL000214.1,length=137718>
-##contig=<ID=GL000221.1,length=155397>
-##contig=<ID=GL000209.1,length=159169>
-##contig=<ID=GL000218.1,length=161147>
-##contig=<ID=GL000220.1,length=161802>
-##contig=<ID=GL000213.1,length=164239>
-##contig=<ID=GL000211.1,length=166566>
-##contig=<ID=GL000199.1,length=169874>
-##contig=<ID=GL000217.1,length=172149>
-##contig=<ID=GL000216.1,length=172294>
-##contig=<ID=GL000215.1,length=172545>
-##contig=<ID=GL000205.1,length=174588>
-##contig=<ID=GL000219.1,length=179198>
-##contig=<ID=GL000224.1,length=179693>
-##contig=<ID=GL000223.1,length=180455>
-##contig=<ID=GL000195.1,length=182896>
-##contig=<ID=GL000212.1,length=186858>
-##contig=<ID=GL000222.1,length=186861>
-##contig=<ID=GL000200.1,length=187035>
-##contig=<ID=GL000193.1,length=189789>
-##contig=<ID=GL000194.1,length=191469>
-##contig=<ID=GL000225.1,length=211173>
-##contig=<ID=GL000192.1,length=547496>
-##contig=<ID=NC_007605,length=171823>
-##contig=<ID=hs37d5,length=35477943>
-##source=CombineGVCFs
-##source=GenotypeGVCFs
-##vcffilterjdk.meta=compilation:20250425170201 githash:undefined htsjdk:4.1.1 date:20260417054425 cmd:--script select.code
-##vcffilterso.meta=compilation:20250425170201 githash:undefined htsjdk:4.1.1 date:20260417054548 cmd:--acn SO:0001629,SO:0001818
-##vcfgnomad.meta=compilation:20250425170201 githash:undefined htsjdk:4.1.1 date:20260417054453 cmd:--bufferSize 100 --min-af 0 --max-af 1.0E-4 --gnomad gnomad.genomes.r2.1.sites.vcf.gz --fields AF_nfe
-##vcfsplitnvariants.id=1
-##vcfsplitnvariants.meta=compilation:20260409205432 githash:9eb9bc1a5 htsjdk:4.1.1 release:v2024.08.25 date:20260417055330 cmd:--manifest 2060416.rare.shortQT.famB.prego_1E2.gnomad_1E4.hs37d5.list_all.sort.split.MF --variants-count 500 -o TMP/OUT/2060416.rare.shortQT.famB.prego_1E2.gnomad_1E4.hs37d5.list_all.sort.split
-##bcftools_viewCommand=view -O z -o TMP/jeter.vcf.gz; Date=Fri Apr 17 09:10:14 2026
-##bcftools_annotateVersion=1.21+htslib-1.21
-##bcftools_annotateCommand=annotate -c CHROM,POS,REF,ALT,CADD_RAWSCORE,CADD_PHRED --threads 1 -a TMP/database.tsv.gz -H '##INFO=<ID=CADD_RAWSCORE,Number=1,Type=Float,Description="Raw Score in CADD whole_genome_SNVs.GRCh37.v1.7.tsv.gz">' -H '##INFO=<ID=CADD_PHRED,Number=1,Type=Float,Description="Phred Score in CADD whole_genome_SNVs.GRCh37.v1.7.tsv.gz">' -O z -o TMP/K5edba57ce7d69d2b9b5437f673e6baf4.cadd.vcf.gz K5edba57ce7d69d2b9b5437f673e6baf4.filterso.vcf.gz; Date=Fri Apr 17 09:15:46 2026
-##bcftools_annotateCommand=annotate --threads 1 -a ALPHAMISSENSE.tsv.gz -h ALPHAMISSENSE.header -c CHROM,POS,REF,ALT,ALPHAMISSENSE_PATHOGENOCITY,ALPHAMISSENSE_CLASS --merge-logic ALPHAMISSENSE_PATHOGENOCITY:max,ALPHAMISSENSE_CLASS:unique -O b -o TMP/K5edba57ce7d69d2b9b5437f673e6baf4.cadd.vcf.alphamissense.bcf K5edba57ce7d69d2b9b5437f673e6baf4.cadd.vcf.gz; Date=Fri Apr 17 09:16:45 2026
-##bcftools_annotateCommand=annotate --threads 1 -a hs37d5_all_chr.clinvar.vcf.gz -c CLINVAR_AF_ESP,CLINVAR_AF_EXAC,CLINVAR_AF_TGP,CLINVAR_ALLELEID,CLINVAR_CLNDN,CLINVAR_CLNDNINCL,CLINVAR_CLNDISDB,CLINVAR_CLNDISDBINCL,CLINVAR_CLNHGVS,CLINVAR_CLNREVSTAT,CLINVAR_CLNSIG,CLINVAR_CLNSIGCONF,CLINVAR_CLNSIGINCL,CLINVAR_CLNVC,CLINVAR_CLNVCSO,CLINVAR_CLNVI,CLINVAR_DBVARID,CLINVAR_GENEINFO,CLINVAR_MC,CLINVAR_ONCDN,CLINVAR_ONCDNINCL,CLINVAR_ONCDISDB,CLINVAR_ONCDISDBINCL,CLINVAR_ONC,CLINVAR_ONCINCL,CLINVAR_ONCREVSTAT,CLINVAR_ONCCONF,CLINVAR_ORIGIN,CLINVAR_RS,CLINVAR_SCIDN,CLINVAR_SCIDNINCL,CLINVAR_SCIDISDB,CLINVAR_SCIDISDBINCL,CLINVAR_SCIREVSTAT,CLINVAR_SCI,CLINVAR_SCIINCL -O z -o TMP/jeter.vcf.gz K5edba57ce7d69d2b9b5437f673e6baf4.cadd.vcf.alphamissense.bcf; Date=Fri Apr 17 09:17:15 2026
-##bcftools_viewVersion=1.21-95-gc0776714+htslib-1.21-15-g1d2e493b
-##bcftools_viewCommand=view -G; Date=Wed Jun 10 16:17:48 2026
-##bcftools_annotateVersion=1.21-95-gc0776714+htslib-1.21-15-g1d2e493b
-##bcftools_annotateCommand=annotate -x INFO; Date=Wed Jun 10 16:17:48 2026
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-chr22	26688438	rs201583563	G	C	1905.96	PASS	.
-chr22	29886222	.	C	A	1850.96	PASS	.
-chr2	40392102	.	TG	T	2016.91	PASS	.
-chr2	179453435	.	T	G	2130.96	PASS	.
-chr2	179474009	.	T	A	2657.95	PASS	.
-chr3	49949309	rs375068093	C	T	3526.04	PASS	.
-chr3	51697197	.	C	G	2915.04	PASS	.
-chr3	141161859	.	A	T	2719.95	PASS	.
-chr4	645512	rs13133489	CGCCGGGGCTATGGGGAGCCGTCTCCATTCAGCAGGT	C	1238.92	PASS	.
-chr8	88364006	.	T	G	3536.04	PASS	.
-chr8	125990067	.	C	G	3639.04	PASS	.
-chrX	55033665	rs147390902	C	T	3345.81	PASS	.
-chr20	8770184	.	C	T	1906.96	PASS	.
-chr20	48156128	rs764773041	C	A	4436	PASS	.
-chr9	113538243	.	G	A	2075.96	PASS	.
-chr5	172395544	.	G	A	3623.04	PASS	.
-chr17	18205990	.	G	A	2652.95	PASS	.
-chr17	27183405	.	G	A	3170.95	PASS	.
-chr17	56584558	rs775203610	G	A	3447.04	PASS	.
-chr17	63532990	rs775207779	T	C	2312.95	PASS	.
-chr17	76178758	.	G	A	2718.95	PASS	.
-chr19	4793865	.	G	A	1627.95	PASS	.
-chr19	7505211	rs1313919839	G	T	3106.95	PASS	.
-chr19	10200361	rs139147326	G	A	2171.95	PASS	.
-chr19	19625561	.	G	A	2785.02	PASS	.
-chr19	36235043	.	G	A	3580.04	PASS	.
-chr19	38126966	.	T	C	4177.04	PASS	.
-chr19	39401445	.	G	A	2613.04	PASS	.
-chr19	43762204	rs768834703	A	T	3164.24	PASS	.
-chr19	44636178	.	C	G	2731.05	PASS	.
-chr19	52888094	.	T	A	2145.81	PASS	.
-chr19	58908070	.	C	T	3631.04	PASS	.
-chr14	44974576	.	G	A	2628.96	PASS	.
-chr1	1653080	.	G	A	2969.02	PASS	.
-chr1	15644403	.	G	C	2313.95	PASS	.
-chr1	40955272	.	G	T	2576.95	PASS	.
-chr1	92979067	.	AATATATATATATATATATATATATATATAT	A	30062.8	PASS	.
-chr1	97564049	.	A	G	3652.95	PASS	.
-chr1	155033283	.	G	A	1964.96	PASS	.
-chr11	129754693	.	G	A	3492.04	PASS	.
-chr11	130007156	.	C	T	3353.04	PASS	.
-chr13	43358210	.	C	A	3021.53	PASS	.
-chr13	46288472	.	A	G	3249.95	PASS	.
-chr16	20570747	.	G	A	2639.04	PASS	.
-chr7	87199513	.	T	A	2611.95	PASS	.
-chr7	107398772	.	A	G	1732.02	PASS	.
-chr10	99377032	.	A	G	3563.04	PASS	.
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP:TANDEM,Description="Tandem Duplication">
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=INV,Description="Inversion">
+##DRAGENVersion=<ID=dragen,Version="SW: 4.6.2, HW: 07.031.849">
+##FILTER=<ID=ColocationSum,Description="The sum of the square region in the colocation matrix centered on variant coordinates with width 200000 and normalized by the median diagonal count does not meet the threshold of 1">
+##FILTER=<ID=Duplicate,Description="Variant is equivalent to other variants encoding the same haplotype but uses a different notation.">
+##FILTER=<ID=FailedDepth,Description="SV depth is not following the expectation once compared to the flanking region. A deletion gets filtered, if the breakend depth is larger than 0.8x flanking depth. A duplication gets filtered, if the breakend depth is smaller than 1.2x flanking depth">
+##FILTER=<ID=LargeContigFilter,Description="Assembled contig at SV locus does not successfully realign to the regions +- 200bp of both breakends with mapq >= 40 and identity >= 90%.">
+##FILTER=<ID=LowSupport,Description="Either the number of unique paired reads supporting the SV is less than 3 or the number of PR reads is less than 1 or the number of SR read is less than 1">
+##FILTER=<ID=LowVAF,Description="VAF is less than threshold(0.15). Filter applies only to IMPRECISE BND records.">
+##FILTER=<ID=MLFail,Description="Prob(TP) < 0.167706 for deletions or Prob(TP) < 0.161275 for insertions.">
+##FILTER=<ID=MaxDepth,Description="Depth is greater than 3x the median chromosome depth near one or both variant breakends">
+##FILTER=<ID=MaxMQ0Frac,Description="For a small variant (<1000 bases), the fraction of reads in all samples with MAPQ0 around either breakend exceeds 0.4">
+##FILTER=<ID=MinGQ,Description="GQ score is less than 5 (filter applied at sample level)">
+##FILTER=<ID=MinQUAL,Description="QUAL score is less than 76">
+##FILTER=<ID=Ploidy,Description="For DEL & DUP variants, the genotypes of overlapping variants (with similar size) are inconsistent with diploid expectation">
+##FILTER=<ID=SampleFT,Description="No sample passes all the sample-level filters">
+##FILTER=<ID=StrandBias,Description="For a small deletion (<1000 bases), more than a half of samples have strand bias">
+##FORMAT=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher's exact test to detect strand bias">
+##FORMAT=<ID=FT,Number=.,Type=String,Description="Genotype-level filter">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=MLQS,Number=1,Type=Integer,Description="ML recalibrated QUAL for indels">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=PR,Number=R,Type=Integer,Description="Spanning paired-read support for the ref and alt alleles in the order listed">
+##FORMAT=<ID=SB,Number=4,Type=Integer,Description="Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias">
+##FORMAT=<ID=SR,Number=R,Type=Integer,Description="Split reads for the ref and alt alleles in the order listed, for reads where P(allele|read)>0.999">
+##FORMAT=<ID=VAF1,Number=A,Type=Float,Description="Variant allele fraction at the variant first breakend">
+##FORMAT=<ID=VAF2,Number=A,Type=Float,Description="Variant allele fraction at the variant second breakend">
+##FORMAT=<ID=VF,Number=R,Type=Integer,Description="Number of DNA fragments support of the breakend mates for the ref and alt alleles in the order listed">
+##FORMAT=<ID=VF1,Number=R,Type=Integer,Description="Number of DNA fragments support of the first breakend for the ref and alt alleles in the order listed">
+##FORMAT=<ID=VF2,Number=R,Type=Integer,Description="Number of DNA fragments support of the second breakend for the ref and alt alleles in the order listed">
+##INFO=<ID=BND_DEPTH,Number=1,Type=Integer,Description="Read depth at local translocation breakend">
+##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END">
+##INFO=<ID=CIGAR,Number=A,Type=String,Description="CIGAR alignment for each alternate indel allele">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS">
+##INFO=<ID=COLOCATION,Number=0,Type=Flag,Description="This record was generated by the colocation module">
+##INFO=<ID=DUPLICATES,Number=.,Type=String,Description="The variant(s) that this record duplicates, either directly or as part of a transitive path through other variants.">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">
+##INFO=<ID=EVENTTYPE,Number=A,Type=String,Description="Type of associated event">
+##INFO=<ID=HAPALIGNMENTSQ,Number=1,Type=Float,Description="Assembled haplotype alignment score">
+##INFO=<ID=HAPDRAGENASSEMBLERNORMTSQ,Number=1,Type=Float,Description="DRAGEN assembler score of the assembled haplotype normalized by num nodes in the path">
+##INFO=<ID=HAPDRAGENASSEMBLERTSQ,Number=1,Type=Float,Description="DRAGEN assembler score of the assembled haplotype">
+##INFO=<ID=HAPREPEATTABOOLERTSQ,Number=1,Type=Float,Description="Repeattaboo assembler score of the assembled haplotype">
+##INFO=<ID=HASGA,Number=1,Type=Integer,Description="Whether the SV is in a loci with GA pop-alts">
+##INFO=<ID=HOMLEN,Number=.,Type=Integer,Description="Length of base pair identical homology at event breakpoints">
+##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Sequence of base pair identical homology at event breakpoints">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=INCOMPLETEINS,Number=0,Type=Flag,Description="Variant corresponds to an incompletely assembled insertion sequence">
+##INFO=<ID=INTEGRATION_TYPE,Number=1,Type=String,Description="The type of the sequence the incomplete insertion matched to (e.g. VIRAL, MEI)">
+##INFO=<ID=JUNCTION_QUAL,Number=1,Type=Integer,Description="If the SV junction is part of an EVENT (ie. a multi-adjacency variant), this field provides the QUAL value for the adjacency in question only">
+##INFO=<ID=LCF,Number=1,Type=String,Description="Status for the large contig filter. Possible values: SUCCESS, NO_ALIGNMENTS, NO_VALID_BP1_ALN, NO_VALID_BP2_ALN, ORIENTATION_MISMATCH.">
+##INFO=<ID=LEFT_SVINSSEQ,Number=.,Type=String,Description="Known left side of insertion for an insertion of unknown length">
+##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">
+##INFO=<ID=MATE_BND_DEPTH,Number=1,Type=Integer,Description="Read depth at remote translocation mate breakend">
+##INFO=<ID=ML_UPDATED,Number=0,Type=Flag,Description="The FILTER status has changed from PASS to non-PASS or non-PASS to PASS after QUAL being recalibrated by ML">
+##INFO=<ID=NORMALIZED_COLOC_SUM,Number=1,Type=Float,Description="The sum of the square region in the colocation matrix centered on variant coordinates with width 200000 and normalized by the median diagonal count">
+##INFO=<ID=PHASEDASM,Number=1,Type=String,Description="Haplotype of the reads used for the assembly yielding the SV">
+##INFO=<ID=READLIKELIHOOD,Number=1,Type=Float,Description="Assembled haplotype read likelihood score">
+##INFO=<ID=REFPOPALTID,Number=.,Type=String,Description="A list of ref pop-alts used to assemble this contig">
+##INFO=<ID=RIGHT_SVINSSEQ,Number=.,Type=String,Description="Known right side of insertion for an insertion of unknown length">
+##INFO=<ID=SVINSLEN,Number=.,Type=Integer,Description="Length of insertion">
+##INFO=<ID=SVINSSEQ,Number=.,Type=String,Description="Sequence of insertion">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
+##contig=<ID=chr3,length=198295559>
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr5,length=181538259>
+##contig=<ID=chr6,length=170805979>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr8,length=145138636>
+##contig=<ID=chr9,length=138394717>
+##contig=<ID=chr10,length=133797422>
+##contig=<ID=chr11,length=135086622>
+##contig=<ID=chr12,length=133275309>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr14,length=107043718>
+##contig=<ID=chr15,length=101991189>
+##contig=<ID=chr16,length=90338345>
+##contig=<ID=chr17,length=83257441>
+##contig=<ID=chr18,length=80373285>
+##contig=<ID=chr19,length=58617616>
+##contig=<ID=chr20,length=64444167>
+##contig=<ID=chr21,length=46709983>
+##contig=<ID=chr22,length=50818468>
+##contig=<ID=chrX,length=156040895>
+##contig=<ID=chrY,length=57227415>
+##contig=<ID=chrM,length=16569>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+chr21	1234520849	DRAGEN:BND:33583:0:1:0:12:0:1	G	G[chr22:123454700[	999	PASS	BND_DEPTH=80;CIPOS=0,2;HOMLEN=2;HOMSEQ=CT;LCF=SUCCESS;MATEID=DRAGEN:BND:33583:0:1:0:12:0:0;MATE_BND_DEPTH=75;NORMALIZED_COLOC_SUM=8.522;SVTYPE=BND	GT:GQ:PL:PR:SR:SB:FS:MLQS:VF:VF1:VAF1:VF2:VAF2	0/1:631:999,0,628:33,15:39,32:19,20,18,14:1.975:.:49,43:26,43:0.623188:23,43:0.651515
+chr21	1234520857	DRAGEN:BND:33583:0:1:1:7:0:1	G	]chr22:123454678]G	999	PASS	BND_DEPTH=80;LCF=SUCCESS;MATEID=DRAGEN:BND:33583:0:1:1:7:0:0;MATE_BND_DEPTH=74;NORMALIZED_COLOC_SUM=8.522;SVTYPE=BND	GT:GQ:PL:PR:SR:SB:FS:MLQS:VF:VF1:VAF1:VF2:VAF2	0/1:662:999,0,659:37,9:28,24:16,12,11,13:2.379:.:47,33:26,33:0.559322:21,33:0.611111
+chr22	123454678	DRAGEN:BND:33583:0:1:1:7:0:0	T	T[chr21:1234520857[	999	PASS	BND_DEPTH=74;LCF=SUCCESS;MATEID=DRAGEN:BND:33583:0:1:1:7:0:1;MATE_BND_DEPTH=80;NORMALIZED_COLOC_SUM=8.522;SVTYPE=BND	GT:GQ:PL:PR:SR:SB:FS:MLQS:VF:VF1:VAF1:VF2:VAF2	0/1:662:999,0,659:37,9:28,24:16,12,11,13:2.379:.:47,33:21,33:0.611111:26,33:0.559322
+chr22	123454700	DRAGEN:BND:33583:0:1:0:12:0:0	C	]chr21:1234520849]C	999	PASS	BND_DEPTH=75;CIPOS=0,2;HOMLEN=2;HOMSEQ=TT;LCF=SUCCESS;MATEID=DRAGEN:BND:33583:0:1:0:12:0:1;MATE_BND_DEPTH=80;NORMALIZED_COLOC_SUM=8.522;SVTYPE=BND	GT:GQ:PL:PR:SR:SB:FS:MLQS:VF:VF1:VAF1:VF2:VAF2	0/1:631:999,0,628:33,15:39,32:19,20,18,14:1.975:.:49,43:23,43:0.651515:26,43:0.623188
