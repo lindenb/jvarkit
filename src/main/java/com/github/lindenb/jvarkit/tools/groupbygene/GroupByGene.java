@@ -203,11 +203,9 @@ public class GroupByGene
 			i =  this.ctx.getReference().compareTo(C2.ctx.getReference());
 			return i;
 			}
-		
-		
 		}
 	
-	private class CallCodec 
+	private class CallCodec
 		extends AbstractDataCodec<Call>
 		{
 		private final VariantContextCodec variantCodec;
@@ -222,7 +220,7 @@ public class GroupByGene
 			dos.writeUTF(c.gene.name);
 			dos.writeUTF(c.gene.label);
 			dos.writeUTF(c.gene.type);
-			this.variantCodec.encode(c.ctx);
+			this.variantCodec.encode(dos,c.ctx);
 			}
 		
 		@Override

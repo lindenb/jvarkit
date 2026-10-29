@@ -42,8 +42,8 @@ public class VariantContextCodec extends AbstractDataCodec<VariantContext> {
 	private final VCFHeader header;
     private final VCFCodec vcfDecoder = new VCFCodec();
     private final VCFEncoder vcfEncoder;
-    private int capacity = 1000;
-	public VariantContextCodec( VCFHeader header) {
+    private int capacity = 1_000;
+	public VariantContextCodec(final VCFHeader header) {
 		this.header = header;
 		this.vcfDecoder.setVCFHeader(header,VCFUtils.getLatestVCFHeaderVersion());
 		this.vcfEncoder = new VCFEncoder(this.header, false, true);
@@ -70,5 +70,9 @@ public class VariantContextCodec extends AbstractDataCodec<VariantContext> {
 	public VariantContextCodec clone() {
 		return new VariantContextCodec(this.header);
 		}
-	
+    
+	@Override
+	public String toString() {
+	    return "VariantContextCodec";
+	    }
 }
