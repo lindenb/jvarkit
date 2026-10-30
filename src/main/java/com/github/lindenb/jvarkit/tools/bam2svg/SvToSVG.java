@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
@@ -1152,10 +1153,7 @@ public class SvToSVG extends Launcher
 							final SAMFileHeader header = sr.getFileHeader();
 							final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
 							SequenceUtil.assertSequenceDictionariesEqual(dict, dict0);
-							final String sampleName = header.getReadGroups().stream().
-									map(G->G.getSample()).
-									filter(S->!StringUtil.isBlank(S)).
-									findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
+							final String sampleName = BAMUtils.getSampleName(header, bamFile) ;
 							
 							final Sample sample = new Sample(sampleName);
 							this.sampleList.add(sample);

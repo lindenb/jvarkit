@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -291,10 +292,7 @@ public class BamToMNV extends Launcher {
 				try(SamReader sr = srf.open(bam)) {
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-					final String sample = header.getReadGroups().stream().
-							map(R->R.getSample()).
-							filter(S->!StringUtils.isBlank(S)).
-							findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bam));
+					final String sample =BAMUtils.getSampleName(header, bam);
 					if(samples.contains(sample)) {
 						LOG.error("duplicate sample "+sample);
 						return -1;

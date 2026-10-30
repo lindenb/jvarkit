@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
@@ -632,11 +633,7 @@ static private class CombinedMutationComparatorContigPosRef implements Comparato
 		        		throw new JvarkitException.DictionariesAreNotTheSame(dict,samReader.getFileHeader().getSequenceDictionary());
 		        		}
 		        	/* get sample name */
-		        	final String sampleName=samHeader.getReadGroups()
-		        			.stream()
-		        			.map(RG->RG.getSample())
-		        			.filter(S->!StringUtils.isBlank(S)).findFirst()
-		        			.orElse(null);
+		        	final String sampleName = BAMUtils.getSampleName(samHeader,"");
 		        	
 		        	if(StringUtils.isBlank(sampleName)) {
 		        		samReader.close();

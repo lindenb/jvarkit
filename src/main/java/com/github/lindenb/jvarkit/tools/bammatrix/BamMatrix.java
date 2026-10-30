@@ -76,6 +76,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.HashSamFlags;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -592,20 +593,9 @@ public class BamMatrix  extends Launcher {
 			// draw sample
 			final Hershey herschey = new Hershey();
 
-			final String sampleX = samReaderX.getFileHeader()
-					.getReadGroups()
-					.stream()
-					.map(R->R.getSample())
-					.filter(S->!StringUtils.isBlank(S))
-					.findFirst()
-					.orElse(inputX);
-			final String sampleY = (samReaderX==samReaderY?sampleX:samReaderX.getFileHeader()
-					.getReadGroups()
-					.stream()
-					.map(R->R.getSample())
-					.filter(S->!StringUtils.isBlank(S))
-					.findFirst()
-					.orElse(inputY));
+			final String sampleX = BAMUtils.getSampleName(samReaderX.getFileHeader(),inputX);
+			final String sampleY = (samReaderX==samReaderY?sampleX:BAMUtils.getSampleName(samReaderY.getFileHeader(),inputY));
+				
 			final String sample = (sampleX.equals(sampleY)?sampleX:String.join(" ", sampleX,sampleY));
 			
 			g.setColor(Color.DARK_GRAY);

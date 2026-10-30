@@ -8,40 +8,36 @@ Explore balanced translocations between two chromosomes using discordant paired-
 ## Usage
 
 ```
-Usage: samtranslocations [options] Files
+Usage: java -jar dist/samtransloc.jar  [options] Files
+Usage: samtransloc [options] Files
   Options:
     -B, --bed
       Optional BED file. SV should overlap this bed.
     --chrom-regex
       Only consider the chromosomes matching the following regular expression.
-      Default: (chr)?([1-9][0-9]*|X|Y)
+      Default: (chr)?[0-9XY]+
     -d, --distance
       Max distance between two read to test if they both end at the same ~ 
-      position. A distance specified as a positive integer.Comma are removed. 
-      The following suffixes are interpreted : b,bp,k,kb,m,mb
+      position. A distance specified as a positive integer.Commas are removed. 
+      The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 1000
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --low-complexity
-      zone of low complexity (=many discordant reads). In those region the 
-      software will 'freeze'. If the number of buffered reads * this number 
-      per sample then clear the buffer
-      Default: 2000
     --mapq
       min mapping quality.
       Default: 0
-    --max-sa
-      ignore reads having more that SA:Z supplementary alignments.
-      Default: 4
-    -m, --min
-      Min number of events to validate the translocation
-      Default: 3
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --version
       print version and exit
+    -exclude-bed
+      skip reads pverlapping that bed file
 
 ```
 
@@ -58,26 +54,31 @@ Usage: samtranslocations [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 
 
 ### Download and Compile
 
 ```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
+$ git clone --recurse-submodules "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew samtranslocations
+$ ./gradlew samtransloc
 ```
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20171130
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocations.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samtransloc/SamTranslocations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samtransloc/SamTranslocations.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocationsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocationsTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/samtransloc/SamTranslocationsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/samtransloc/SamTranslocationsTest.java)
 
 
 ## Contribute
@@ -91,7 +92,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **samtranslocations** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **samtransloc** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -108,14 +109,7 @@ input is a set of bam files or one file with the suffix '.list' containing the p
 ## Example
 
 ```
-$ java -jar dist/samtranslocations.jar src/test/resources/HG02260.transloc.chr9.14.bam | grep -v "##"
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG02260
-9	137230996	9:137230996:14:79839048	N	<TRANSLOC>	18	.	AC=1;AF=0.500;AN=2;CHROM2=14;DP=18;POS2=79839048;STDDEV_POS1=120;STDDEV_POS2=187;SVTYPE=BND	GT:DP:SR	0/1:18:5,13,13,5
-14	79839131	14:79839131:9:137230969	N	<TRANSLOC>	17	.	AC=1;AF=0.500;AN=2;CHROM2=9;DP=17;POS2=137230969;STDDEV_POS1=153;STDDEV_POS2=153;SVTYPE=BND	GT:DP:SR	0/1:17:12,5,5,12
+$ java -jar dist/jvarkit.jar samtransloc src/test/resources/HG02260.transloc.chr9.14.bam  > out.json
 ```
 
-## History
-
-* 2018-09-18 :  rewriting
-* 2017-12-13 :  refactoring for balanced translocation.
 

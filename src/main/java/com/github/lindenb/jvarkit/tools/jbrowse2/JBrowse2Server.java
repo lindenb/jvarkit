@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.ContentType;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -441,11 +442,7 @@ public class JBrowse2Server  extends Launcher {
 								return -1;
 								}
 							sr.hasIndex();
-							String name0 = sr.getFileHeader().getReadGroups().stream().
-									map(RG->RG.getSample()).
-									filter(S->!StringUtils.isBlank(S)).
-									findFirst().
-									orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+							String name0 = BAMUtils.getSampleName(sr.getFileHeader(),bamPath);
 							String bam_name=name0+FileExtensions.BAM;
 							String bai_name=name0+FileExtensions.BAM+FileExtensions.BAI_INDEX;
 							int n=1;

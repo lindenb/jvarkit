@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -263,11 +264,7 @@ public class BamPhased01 extends OnePassBamLauncher {
 		this.samProgramRecord.setCommandLine(this.getProgramCommandLine());
 		if(this.paired_mode) outHeader.setSortOrder(SAMFileHeader.SortOrder.unknown);
 		
-		this.samplesInBam = headerIn.getReadGroups().
-				stream().
-				map(RG->RG.getSample()).
-				filter(S->!StringUtils.isBlank(S)).
-				collect(Collectors.toSet());
+		this.samplesInBam = BAMUtils.getSampleNames(headerIn);
 		
 		this.samplesInBam.retainAll(this.vcfReader.getHeader().getSampleNamesInOrder());
 		if(this.samplesInBam.isEmpty()) {

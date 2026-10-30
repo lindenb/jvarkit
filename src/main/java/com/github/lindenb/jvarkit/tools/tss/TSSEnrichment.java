@@ -57,6 +57,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -233,12 +234,7 @@ public class TSSEnrichment extends Launcher {
 			return srf.open(this.bamPath);
 			}
 		protected String getSample(final SAMFileHeader header) {
-			return  header.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).
-					filter(S->!StringUtils.isBlank(S)).
-					findFirst().
-					orElse(IOUtils.getFilenameWithoutCommonSuffixes(this.bamPath));
+			return  BAMUtils.getSampleName(header,this.bamPath);
 			}
 
 		

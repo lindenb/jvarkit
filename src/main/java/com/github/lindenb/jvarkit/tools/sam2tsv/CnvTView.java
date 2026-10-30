@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
@@ -602,10 +603,7 @@ public class CnvTView  extends Launcher {
 				SequenceUtil.assertSequenceDictionariesEqual(this.dictionary, hdr.getSequenceDictionary());
 				JvarkitException.BamHasIndex.verify(samReader);
 			
-				final String sample = samReader.getFileHeader().getReadGroups().stream().
-					map(V->V.getSample()).
-					filter(S->!StringUtil.isBlank(S)).
-					findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(baminput));
+				final String sample = BAMUtils.getSampleName(samReader.getFileHeader(), baminput);
 				
 				final SampleInfo si = new SampleInfo(sample);
 				si.pixel_coverage = new double[this.terminalWidth-LEFT_MARGIN];

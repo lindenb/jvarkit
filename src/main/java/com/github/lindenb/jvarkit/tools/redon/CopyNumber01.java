@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -401,11 +402,7 @@ public class CopyNumber01 extends Launcher
 	
 						SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(header));
 					
-						final String sampleName = header.getReadGroups().
-								stream().
-								map(RG->RG.getSample()).
-								filter(S->!StringUtil.isBlank(S)).
-								collect(Collectors.toSet()).
+						final String sampleName = BAMUtils.getSampleNames(header).
 								stream().
 								collect(HtsCollectors.toSingleton());
 						

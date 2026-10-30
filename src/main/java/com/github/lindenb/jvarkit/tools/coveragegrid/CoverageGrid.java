@@ -79,6 +79,7 @@ import com.github.lindenb.jvarkit.math.Average;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
@@ -237,12 +238,7 @@ public class CoverageGrid extends Launcher {
 				}
 			final SAMFileHeader hdr = sr.getFileHeader();
 			this.bamSequenceDictionary  = hdr.getSequenceDictionary();
-			this.bamSampleName = hdr.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).
-					filter(S->!StringUtils.isBlank(S)).
-					findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(this.bamPath))
-					;
+			this.bamSampleName = BAMUtils.getSampleName(hdr,this.bamPath);
 			if(StringUtils.isBlank(this.sampleName)) {
 				this.sampleName = this.bamSampleName ;
 				}
@@ -1714,7 +1710,7 @@ public class CoverageGrid extends Launcher {
 	
 /** get mate end position or mate-start */
 private static int getMateEnd(final SAMRecord rec0) {
-	return rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):rec0.getMateAlignmentStart();
+	return BAMUtils.getMateEnd(rec0);
 	}
 
 private Set<String> getGeneNames(final Locatable loc) {

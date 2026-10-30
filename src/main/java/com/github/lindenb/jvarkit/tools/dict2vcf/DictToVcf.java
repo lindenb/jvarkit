@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
@@ -140,9 +141,8 @@ public class DictToVcf extends Launcher {
 				final String fname=samples_file.getFileName().toString();
 				
 				if(fname.endsWith(FileExtensions.BAM) || fname.endsWith(FileExtensions.CRAM) ) {
-					SamReaderFactory.make().getFileHeader(samples_file).getReadGroups().stream()
-						.map(RG->RG.getSample())
-						.filter(S->!StringUtils.isBlank(S))
+					BAMUtils.getSampleNames(SamReaderFactory.make().getFileHeader(samples_file))
+						.stream()
 						.forEach(S->samples.add(S));
 					}
 				else if(FileExtensions.VCF_LIST.stream().anyMatch(SUFF->fname.endsWith(SUFF))) {

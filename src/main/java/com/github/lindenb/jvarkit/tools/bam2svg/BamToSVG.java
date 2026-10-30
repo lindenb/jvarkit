@@ -68,6 +68,7 @@ import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
@@ -1034,11 +1035,7 @@ public class BamToSVG extends Launcher {
 				final boolean is_phased = IlluminaConstants.isDragenProximityEnabled(header);
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 				SequenceUtil.assertSequenceDictionariesEqual(dict, this.referenceDict);
-				context.sampleName = header.getReadGroups().stream().
-						map(RG->RG.getSample()).
-						filter(S->!StringUtils.isBlank(S)).
-						findFirst().
-						orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+				context.sampleName = BAMUtils.getSampleName(header, path);
 				
 				final int extend_for_clip = 100;//get a chance to get clipping close to bounds
 				// read SamRecord

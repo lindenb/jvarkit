@@ -23,6 +23,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher.WritingBamArgs;
 import com.github.lindenb.jvarkit.jcommander.Launcher.WritingSamReaderType;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -88,7 +89,7 @@ public abstract class AbstractBamSplitter<T> extends MultiBamLauncher {
 		
 		
 		
-		final Set<String> samples = header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet());
+		final Set<String> samples =  BAMUtils.getSampleNames(header);
 		final String samplePrefix;
 		if(samples.size()==1) {
 			samplePrefix= "."+ samples.iterator().next();

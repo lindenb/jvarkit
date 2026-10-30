@@ -79,6 +79,7 @@ import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
@@ -260,11 +261,7 @@ public class BamToDOM extends SVGDocument {
 	public void plot(Path path,SamReader samReader) {
 		final int extend=150;
 		final SAMFileHeader samHeader = samReader.getFileHeader();
-		final String sampleName= samHeader.getReadGroups().stream()
-				.map(RG->RG.getSample())
-				.filter(SN->!StringUtils.isBlank(SN))
-				.findFirst()
-				.orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+		final String sampleName= BAMUtils.getSampleName(samHeader, path);
 		final IntervalTreeMap<Region> regionMap=new IntervalTreeMap<BamToDOM.Region>();
 		for(Region r: this.all_regions) {
 			regionMap.put(new Interval(r), r);

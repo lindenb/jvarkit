@@ -41,6 +41,7 @@ import java.util.function.UnaryOperator;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -86,6 +87,14 @@ public BedLineReader setValidationStringency(final ValidationStringency stringen
 
 public BedLineReader setContigNameConverter(final UnaryOperator<String> chromosomeConverter) {
 	this.codec.setContigNameConverter(chromosomeConverter);
+	return this;
+	}
+
+/** create a setContigNameConverter from a dictionary. May be null */
+public BedLineReader setContigNameConverter(final SAMSequenceDictionary dict) {
+	if(dict!=null) {
+		return setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+		}
 	return this;
 	}
 
@@ -157,13 +166,17 @@ public <X> IntervalTreeMap<X> toIntervalTreeMap(final Function<BedLine,X> transf
 	return map;
 	}
 
-/** convert all items to an IntervalTreeMapBedLine>
+/** convert all items to an IntervalTree&lt;MapBedLine>
  */
 public IntervalTreeMap<BedLine> toIntervalTreeMap() {
 return toIntervalTreeMap(X->X);
 }
 
-
+/** convert all items to an IntervalTreeMap&lt;Boolean&gt;
+ */
+public IntervalTreeMap<Boolean> toBooleanIntervalTreeMap() {
+return toIntervalTreeMap(X->Boolean.TRUE);
+}
 /** convert all items to an IntervalTreeMap<List<X>> . Each Bedline is converted to X using transform.
  * Items are ignored if 'transform' returns null
  * @param transform convert BedLine to X. if x==null, item is ignored.

@@ -28,7 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -47,6 +49,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
+/** utilities for htsjdk.samtools.SAMSequenceDictionary */
 public class SequenceDictionaryUtils {
 	
 public static boolean isGRCh37(final VCFHeader h) {
@@ -291,6 +294,17 @@ public static Optional<QueryInterval> toQueryInterval(final SAMSequenceDictionar
 			Math.max(1, loc.getStart()),
 			Math.min(loc.getEnd(), ssr.getSequenceLength())
 			));
+	}
+
+/** build a map (contig-> full_index_in_genome ) used in graphical applications, logger.. */
+public static Map<String,Long> makeContigToIndexMap(final SAMSequenceDictionary dict) {
+	final Map<String,Long> hash = new HashMap<>(dict.size());
+	long x=0L;
+	for(SAMSequenceRecord ssr:dict.getSequences()) {
+		hash.put(ssr.getSequenceName(),x);
+		x+=ssr.getLengthOnReference();
+		}
+	return hash;
 	}
 
 }

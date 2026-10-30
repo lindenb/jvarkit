@@ -247,7 +247,7 @@ public class VcfPhasedCombineSNVs extends Launcher {
 			if(regions_file_bed!=null) {
 				try(BedLineReader blr=BedLineReader.openPath(this.regions_file_bed)) {
 					blr.setContigNameConverter(ctgConverter);
-					final IntervalTreeMap<Boolean> treeMap= blr.toIntervalTreeMap(B->true);
+					final IntervalTreeMap<Boolean> treeMap= blr.toBooleanIntervalTreeMap();
 					acceptInterval = L->treeMap.containsOverlapping(L);
 					}
 				}

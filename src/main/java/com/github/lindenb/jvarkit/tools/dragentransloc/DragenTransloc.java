@@ -327,7 +327,7 @@ public class DragenTransloc extends OnePassVcfLauncher {
 		if(this.exclude_bed_path!=null && !translocs.isEmpty()) {
 			try(BedLineReader blr= BedLineReader.openPath(this.exclude_bed_path)) {
 				if(dict1!=null) blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict1));
-				final IntervalTreeMap<Boolean> excludeMap = blr.toIntervalTreeMap(B->Boolean.TRUE);
+				final IntervalTreeMap<Boolean> excludeMap = blr.toBooleanIntervalTreeMap();
 				translocs.removeIf(TR->TR.variants.stream().anyMatch(VC->excludeMap.containsOverlapping(VC)));
 				}
 			}

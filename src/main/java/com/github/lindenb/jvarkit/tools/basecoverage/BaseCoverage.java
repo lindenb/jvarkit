@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -251,11 +252,7 @@ public class BaseCoverage extends AbstractBaseCov
 						}
 					final SampleInfo sampleInfo = new SampleInfo();
 					final SAMFileHeader header = sr.getFileHeader();
-					sampleInfo.sampleName = header.getReadGroups().stream().
-							map(S->S.getSample()).
-							filter(S->!StringUtils.isBlank(S)).
-							findFirst().
-							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+					sampleInfo.sampleName = BAMUtils.getSampleName( header,bamPath);
 					if(sample2info.containsKey(sampleInfo.sampleName)) {
 						LOG.error("duplicate sample "+sampleInfo.sampleName+" in bamPath");
 						return -1;

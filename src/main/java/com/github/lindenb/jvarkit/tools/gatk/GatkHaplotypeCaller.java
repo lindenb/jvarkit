@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -468,13 +469,7 @@ public class GatkHaplotypeCaller extends AbstractGatkTool {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(hdr);
 			
 			si.reference = allRefs.stream().filter(R->SequenceUtil.areSequenceDictionariesEqual(dict, R.dict)).findFirst().orElseThrow(()->new IllegalArgumentException("Cannot find reference dictionary for BAM: p"));
-			si.srcSample  = hdr.getReadGroups().stream().
-					map(RG->RG.getSample()).
-					filter(SN->!StringUtils.isBlank(SN)).
-					findFirst().
-					orElse(	
-						IOUtils.getFilenameWithoutCommonSuffixes(Paths.get(p))
-						);
+			si.srcSample  = BAMUtils.getSampleName(hdr, Paths.get(p));
 			
 			si.newSample = si.srcSample;
 			int n=0;

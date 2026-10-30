@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
@@ -324,11 +325,7 @@ public class WesCnvSvg  extends Launcher {
 						if(!SequenceUtil.areSequenceDictionariesEqual(refDict, samDict)) {
 							throw new JvarkitException.DictionariesAreNotTheSame(refDict, samDict);
 							}
-						bi.sample = samReader.getFileHeader().getReadGroups().stream().
-								map(V->V.getSample()).
-								filter(S->!StringUtil.isBlank(S)).
-								findFirst().
-								orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
+						bi.sample = BAMUtils.getSampleName(samReader.getFileHeader(),bamFile);
 						final CoverageFactory covFactory = new CoverageFactory().setMappingQuality(this.minMappingQuality);
 						for(final String contig: distinctContigs) {
 							final List<CaptureInterval> contig_intervals = userIntervals.stream().

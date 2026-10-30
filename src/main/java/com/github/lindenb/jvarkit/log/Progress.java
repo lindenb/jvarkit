@@ -30,19 +30,15 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 
 
 /** progress log reloaded... */
-public class Progress {
+public class Progress extends AbstractProgress {
 	private static Logger LOG=Logger.of(Progress.class);
 	
-	private long startMilliSec = System.currentTimeMillis();
 	protected long n_expected = 0L;
-	private long last_messsage_millisec = -1L;
-	private Logger logger = LOG;
-	private boolean enabled=true;
 	private long current_index = 0L;
 
 	protected Progress(final Logger log,final long n_expected) {
+		super(log);
 		this.n_expected=n_expected;
-		this.logger=LOG;
 	}
 	
 public static Progress of(long n_expected) {
@@ -50,24 +46,6 @@ public static Progress of(long n_expected) {
 	}
 public static Progress of(Logger log,long n_expected) {
 	return new Progress(log,n_expected);
-	}
-
-
-public Progress setLogger(Logger logger) {
-	this.logger = logger;
-	return this;
-	}
-
-public void setEnabled(boolean enabled) {
-	this.enabled = enabled;
-	}
-public boolean isEnabled() {
-	return enabled;
-	}
-
-/** return the logger, never null */
-public final Logger getLogger() {
-	return this.logger==null?LOG:this.logger;
 	}
 
 
@@ -80,27 +58,27 @@ public void endItem() {
 public void endItem(final Object optional_msg) {
 	int every_x_seconds = 60;
 	final long now = System.currentTimeMillis();
-	final long diff_millisec = now-last_messsage_millisec;
+	final long diff_millisec = now- super.last_messsage_millisec;
 	boolean should_display=	isEnabled() && 
 			this.n_expected >0 && 
 			this.current_index>=0 &&
-			( this.last_messsage_millisec<0L || (diff_millisec / 1_000 <= every_x_seconds));
+			( super.last_messsage_millisec<0L || (diff_millisec / 1_000 <= every_x_seconds));
 	if(should_display) {
-		final long millisec_per_item  = (now - this.startMilliSec)/(current_index+1L);
+		final long millisec_per_item  = (now - super.startMilliSec)/(current_index+1L);
 		final StringBuilder sb=new StringBuilder();
 		sb.append("N=").append(StringUtils.niceInt(this.current_index+1)).append(" / ")
 			.append(StringUtils.niceInt(this.n_expected))
 			.append(". That took: ")
-			.append(StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec))
+			.append(StringUtils.niceDuration(System.currentTimeMillis() - super.startMilliSec))
 			.append(". Remain: ")
-			.append(StringUtils.niceDuration((n_expected-(current_index+1))*millisec_per_item))
+			.append(StringUtils.niceDuration((this.n_expected-(current_index+1))*millisec_per_item))
 			;
 		if(optional_msg!=null) {
 			sb.append(". ").append(optional_msg);
 			}
 		final String msg= sb.toString();
 		getLogger().info(msg);
-		this.last_messsage_millisec = now;
+		super.last_messsage_millisec = now;
 		}
 	// do not increment for genomic data
 	this.current_index++;	

@@ -20,6 +20,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
@@ -29,7 +30,6 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTag;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -387,7 +387,7 @@ public class ShiftBam extends Launcher {
 							if(rec0.getReadPairedFlag()) {
 								if(rec0.getMateReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX/* no !rec0.getMateUnmappedFlag() */) {
 									final int mateStart = rec0.getMateAlignmentStart();
-									final int mateEnd= rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):mateStart;
+									final int mateEnd= BAMUtils.getMateEnd(rec0);
 									final Locatable mateRgn = new SimpleInterval(rec0.getMateReferenceName(),mateStart,mateEnd);
 									final Interval loc1= intervalTreeMap.getOverlapping(mateRgn).
 											stream().

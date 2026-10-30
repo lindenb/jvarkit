@@ -66,6 +66,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
 import com.google.gson.JsonArray;
@@ -282,7 +283,7 @@ class Attachment extends JsonWrapper {
 					w.writeStartElement("bam");
 					w.writeAttribute("path", filename);
 					w.writeStartElement("samples");
-					for(final String sn : header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet())) {
+					for(final String sn : BAMUtils.getSampleNames(header)) {
 						w.writeStartElement("sample");
 						w.writeCharacters(sn);
 						w.writeEndElement();

@@ -949,7 +949,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	        	double qual=93.0;
     	        	if (!(ch < 33 || ch > 126))
     	        		{
-    	        		qual=SAMUtils.fastqToPhred(c);
+    	        		qual=BAMUtils.fastqToPhred(c);
     	        		}
     	        	final Text txt=new Text(String.valueOf(c));
     	        	txt.setFont(font1);

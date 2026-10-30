@@ -73,7 +73,7 @@ END_DOC
 description="convert json to xml",
 keywords={"json","xml"},
 creationDate="20251226",
-modificationDate="20251226",
+modificationDate="20261030",
 jvarkit_amalgamion = true,
 generate_doc = true
 )
@@ -86,8 +86,13 @@ public final class Json2Xml extends Launcher {
 	private String namespaceuri="http://www.ibm.com/xmlns/prod/2009/jsonx";
 	@Parameter(names={"--omit-xml-declaration"},description="Omit XML declaration")
 	private boolean omit_xml_decl = false;
+	@Parameter(names={"--tag","-t"},description="use the key of the json object as the name of the XML element")
+	private boolean use_object_key_as_tag = false;
+
 	
-	
+	private String formatTag(final String key) {
+		return key.replaceAll("[^A-Za-z_0-9:\\-\\.]+","_");
+	}
 	
 	private void writeStartElement(final XMLStreamWriter w,String tag) throws XMLStreamException {
 		if(StringUtils.isBlank(this.namespaceuri)) {
@@ -111,8 +116,14 @@ public final class Json2Xml extends Launcher {
 	
 	private void parseObject(final XMLStreamWriter w,final String label,final JsonReader r) throws XMLStreamException,IOException
 		{
-		writeStartElement(w, "object");
-		if(label!=null) w.writeAttribute("name", label);
+		if(label!=null && this.use_object_key_as_tag) {
+			writeStartElement(w, formatTag(label));
+			}
+		else
+			{
+			writeStartElement(w, "object");
+			if(label!=null) w.writeAttribute("name", label);
+			}
 		for(;;)
 			{
 			if(r.peek()==JsonToken.END_OBJECT) 
@@ -128,9 +139,14 @@ public final class Json2Xml extends Launcher {
 		}
 	private void parseArray(final XMLStreamWriter w,final String label,final JsonReader r) throws XMLStreamException,IOException
 		{
-		
-		writeStartElement(w,"array");
-		if(label!=null) w.writeAttribute("name", label);
+		if(label!=null && this.use_object_key_as_tag) {
+			writeStartElement(w, formatTag(label));
+			}
+		else
+			{
+			writeStartElement(w,"array");
+			if(label!=null) w.writeAttribute("name", label);
+			}
 		for(;;)
 			{
 			if(r.peek()==JsonToken.END_ARRAY) 
@@ -174,16 +190,28 @@ public final class Json2Xml extends Launcher {
 		    		}
 		    	case STRING:
 		    		{
-		    		writeStartElement(w, "string");
-		    		if(label!=null) w.writeAttribute("name", label);
+		    		if(label!=null && this.use_object_key_as_tag) {
+		    			writeStartElement(w,formatTag(label));
+		    			}
+		    		else
+		    			{
+			    		writeStartElement(w, "string");
+			    		if(label!=null) w.writeAttribute("name", label);
+		    			}
 		    		w.writeCharacters(r.nextString());
 		    		w.writeEndElement();
 		    		break;
 		    		}
 		    	case NUMBER:
 		    		{
-		    		writeStartElement(w, "number");
-		    		if(label!=null) w.writeAttribute("name", label);
+	    			if(label!=null && this.use_object_key_as_tag) {
+		    			writeStartElement(w,formatTag(label));
+		    			}
+		    		else
+		    			{
+			    		writeStartElement(w, "number");
+			    		if(label!=null) w.writeAttribute("name", label);
+		    			}
 		    		String s;
 		    		try
 		    			{
@@ -201,8 +229,14 @@ public final class Json2Xml extends Launcher {
 		    		}
 		    	case BOOLEAN:
 		    		{
-		    		writeStartElement(w, "boolean");
-		    		if(label!=null) w.writeAttribute("name", label);
+	    			if(label!=null && this.use_object_key_as_tag) {
+		    			writeStartElement(w,formatTag(label));
+		    			}
+		    		else
+		    			{
+			    		writeStartElement(w, "boolean");
+			    		if(label!=null) w.writeAttribute("name", label);
+		    			}
 		    		w.writeCharacters(String.valueOf(r.nextBoolean()));
 		    		w.writeEndElement();
 		    		break;

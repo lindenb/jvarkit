@@ -5,6 +5,7 @@ import java.lang.ref.SoftReference;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -65,12 +66,7 @@ public class BamBean extends PathBean {
 		}
 	
 	public String getSampleName() {
-		return  getSAMFileHeader().getReadGroups().
-				stream().
-				map(RG->RG.getSample()).
-				filter(S->!StringUtils.isBlank(S)).
-				findFirst().
-				orElse(IOUtils.getFilenameWithoutCommonSuffixes(asPath()));
+		return  BAMUtils.getSampleName( getSAMFileHeader(),asPath());
 		}
 
 }

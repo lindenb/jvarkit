@@ -130,6 +130,7 @@ nav:
         - "dict2vcf" : DictToVcf.md
         - "dict2xml" : DictToXml.md
         - "dragenbnd2inv" : DragenBndToInversion.md
+        - "dragentransloc" : DragenTransloc.md
         - "evadumpfiles" : EVADumpFiles.md
         - "expansionhuntermerge" : ExpansionHunterMerge.md
         - "extendrefwithreads" : ExtendReferenceWithReads.md

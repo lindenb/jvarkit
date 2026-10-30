@@ -50,6 +50,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -322,11 +323,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 		SortingCollection<Haplotype> sorting  =null;
 		try {
 		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(headerIn);
-		final String sample = headerIn.getReadGroups().
-				stream().map(RG->RG.getSample()).
-				filter(R->!StringUtils.isBlank(R)).
-				findFirst().
-				orElse("SAMPLE");
+		final String sample = BAMUtils.getSampleName(headerIn,"SAMPLE");
 		
 		sorting = SortingCollection.newInstance(
 				Haplotype.class,

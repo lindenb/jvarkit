@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.SAMRecordLeftAligner;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
@@ -337,11 +338,7 @@ public class MiniCaller extends Launcher   {
 	            		final SamReaderFactory srf=createSamReaderFactory().referenceSequence(bamFastaPath);
 		        		try(SamReader sr = srf.open(bamPath)) {
 		        			final SAMFileHeader header = sr.getFileHeader();
-		        			String sn = header.getReadGroups().stream().
-		        				map(RG->RG.getSample()).
-		        				filter(SN->!StringUtils.isBlank(SN)).
-		        				findFirst().
-		        				orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+		        			String sn = BAMUtils.getSampleName(header, bamPath);
 		        			String sn2 = sn;
 		        			int tmp_sn_index =-1;
 		        			int try_count=1;

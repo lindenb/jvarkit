@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
@@ -270,11 +271,7 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 					}
 				final SAMFileHeader header = sr.getFileHeader();
 				dict = header.getSequenceDictionary();
-				sampleName = header.getReadGroups().stream().
-						map(S->S.getSample()).
-						filter(S->!StringUtils.isBlank(S)).
-						findFirst().
-						orElse(input);
+				sampleName = BAMUtils.getSampleName(header, input);
 				final double[] coverage_f = super.getCoverage(sr, queryInterval);
 				final OptionalDouble od = super.getMedian(coverage_f);
 				if(!od.isPresent() || od.getAsDouble()<=0.0) {

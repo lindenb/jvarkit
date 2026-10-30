@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
@@ -80,10 +81,8 @@ public class BamCoverageTrack  {
 		
 		private int getMateEnd(final SAMRecord rec) {
 			if(!rec.getReadPairedFlag()) return -1;
-			if(rec.getReadUnmappedFlag()) return -1;
-			int n = rec.getMateAlignmentStart();
-			if(rec.hasAttribute(SAMTag.MC)) n = Math.max(n, SAMUtils.getMateAlignmentEnd(rec));
-			return n;
+			if(rec.getMateUnmappedFlag()) return -1;
+			return BAMUtils.getMateEnd(rec);
 			}
 		
 		@Override

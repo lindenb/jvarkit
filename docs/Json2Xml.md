@@ -28,6 +28,9 @@ Usage: json2xml [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    --tag, -t
+      use the key of the json object as the name of the XML element
+      Default: false
     --version
       print version and exit
 

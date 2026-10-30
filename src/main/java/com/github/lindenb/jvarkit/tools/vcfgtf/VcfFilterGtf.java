@@ -351,7 +351,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
  			if(this.bedPath!=null) {
 				try(BedLineReader blr= BedLineReader.openPath(this.bedPath)) {
 					blr.setContigNameConverter(ctgConverter);
-					bedIntervalMap= blr.toIntervalTreeMap(B->true);
+					bedIntervalMap= blr.toBooleanIntervalTreeMap();
 					}
 				}
  			else

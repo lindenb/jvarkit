@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.SampleAndBamFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -294,7 +295,7 @@ public class MiniGenotyper extends Launcher   {
     	}
     /** get mate end position or mate-start */
     private static int getMateEnd(final SAMRecord rec0) {
-        return rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):rec0.getMateAlignmentStart();
+        return BAMUtils.getMateEnd(rec0);
         }
     
     private boolean scanRead(final SAMRecord rec, final Call call) {

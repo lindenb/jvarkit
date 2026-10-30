@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -247,12 +248,7 @@ public class DepthOfCoverage extends Launcher
 					final Counter<RangeOfIntegers.Range> countMap_wg = new Counter<>();
 
 					
-					final String sample = header.getReadGroups().
-							stream().
-							map(RG->RG.getSample()).
-							filter(S->!StringUtils.isBlank(S)).
-							findFirst().orElse(path.toString())
-							;
+					final String sample = BAMUtils.getSampleName(header, path);
 					int coverage[] = null;
 					String prevContig = null;
 					

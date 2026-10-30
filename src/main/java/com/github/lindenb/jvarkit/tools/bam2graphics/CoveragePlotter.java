@@ -82,6 +82,7 @@ import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
@@ -802,11 +803,7 @@ public int doWork(final List<String> args) {
 					}
 				final SAMFileHeader header= sr.getFileHeader();
 				final SampleInfo sampleInfo = new SampleInfo();
-				sampleInfo.sample = header.getReadGroups().stream().
-						map(RG->RG.getSample()).
-						filter(S->!StringUtil.isBlank(S)).
-						findFirst().
-						orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+				sampleInfo.sample = BAMUtils.getSampleName(header,path);
 				sampleInfo.path = path;
 				
 				LOG.info(sampleInfo.sample+" "+(1+samples.size())+"/"+inputBams.size()+ " "+extendedRegion);
