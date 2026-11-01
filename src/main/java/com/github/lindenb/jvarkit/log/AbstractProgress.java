@@ -25,39 +25,52 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.log;
 
+import java.util.function.Consumer;
+
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
+import htsjdk.samtools.util.StopWatch;
 
 /* base class for Progress and ProgressDict */
 public class AbstractProgress {
 	private static Logger LOG=Logger.of(AbstractProgress.class);
 	
-	protected long startMilliSec = System.currentTimeMillis();
-	protected long last_messsage_millisec = -1L;
-	private Logger logger = LOG;
+	private final Consumer<String> log_emiter;
+	protected final long start_millisec;
+	protected long last_messsage_millisec;
 	private boolean enabled=true;
 
-	protected AbstractProgress(final Logger log) {
-		this.logger=LOG;
-	}
+	protected AbstractProgress(final Consumer<String> log_emiter) {
+		this.log_emiter=log_emiter;
+		this.start_millisec = System.currentTimeMillis();
+		this.last_messsage_millisec = this.start_millisec;
+		}
 	
-
-public final AbstractProgress setLogger(Logger logger) {
-	this.logger = logger;
-	return this;
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+		}
+	public boolean isEnabled() {
+		return enabled;
+		}
+	
+	protected int getEveryXSeconds() {
+		return 60;
+		}
+	
+	/** return the logger, never null */
+	protected void emit(final String msg) {
+		if(!isEnabled())return;
+		if(msg==null) return;
+		if(this.log_emiter==null) {
+			LOG.info(msg);
+			}
+		else
+			{
+			this.log_emiter.accept(msg);
+			}
+		}
+	@Override
+	public String toString() {
+		return StringUtils.niceDuration(System.currentTimeMillis()-this.start_millisec);
+		}
 	}
-
-public AbstractProgress setEnabled(boolean enabled) {
-	this.enabled = enabled;
-	return this;
-	}
-public boolean isEnabled() {
-	return enabled;
-	}
-
-/** return the logger, never null */
-public final Logger getLogger() {
-	return this.logger==null?LOG:this.logger;
-	}
-
-
-
-}

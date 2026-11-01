@@ -16,6 +16,7 @@
  * Guiding Native Charr Conservation in the Lake Superior Basin in the Genomics Era. Kline, Benjamen Christopher Michigan State University ProQuest Dissertations & Theses,  2026. 32793593. 
  * Wu, L., Yadavalli, A.D., McAuliffe, C.C. et al. Transcription pause and elongation regulators mediate somatic hypermutation. Nature (2026). https://doi.org/10.1038/s41586-026-11092-4 **SamToTsv**
  * Yang, Y., Cao, Y., Liu, L. et al. FoxL2 exhibits two-stage expression and maintains the ovarian niche in a lophotrochozoan. Commun Biol (2026). https://doi.org/10.1038/s42003-026-11047-5
+ * Abebe, A.M.; Choi, Y.; Park, S.R.; Lyu, J.I.; Cho, Y.; Kang, S.-H. Phylogenetic Assessment of Senna tora and Senna obtusifolia Using Chloroplast Genome and 45S nrDNA Sequences. Genes 2026, 17, 1343. https://doi.org/10.3390/genes17111343 **MsaToVcf**
 
 ## 2025
 

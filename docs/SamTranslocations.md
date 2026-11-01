@@ -16,18 +16,25 @@ Usage: samtransloc [options] Files
     --chrom-regex
       Only consider the chromosomes matching the following regular expression.
       Default: (chr)?[0-9XY]+
+    --control, --controls
+      BAM/CRAM file that can be used as a control. I discordand reads are 
+      found in any control, the candidate transloc is rejected. A file with 
+      the '.list' suffix is interpreted as a file containing the path to the 
+      bam files.
     -d, --distance
       Max distance between two read to test if they both end at the same ~ 
       position. A distance specified as a positive integer.Commas are removed. 
       The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
-      Default: 1000
+      Default: 150
+    --exclude-bed, --exclude
+      skip reads pverlapping that bed file
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --mapq
       min mapping quality.
-      Default: 0
+      Default: 30
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
@@ -36,8 +43,6 @@ Usage: samtransloc [options] Files
       CreateSequenceDictionary or samtools dict
     --version
       print version and exit
-    -exclude-bed
-      skip reads pverlapping that bed file
 
 ```
 

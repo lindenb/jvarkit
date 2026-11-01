@@ -29,8 +29,11 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -39,6 +42,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -49,11 +53,13 @@ import com.github.lindenb.jvarkit.log.ProgressDict;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.google.gson.stream.JsonWriter;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -87,7 +93,7 @@ END_DOC
 	keywords={"sam","bam","sv","translocation"},
 	jvarkit_hidden = false,
 	creationDate="20171130",
-	modificationDate="20261030"
+	modificationDate="20261101"
 	)
 public class SamTranslocations extends Launcher {
 	private static final Logger LOG = Logger.of(SamTranslocations.class);
@@ -100,34 +106,52 @@ public class SamTranslocations extends Launcher {
 			converter=DistanceParser.StringConverter.class,
 			splitter=NoSplitter.class
 			)
-	private int fuzzy_distance = 1_000;
+	private int fuzzy_distance = 150;
 	@Parameter(names={"-B","--bed"},description="Optional BED file. SV should overlap this bed.")
 	private Path bedFile = null;
-	@Parameter(names={"-exclude-bed"},description="skip reads pverlapping that bed file")
+	@Parameter(names={"--exclude-bed","--exclude"},description="skip reads pverlapping that bed file")
 	private Path excludeBedFile = null;
 	@Parameter(names={"--chrom-regex"},description="Only consider the chromosomes matching the following regular expression.")
 	private String chromRegex="(chr)?[0-9XY]+";
 	@Parameter(names={"--mapq"},description="min mapping quality.")
-	private int min_mapq = 0;
+	private int min_mapq = 30;
+	@Parameter(names={"--control","--controls"},description="BAM/CRAM file that can be used as a control. I discordand reads are found in any control, the candidate transloc is rejected. A file with the '.list' suffix is interpreted as a file containing the path to the bam files.")
+	private Path controlFiles = null;
 
 	
 	
-		
+	/** open iterator for main SamReader */
 	private CloseableIterator<SAMRecord> makeIterator(final SamReader sr) {
 		final SAMFileHeader header=sr.getFileHeader();
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 
-		CloseableIterator<SAMRecord> iter1;
-		if(this.bedFile==null) {
-			iter1= sr.iterator();
+		if(this.bedFile==null && StringUtils.isBlank(this.chromRegex)) {
+			return sr.iterator();
+			}
+		else if(this.bedFile==null) {
+			return sr.queryOverlapping(
+				QueryInterval.optimizeIntervals(
+					dict.getSequences().stream()
+						.filter(SSR->SSR.getContig().matches(this.chromRegex))
+						.map(SSR->new QueryInterval(dict.getSequenceIndex(SSR.getContig()), 1, SSR.getEnd()))
+						.toArray(X->new QueryInterval[X])
+					)
+				);
 			}
 		else
 			{
 			try(BedLineReader blr = BedLineReader.openPath(this.bedFile)) {
-				iter1 = sr.queryOverlapping(blr.setContigNameConverter(dict).optimizeIntervals(dict));
+				blr.setContigNameConverter(dict);
+				return sr.queryOverlapping(
+						QueryInterval.optimizeIntervals(
+							blr.stream()
+								.filter(BED->BED.getContig().matches(this.chromRegex))
+								.map(BED->new QueryInterval(dict.getSequenceIndex(BED.getContig()), BED.getStart(), BED.getEnd()))
+								.toArray(X->new QueryInterval[X])
+							)
+						);
 				}
 			}
-		return iter1;
 		}
 	
 	/* return true if read is paired and reads are mapped on discordant contigs */
@@ -185,7 +209,9 @@ public class SamTranslocations extends Launcher {
 		int start=0;
 		int end= 0;
 		double depth = 0.0;
+		double mapq = 0.0;
 		int count_insertions=0;
+		
 		StrandCount plus;
 		StrandCount minus;
 		
@@ -210,6 +236,7 @@ public class SamTranslocations extends Launcher {
 			j.name("interval");j.value(getContig()+":"+getStart()+"-"+getEnd());
 			j.name("length");j.value(getLengthOnReference());
 			j.name("mean_depth");j.value(depth);
+			j.name("mean_mapq");j.value(mapq);
 			j.name("insertions");j.value(count_insertions);
 			final String url = hyperlink.apply(this).orElse(null);
 			if(url!=null) {
@@ -250,10 +277,10 @@ public class SamTranslocations extends Launcher {
 		BreakEnd bnd1; //chromosome1
 		BreakEnd bnd2; //chromosome2
 		boolean isValid() {
-			return bnd1.isValid() && bnd2.isValid();
+			return bnd1!=null && bnd1.isValid() && bnd2!=null && bnd2.isValid();
 			}
 		boolean isHighQual() {
-			return isValid() && bnd1.isHighQual() && bnd2.isHighQual();
+			return isValid() && bnd1!=null && bnd1.isHighQual() && bnd2!=null && bnd2.isHighQual();
 			}
 		}
 	
@@ -321,6 +348,7 @@ public class SamTranslocations extends Launcher {
 			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 			if(rec.getDuplicateReadFlag()) continue;
 			if(rec.getMappingQuality()<= this.min_mapq) continue;
+			if(!CoordMath.overlaps(start, end, rec.getStart(), rec.getEnd())) continue;
 			for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
 				for(int x=0;x<ab.getLength();x++) {
 					int pos1 = ab.getReferenceStart()+x;
@@ -333,6 +361,23 @@ public class SamTranslocations extends Launcher {
 		return total/CoordMath.getLength(start, end);
 		}
 	
+	/** get avg MAPQ in the interval */
+	private OptionalDouble meanMAPQ(final List<SAMRecord> records,int start,int end) {
+		double total=0.0;
+		int n=0;
+		for(SAMRecord rec:records) {
+			if(rec.getReadUnmappedFlag()) continue;
+			if(rec.isSecondaryOrSupplementary()) continue;
+			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+			if(rec.getDuplicateReadFlag()) continue;
+			if(!CoordMath.overlaps(start, end, rec.getStart(), rec.getEnd())) continue;
+			total+=rec.getMappingQuality();
+			n++;
+			}
+		
+		return n==0L?OptionalDouble.empty():OptionalDouble.of(total/n);
+		}
+	
 	/** get avg depth in the interval */
 	private int count_insertions(final List<SAMRecord> records,int start,int end) {
 		final Set<Integer> positions=new HashSet<>();
@@ -342,6 +387,8 @@ public class SamTranslocations extends Launcher {
 			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 			if(rec.getDuplicateReadFlag()) continue;
 			if(rec.getMappingQuality()<= this.min_mapq) continue;
+			if(!CoordMath.overlaps(start, end, rec.getStart(), rec.getEnd())) continue;
+
 			int ref=rec.getAlignmentStart();
 			for(CigarElement ce:rec.getCigar()) {
 				if(ref>end) break;
@@ -401,21 +448,31 @@ public class SamTranslocations extends Launcher {
 			
 			evt.depth =meanDepth(reads_contig,evt.start,evt.end);
 			evt.count_insertions = count_insertions(reads_contig,evt.start,evt.end);
+			evt.mapq = meanMAPQ(reads_contig,evt.start,evt.end).orElse(0.0);
 			}
 		return evt;
 		}
 	
-	private Event challenge(final SamReader sr,final SAMRecord rec) {
+	private Event challenge(final SamReader sr,final SAMRecord rec,final List<SamReader> controls) {
 		final Event evt=new Event();
+		evt.end_position=rec.getAlignmentEnd();
 		
 		
-		
-		final Locatable loc = new SimpleInterval(rec.getContig(),rec.getStart(),rec.getEnd()+this.fuzzy_distance);
+		final Locatable loc = new SimpleInterval(
+				rec.getContig(),
+				rec.getStart(),
+				rec.getEnd()+this.fuzzy_distance
+				);
 		final Locatable mate =  new SimpleInterval(
 				rec.getMateReferenceName(),
 				Math.max(1,rec.getMateAlignmentStart() - this.fuzzy_distance),
 				rec.getMateAlignmentStart()+ rec.getReadLength()+ this.fuzzy_distance
 				);
+		
+		
+		if(discordantFoundInControl(controls, rec, mate)) {
+			return evt;
+			}
 		
 		List<SAMRecord> reads_contig = getReads(sr,loc,null);
 		evt.bnd1 = makeBreakEnd(reads_contig , loc, mate);
@@ -427,6 +484,33 @@ public class SamTranslocations extends Launcher {
 		return evt;
 		}
 	
+	private boolean discordantFoundInControl(final List<SamReader> ctrls,final Locatable loc,final Locatable mateLoc) {
+		for(SamReader sr:ctrls) {
+			final SAMFileHeader hdr=sr.getFileHeader();
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(hdr);
+			final ContigNameConverter converter= ContigNameConverter.fromOneDictionary(dict);
+			final String ctg = converter.apply(loc.getContig());
+			if(StringUtils.isBlank(ctg)) continue;
+			final String mateCtg2  = converter.apply(mateLoc.getContig());
+			if(StringUtils.isBlank(mateCtg2)) continue;
+			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctg,loc.getStart(),loc.getEnd())) {
+				while(iter.hasNext()) {
+					final SAMRecord rec=iter.next();
+					if(rec.getReadUnmappedFlag())  continue;
+					if(rec.getDuplicateReadFlag()) continue;
+					if(!rec.getReadPairedFlag()) continue;
+					if(!rec.contigsMatch(loc)) continue;
+					if(rec.getMateUnmappedFlag()) continue;
+					if(rec.isSecondaryOrSupplementary())continue;
+					if(!rec.getMateReferenceName().equals(mateCtg2)) continue;
+					if(CoordMath.overlaps(loc.getStart(), loc.getEnd(),
+						mateLoc.getStart(), mateLoc.getEnd())) return true;
+					}
+				}
+			}
+		return false;
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.fuzzy_distance<=0) {
@@ -435,9 +519,22 @@ public class SamTranslocations extends Launcher {
 		}
 		
 		try {
+			final List<SamReader> control_readers  ;
 			final Path bamInput= Paths.get(oneAndOnlyOneFile(args));
 			final SamReaderFactory srf=super.createSamReaderFactory()
 					.referenceSequence(this.faidx);
+			
+			
+			if(this.controlFiles==null) {
+				control_readers=Collections.emptyList();
+				}
+			else
+				{
+				control_readers  = new ArrayList<>();
+				for(Path path: IOUtils.unrollPath(this.controlFiles)) {
+					control_readers.add(srf.open(path));
+					}
+				}
 			
 			try(SamReader sr1 = srf.open(bamInput))  {
 				if(!sr1.isQueryable()) {
@@ -447,6 +544,7 @@ public class SamTranslocations extends Launcher {
 				final SAMFileHeader header = sr1.getFileHeader();
 				final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
 				final ProgressDict<SAMRecord> progress = new ProgressDict<SAMRecord>(LOG,dict);
+				progress.setEnabled(this.bedFile==null);
 				final Hyperlink hyperlink = Hyperlink.compile(dict);
 				final String build =  SequenceDictionaryUtils.getBuildName(dict).orElse(null);
 				final String sampleName= BAMUtils.getSampleName(header,bamInput);
@@ -458,6 +556,12 @@ public class SamTranslocations extends Launcher {
 					LOG.error("no contig name is enabled");
 					return -1;
 					}
+				final boolean[] accepted_contig_array=new boolean[dict.size()];
+				Arrays.fill(accepted_contig_array, false);
+				for(int accept_tid: enabled_tids) {
+					accepted_contig_array[accept_tid]=true;
+					}
+				
 				final Predicate<Locatable> accept_reads;
 				if(this.excludeBedFile!=null) {
 					try(BedLineReader blr = BedLineReader.openPath(this.excludeBedFile)) {
@@ -470,7 +574,6 @@ public class SamTranslocations extends Launcher {
 					{
 					accept_reads = REC->true;
 					}
-				
 				
 				try(SamReader sr2 = srf.open(bamInput))  {
 					try(PeekableIterator<SAMRecord> iter1= new PeekableIterator<SAMRecord>(makeIterator(sr1))) {
@@ -491,8 +594,8 @@ public class SamTranslocations extends Launcher {
 									if(rec.getMateReferenceIndex().compareTo(rec.getReferenceIndex())<0) continue;; // already done as reads are mapped on reference index
 									if(!isDiscordant(rec)) continue;
 
-									if(!enabled_tids.contains(rec.getReferenceIndex())) continue;
-									if(!enabled_tids.contains(rec.getMateReferenceIndex())) continue;
+									if(!accepted_contig_array[rec.getReferenceIndex()]) continue;
+									if(!accepted_contig_array[rec.getMateReferenceIndex()]) continue;
 									
 									/* read in black region ?*/
 									if(this.excludeBedFile!=null) {
@@ -503,7 +606,7 @@ public class SamTranslocations extends Launcher {
 												BAMUtils.getMateEnd(rec)))) continue;
 										}
 									
-									final Event event = challenge(sr2,rec);
+									final Event event = challenge(sr2,rec,control_readers);
 									
 									if(event.isValid()) {
 										j.beginObject();
@@ -537,18 +640,14 @@ public class SamTranslocations extends Launcher {
 							}
 						}
 					}
-				
 				}
-			
 			return 0;
 			}
-		catch(Throwable err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		}
-	
-	
 	
 	public static void main(final String[] args) {
 		new SamTranslocations().instanceMainWithExit(args);

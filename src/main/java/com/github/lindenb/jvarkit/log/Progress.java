@@ -26,6 +26,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.log;
 
 
+import java.util.function.Consumer;
+
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
 
@@ -33,56 +35,57 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 public class Progress extends AbstractProgress {
 	private static Logger LOG=Logger.of(Progress.class);
 	
-	protected long n_expected = 0L;
+	private long n_expected = 0L;
 	private long current_index = 0L;
 
-	protected Progress(final Logger log,final long n_expected) {
+	public Progress(final Logger log,final long n_expected) {
+		this(MSG->log.info(MSG),n_expected);
+		}
+	
+	public Progress(final Consumer<String> log,final long n_expected) {
 		super(log);
 		this.n_expected=n_expected;
-	}
-	
-public static Progress of(long n_expected) {
-	return of(LOG,n_expected);
-	}
-public static Progress of(Logger log,long n_expected) {
-	return new Progress(log,n_expected);
-	}
-
-
-/** end item, with no message */
-public void endItem() {
-	endItem(null);
-	}
-
-/** end item, with message */
-public void endItem(final Object optional_msg) {
-	int every_x_seconds = 60;
-	final long now = System.currentTimeMillis();
-	final long diff_millisec = now- super.last_messsage_millisec;
-	boolean should_display=	isEnabled() && 
-			this.n_expected >0 && 
-			this.current_index>=0 &&
-			( super.last_messsage_millisec<0L || (diff_millisec / 1_000 <= every_x_seconds));
-	if(should_display) {
-		final long millisec_per_item  = (now - super.startMilliSec)/(current_index+1L);
-		final StringBuilder sb=new StringBuilder();
-		sb.append("N=").append(StringUtils.niceInt(this.current_index+1)).append(" / ")
-			.append(StringUtils.niceInt(this.n_expected))
-			.append(". That took: ")
-			.append(StringUtils.niceDuration(System.currentTimeMillis() - super.startMilliSec))
-			.append(". Remain: ")
-			.append(StringUtils.niceDuration((this.n_expected-(current_index+1))*millisec_per_item))
-			;
-		if(optional_msg!=null) {
-			sb.append(". ").append(optional_msg);
-			}
-		final String msg= sb.toString();
-		getLogger().info(msg);
-		super.last_messsage_millisec = now;
 		}
-	// do not increment for genomic data
-	this.current_index++;	
-	}
+	
+	public Progress(final long n_expected) {
+		this(LOG,n_expected);
+		}
+	/** end item, with no message */
+	public void mark() {
+		mark(this.current_index);
+		this.current_index++;
+		}
+	
+	/** end item, with message */
+	public void mark(final long index) {
+		if(!isEnabled()) return;
+		final long now = System.currentTimeMillis();
+		final int every_x_seconds = super.getEveryXSeconds();
+		boolean should_display=	
+				this.n_expected >0 && 
+				index >= 0 &&
+				index< this.n_expected &&
+				(now-super.last_messsage_millisec) / 1_000 >= every_x_seconds;
+				
+		if(should_display) {
+			final StringBuilder sb=new StringBuilder();
+			sb.append(StringUtils.niceInt(this.current_index+1))
+				.append(" / ")
+				.append(StringUtils.niceInt(this.n_expected))
+				.append(".");
+			if(index>0) {
+				final double millisec_per_item  = (now - super.start_millisec)/(double)index;
+				sb.append(" That took: ")
+				.append(StringUtils.niceDuration(now - super.start_millisec))
+				.append(". Remain: ")
+				.append(StringUtils.niceDuration((long)((this.n_expected-(index))*millisec_per_item)))
+				;
+				}
+			final String msg= sb.toString();
+			super.emit(msg);
+			super.last_messsage_millisec =now;
+			}
+		}
 
 
 
