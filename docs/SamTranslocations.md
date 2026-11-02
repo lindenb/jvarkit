@@ -41,6 +41,7 @@ Usage: samtransloc [options] Files
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
       must be indexed with samtools faidx and with picard/gatk 
       CreateSequenceDictionary or samtools dict
+      Default: []
     --version
       print version and exit
 

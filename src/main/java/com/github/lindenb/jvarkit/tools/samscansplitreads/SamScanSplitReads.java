@@ -182,7 +182,8 @@ END_DOC
 @Program(name="samscansplitreads",
 	description="scan split reads",
 	keywords={"sam","sv","split","splice"},
-	modificationDate = "20260206"
+	modificationDate = "20260206",
+	menu="BAM Manipulation"
 	)
 	public class SamScanSplitReads extends MultiBamLauncher {
 	private static final Logger LOG = Logger.of(SamScanSplitReads.class);

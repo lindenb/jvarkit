@@ -71,6 +71,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
+import htsjdk.samtools.util.SequenceUtil;
 /**
 
 BEGIN_DOC
@@ -93,14 +94,15 @@ END_DOC
 	keywords={"sam","bam","sv","translocation"},
 	jvarkit_hidden = false,
 	creationDate="20171130",
-	modificationDate="20261101"
+	modificationDate="20261101",
+	menu="BAM Manipulation"
 	)
 public class SamTranslocations extends Launcher {
 	private static final Logger LOG = Logger.of(SamTranslocations.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
-	private Path faidx = null;
+	private List<Path> faidx_list = new ArrayList<>();
 	@Parameter(names={"-d","--distance"},
 			description="Max distance between two read to test if they both end at the same ~ position. " +DistanceParser.OPT_DESCRIPTION,
 			converter=DistanceParser.StringConverter.class,
@@ -511,32 +513,48 @@ public class SamTranslocations extends Launcher {
 		return false;
 		}
 	
+	
+	private Path findReferenceForBam(final Path bamPath) {
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(bamPath);
+		for(final Path ref: this.faidx_list) {
+			final SAMSequenceDictionary dict2 = SequenceDictionaryUtils.extractRequired(ref);
+			if(SequenceUtil.areSequenceDictionariesEqual(dict, dict2)) {
+				return ref;
+				}
+			}
+		throw new IllegalArgumentException("Cannot find REFerence for "+bamPath+".");
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
+		final List<SamReader> control_readers = new ArrayList<>()  ;
+
 		if(this.fuzzy_distance<=0) {
 			LOG.error("fuzzy_distance <=0 ("+fuzzy_distance+")");
 			return -1;
-		}
+			}
+		if(this.faidx_list.isEmpty()) {
+			LOG.error("No reference list was set by user.");
+			return -1;
+			}
 		
 		try {
-			final List<SamReader> control_readers  ;
 			final Path bamInput= Paths.get(oneAndOnlyOneFile(args));
+			final Path faidx_reference = findReferenceForBam(bamInput);
 			final SamReaderFactory srf=super.createSamReaderFactory()
-					.referenceSequence(this.faidx);
+					.referenceSequence(faidx_reference);
 			
 			
-			if(this.controlFiles==null) {
-				control_readers=Collections.emptyList();
-				}
-			else
-				{
-				control_readers  = new ArrayList<>();
+			if(this.controlFiles!=null) {
 				for(Path path: IOUtils.unrollPath(this.controlFiles)) {
-					control_readers.add(srf.open(path));
+					control_readers.add(srf
+							.referenceSequence(findReferenceForBam(path))
+							.open(path)
+							);
 					}
 				}
 			
-			try(SamReader sr1 = srf.open(bamInput))  {
+			try(SamReader sr1 = srf.referenceSequence(faidx_reference).open(bamInput))  {
 				if(!sr1.isQueryable()) {
 					LOG.error("cannot query "+bamInput);
 					return -1;
@@ -575,7 +593,7 @@ public class SamTranslocations extends Launcher {
 					accept_reads = REC->true;
 					}
 				
-				try(SamReader sr2 = srf.open(bamInput))  {
+				try(SamReader sr2 = srf.referenceSequence(faidx_reference).open(bamInput))  {
 					try(PeekableIterator<SAMRecord> iter1= new PeekableIterator<SAMRecord>(makeIterator(sr1))) {
 						try(PrintWriter w =super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 							try(JsonWriter j = new JsonWriter(w)) {
@@ -591,7 +609,7 @@ public class SamTranslocations extends Launcher {
 									if(rec.isSecondaryOrSupplementary())continue;
 									if(rec.getReadNegativeStrandFlag()) continue; //scanning from 5' to 3' we expect first to find on plus strand
 									if(rec.getMappingQuality() <= this.min_mapq) continue;
-									if(rec.getMateReferenceIndex().compareTo(rec.getReferenceIndex())<0) continue;; // already done as reads are mapped on reference index
+									// no, may be using a workflow .. if(rec.getMateReferenceIndex().compareTo(rec.getReferenceIndex())<0) continue;; // already done as reads are mapped on reference index
 									if(!isDiscordant(rec)) continue;
 
 									if(!accepted_contig_array[rec.getReferenceIndex()]) continue;
@@ -613,8 +631,8 @@ public class SamTranslocations extends Launcher {
 										j.name("sample"); j.value(sampleName);
 										j.name("bam"); j.value(String.valueOf(bamInput));
 										j.name("high_qual"); j.value(event.isHighQual());
-										if(this.faidx!=null) {
-											j.name("reference");j.value(String.valueOf(this.faidx));
+										if(faidx_reference!=null) {
+											j.name("reference");j.value(String.valueOf(faidx_reference));
 											}
 										if(build!=null) {
 											j.name("build");j.value(build);
@@ -641,11 +659,17 @@ public class SamTranslocations extends Launcher {
 						}
 					}
 				}
+			
 			return 0;
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
+			}
+		finally {
+			for(SamReader sr:control_readers) {
+				try {sr.close(); } catch(IOException err2) {}
+				}
 			}
 		}
 	

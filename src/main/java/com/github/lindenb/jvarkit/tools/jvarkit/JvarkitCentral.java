@@ -274,6 +274,7 @@ import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames;
 import com.github.lindenb.jvarkit.tools.samslop.SamSlop;
+import com.github.lindenb.jvarkit.tools.samtransloc.SamTranslocations;
 import com.github.lindenb.jvarkit.tools.sashimi.PlotSashimi;
 import com.github.lindenb.jvarkit.tools.setfile.SetFileCluster;
 import com.github.lindenb.jvarkit.tools.setfile.SetFileFromBed;
@@ -925,6 +926,7 @@ public class JvarkitCentral {
 		command(SamAddPI.class);
 		command(SamToPsl.class);
 		command(SamFindClippedRegions.class);
+		command(SamTranslocations.class);
 		command(SamFixCigar.class);
 		command(ScanStructuralVariants.class);
 		command(SwingVcfView.class);
