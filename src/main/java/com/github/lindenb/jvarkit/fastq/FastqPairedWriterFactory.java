@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.fastq;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 
@@ -54,7 +55,7 @@ public boolean isAsyncIo() {
 	return useAsyncIo;
 	}
 
-/** write interleaved reads into two paths */
+/** write reads into two paths */
 public FastqPairedWriter open(final Path f1,final Path f2) throws IOException {
 	return open(f1.toFile(),f2.toFile());
 	}
@@ -66,7 +67,7 @@ private FastqWriterFactory newFastqWriterFactory() {
 	return qfw;
 }
 
-/** write interleaved reads into two files */
+/** write reads into two files */
 public FastqPairedWriter open(final File f1,final File f2) throws IOException {
 	final FastqWriterFactory qfw = newFastqWriterFactory();
 	final FastqWriter w1 = qfw.newWriter(FastqUtils.validateFastqFilename(f1));
@@ -91,6 +92,7 @@ public FastqPairedWriter open(final File fqFile) throws IOException {
 public FastqPairedWriter open(final PrintStream w) throws IOException {
 	return new OneWriter(new BasicFastqWriter(w));
 	}
+
 
 /** create a /dev/null writer */
 public static FastqPairedWriter createNullWriter() {

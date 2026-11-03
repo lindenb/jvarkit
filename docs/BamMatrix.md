@@ -20,6 +20,9 @@ Usage: bammatrix [options] Files
       Color scale
       Default: LOG
       Possible Values: [LINEAR, LOG]
+    --debug
+      show debugging stuff
+      Default: false
     -d, --distance
       Don't evaluate a point if the distance between the regions on X and Y is 
       lower than 'd'. Negative: don't consider distance.

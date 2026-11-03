@@ -373,7 +373,7 @@ public class PubmedDump
 						{
 						final int ret_max= Math.max(1,Math.min(this.retmax_param,90_000));
 						LOG.info("nFound:"+total_found_so_far_for_this_search+"/"+ esearch.expected_total_count);
-						String url= NcbiConstants.efetch()+"?"+
+						final String url= NcbiConstants.efetch()+"?"+
 								"db=pubmed&WebEnv="+
 								StringUtils.escapeHttp(esearch.WebEnv)+
 								(ncbiApiKey.isApiKeyDefined()?ncbiApiKey.getAmpParamValue():"")+

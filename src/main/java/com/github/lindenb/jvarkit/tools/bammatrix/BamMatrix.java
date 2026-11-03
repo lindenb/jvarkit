@@ -165,6 +165,8 @@ public class BamMatrix  extends Launcher {
 	private int pixel_size = 1;
 	@Parameter(names={"--flags"},description="just compare pairs of reads with the following configuration")
 	private FLAG_COMPARE flags_compare =FLAG_COMPARE.any;
+	@Parameter(names={"--debug"},description="show debugging stuff")
+	private  boolean debug_flag=false;
 
 	
 	
@@ -346,7 +348,9 @@ public class BamMatrix  extends Launcher {
 						}	
 					}
 				}
-			LOG.info("N Read side["+side+"]="+n_reads);
+			if(debug_flag) {
+				LOG.info("N Read side["+side+"]="+n_reads);
+				}
 			if(samReaderY==samReaderX && side==0) break;
 			}
 		return new MemoryReadCounter(treeMapX,treeMapY);

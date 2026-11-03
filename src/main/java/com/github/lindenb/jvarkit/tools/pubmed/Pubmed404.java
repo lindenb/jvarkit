@@ -31,13 +31,16 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
@@ -106,7 +109,7 @@ END_DOC
 description="Test if URL in the pubmed abstracts are reacheable.",
 keywords={"pubmed","url"},
 creationDate="20181210",
-modificationDate="20200204",
+modificationDate="20261103",
 jvarkit_amalgamion =  true,
 menu="Pubmed"
 )
@@ -149,11 +152,27 @@ public class Pubmed404  extends Launcher{
 			}
 	}
 	
+	private void skip(final XMLEventReader r) throws XMLStreamException {
+		while(r.hasNext())
+		{
+		final XMLEvent evt = r.nextEvent();
+		if(evt.isStartElement())
+			{
+			skip(r);
+			}
+		else if(evt.isEndElement())
+			{
+			break;
+			}
+		}
+	}
+	
 	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
 	 * when a public title contains some tag like '<sup>'
 	 */
 	private String textContent(final XMLEventReader r) throws XMLStreamException
 		{
+		final QName label=new QName("Label");
 		final StringBuilder sb=new StringBuilder();
 		while(r.hasNext())
 			{
@@ -161,7 +180,21 @@ public class Pubmed404  extends Launcher{
 			if(evt.isEndElement()) break;
 			else if(evt.isStartElement())
 				{
-				sb.append(textContent(r));
+				final StartElement startE = evt.asStartElement();
+				final String localName=startE.getName().getLocalPart();
+				if(startE.getName().getLocalPart().equals("AbstractText")) {
+					sb.append(" ");
+					}
+				final Attribute att= startE.getAttributeByName(label);
+				if(att==null || 
+					att.getValue().toLowerCase().contains("copyright") || 
+					localName.equals("CopyrightInformation")) {
+					skip(r);
+					}
+				else
+					{
+					sb.append(textContent(r));
+					}				
 				}
 			else if(evt.isCharacters())
 				{
@@ -179,7 +212,7 @@ public class Pubmed404  extends Launcher{
 			String article_pmid=null;
 			String article_title="" ;
 			String article_year=null;
-			String abstractText = "";
+			final List<String> abstractTexts = new ArrayList<>();
 			boolean PubDate=false;
 			while(r.hasNext()) {
 				final XMLEvent evt=r.nextEvent();
@@ -200,7 +233,7 @@ public class Pubmed404  extends Launcher{
 						article_year=r.getElementText();
 					}
 					else if(eltName.equals("Abstract")) {
-						abstractText = textContent(r);
+						abstractTexts.add(textContent(r));
 						}
 					}
 			else if(evt.isEndElement()) {
@@ -216,45 +249,50 @@ public class Pubmed404  extends Launcher{
 				}
 			
 			}//end of xml read
-		final String tokens[] = this.wsSplitter.split(abstractText);
 		
 		final List<String> lines = new ArrayList<>();
-		for(String token: tokens)
-			{
-			while(!token.isEmpty()) {
-				int c = token.charAt(token.length()-1);
-				if(!(c=='.' || c>128)) break;
-				token=token.substring(0,token.length()-1);
-			}
-			if(token.isEmpty()) continue;
-			if(!IOUtils.isRemoteURI(token)) {
-				if(token.startsWith("http")) LOG.debug("strange url: "+token);
-				continue;
-			}
-			final StatusLine status = getStatus(token);
-			final StringBuilder sb = new StringBuilder();
-			
-			sb.append(article_pmid);
-			sb.append('\t');
-			sb.append(article_title);
-			sb.append('\t');
-			sb.append(article_year);
-			sb.append('\t');
-			sb.append(token);
-			sb.append('\t');
-			sb.append(status.getStatusCode());
-			sb.append('\t');
-			sb.append(status.getReasonPhrase());
-			
-			if(this.collapse && status.getStatusCode()==200)
-				{
-				out.println(sb.toString());
-				out.flush();
-				return;
+		for(String abstractText:abstractTexts) {
+			for(String token: this.wsSplitter.split(abstractText)) {
+				while(!token.isEmpty()) {
+					int c = token.charAt(token.length()-1);
+					if(!(c=='.' || c>128)) break;
+					token=token.substring(0,token.length()-1);
+					}
+				if(token.isEmpty()) continue;
+				
+				if(!IOUtils.isRemoteURI(token)) {
+					if(token.startsWith("http")) LOG.debug("strange url: "+token);
+					continue;
 				}
-			else
-				{
-				lines.add(sb.toString());
+				// just a doi
+				if(token.startsWith("https://doi.org/") || token.startsWith("http://doi.org/")) {
+					continue;
+					}
+				final StatusLine status = getStatus(token);
+				final StringBuilder sb = new StringBuilder();
+				
+				sb.append(article_pmid);
+				sb.append('\t');
+				sb.append(article_title);
+				sb.append('\t');
+				sb.append(article_year);
+				sb.append('\t');
+				sb.append(token);
+				sb.append('\t');
+				sb.append(status.getStatusCode());
+				sb.append('\t');
+				sb.append(status.getReasonPhrase());
+				
+				if(this.collapse && status.getStatusCode()==200)
+					{
+					out.println(sb.toString());
+					out.flush();
+					return;
+					}
+				else
+					{
+					lines.add(sb.toString());
+					}
 				}
 			}
 		if(lines.isEmpty()) return;

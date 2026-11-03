@@ -28,22 +28,19 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -53,9 +50,8 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.google.gson.stream.JsonWriter;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
@@ -72,16 +68,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
 BEGIN_DOC
@@ -92,9 +79,9 @@ END_DOC
 **/
 
 @Program(name="saminversions",
-	description="Scan inversions in SAM using paired read on same strand.",
+	description="Scan inversions in SAM using split and FF/RR reads on same strand.",
 	keywords={"sam","bam","sv","inversion"},
-	modificationDate="20201211",
+	modificationDate="20261103",
 	creationDate="20200609",
 	generate_doc=false
 	)
@@ -108,8 +95,6 @@ public class SamInversions extends Launcher
 	private List<Path> faidx_list = new ArrayList<>();
 	@Parameter(names={"--distance"},description="search for breakend (BND) around 'x' bases.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_distance = 100 ;
-	@Parameter(names={"-s","-supporting"},description="Don't print the variant if max FORMAT/DP < 's'")
-	private int min_supporting_reads = 1;
 	@Parameter(names={"-B","--bed"},description="Optional BED file. SV should overlap this bed.")
 	private Path bedFile = null;
 	@Parameter(names={"--exclude-bed","--exclude"},description="skip reads pverlapping that bed file")
@@ -118,31 +103,51 @@ public class SamInversions extends Launcher
 	private int min_mapq = 30;
 	@Parameter(names={"--control","--controls"},description="BAM/CRAM file that can be used as a control. I discordand reads are found in any control, the candidate inversion is rejected. A file with the '.list' suffix is interpreted as a file containing the path to the bam files.")
 	private Path controlFiles = null;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
-
 	
-	private static class BreakEnd {
-		int count_same_strand_paired_reads=0;
-		int count_split_reads=0;
-		int start;
-		int end;
-		double mean_depth=0;
-		double mean_qual = 0;
-		boolean isValid() {
-			return false;
+	private class LookForwardIterator extends AbstractCloseableIterator<SAMRecord> {
+		private final List<SAMRecord> buffer = new ArrayList<>(100_000);
+		final CloseableIterator<SAMRecord> delegate;
+		LookForwardIterator(final CloseableIterator<SAMRecord> delegate) {
+			this.delegate = delegate;
+			}
+		@Override
+		public SAMRecord peek() {
+			return at(0);
+			}
+		
+		
+		SAMRecord at(int i) {
+			while(i>=this.buffer.size() && delegate.hasNext()) {
+				final SAMRecord rec = delegate.next();
+				if(!SAMRecordDefaultFilter.accept(rec)) continue;
+				this.buffer.add(rec);
+				}
+			return i<this.buffer.size()?buffer.get(i):null;
+			}
+		@Override
+		protected SAMRecord advance() {
+			if(!buffer.isEmpty()) {
+				return buffer.remove(0);
+				}
+			while(delegate.hasNext()) {
+				final SAMRecord rec = delegate.next();
+				if(!SAMRecordDefaultFilter.accept(rec)) continue;
+				return rec;
+				}
+			return null;
+			}
+		@Override
+		public void close() {
+			delegate.close();
+			this.buffer.clear();
 			}
 		}
 	
+	
 	private static class Event {
-		int end_position = 0;
-		BreakEnd bnd1=null;
-		BreakEnd bnd2=null;
-		boolean found_in_controls;
-		boolean isValid() {
-			
-			return !found_in_controls &&  bnd1!=null && bnd2!=null && bnd1.isValid() && bnd2.isValid();
-		}
+		int start;
+		int end;
+		
 	}
 	
 	private Path findReferenceForBam(final Path bamPath) {
@@ -259,101 +264,107 @@ public class SamInversions extends Launcher
 	
 	
 	
-	private Event challenge(final SamReader sr,SAMRecord rec1,Predicate<Locatable> accept,List<SamReader> controls) {
-		final Event evt=new Event();
-		evt.end_position= rec1.getStart();
+	private Event challenge(final LookForwardIterator srcIter,final SamReader sr,SAMRecord rec1,Predicate<Locatable> accept,List<SamReader> controls) {
+		int idx=0;
+		final int min_clip_size = 10;
+
+		/* for reads for breakend 1 */
+		List<SAMRecord> reads = new ArrayList<SAMRecord>(this.max_distance*50);
+		reads.add(rec1);
+		for(;;) {
+			final SAMRecord reci = srcIter.at(idx);
+			if(reci==null || !rec1.contigsMatch(reci)) break;
+			if(!reci.withinDistanceOf(rec1, this.max_distance)) break;
+			reads.add(reci);
+			idx++;
+			}
 		
-		final Locatable interval1 = new SimpleInterval(rec1.getContig(),rec1.getStart(),rec1.getStart()+this.max_distance);
+		List<SAMRecord> suppl_reads = new ArrayList<SAMRecord>();
+		List<SAMRecord> split_reads = new ArrayList<SAMRecord>();
+		
+		for(SAMRecord rec: reads) {
+			if(!SAMRecordDefaultFilter.accept(rec)) continue;
+			if(rec.getReadNegativeStrandFlag()) continue;
+			if(!rec.getCigar().isRightClipped()) // expect a clip
+			if(rec.getCigar().getLastCigarElement().getLength()< min_clip_size) continue;
+			if(!CoordMath.overlaps(
+				rec.getStart(), rec.getEnd(),
+				rec1.getStart(), rec1.getMateAlignmentStart())) continue;
+			boolean has_suppl_read=false;
+			for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec)) {
+				if(!suppl.contigsMatch(rec1)) continue;
+				if(!suppl.getReadNegativeStrandFlag()) continue;
+				if(suppl.getStart() < rec1.getMateAlignmentStart()) continue;//we expect a 2nd break-end AFTER the mate
+				suppl_reads.add(suppl);
+				has_suppl_read=true;
+				}
+			if(has_suppl_read) {
+				split_reads.add(rec1);
+				}
+			}
+		
+		final int min_reads = 5;
+		if(split_reads.size() < min_reads) {
+			return null;
+			}
+		
+		if(suppl_reads.size() < min_reads) {
+			return null;
+			}
+		
+		final Event evt=new Event();
+		evt.start = (int) new Median().evaluate(
+				split_reads.stream().mapToDouble(R->R.getEnd()).sorted().toArray()
+				);
+		
+		
+		
 		final Locatable mateInterval = new SimpleInterval(
 				rec1.getContig(),
-				Math.max(rec1.getStart(), rec1.getMateAlignmentStart()-this.max_distance),
-				BAMUtils.getMateEnd(rec1)+this.max_distance
+				suppl_reads.stream().mapToInt(R->R.getStart()).min().getAsInt(),
+				suppl_reads.stream().mapToInt(R->R.getEnd()).max().getAsInt()
 				);
-		
-		List<SAMRecord> reads = getReads(sr, interval1,null);
-		
-		List<SAMRecord> rr_ff_reads= reads.stream()
-			.filter(R->is_FF_or_RR_read(R))
-			.filter(R->!R.getReadNegativeStrandFlag())
-			.filter(R->CoordMath.overlaps(R.getMateAlignmentStart(),BAMUtils.getMateEnd(R), mateInterval.getStart(), mateInterval.getEnd()))
-			.collect(Collectors.toList())
-			;
-		
-		evt.bnd1=new BreakEnd();
-		evt.bnd1.count_same_strand_paired_reads =rr_ff_reads.size();
-		evt.bnd1.start = (int) new Median().evaluate(
-				rr_ff_reads.stream().mapToDouble(R->R.getStart()).sorted().toArray()
-				);
-		evt.bnd1.end = (int) new Median().evaluate(
-				rr_ff_reads.stream().mapToDouble(R->R.getEnd()).sorted().toArray()
-				);
-		
-		if(evt.bnd1.start > evt.bnd1.end) {
-			int x= evt.bnd1.start;
-			evt.bnd1.start = evt.bnd1.end;
-			evt.bnd1.end = x;
+		if(mateInterval.getLengthOnReference()> this.max_distance) {
+			return null;
 			}
 		
-		List<SAMRecord> split_reads = reads.stream()
-				.filter(R->SAMRecordDefaultFilter.accept(R))
-				.filter(R->!R.getReadNegativeStrandFlag())
-				.filter(R->R.getCigar().isRightClipped())
-				.flatMap(R->SAMUtils.getOtherCanonicalAlignments(R).stream())
-				.filter(suppl->suppl.contigsMatch(rec1))
-				.filter(suppl->rec1.getReadNegativeStrandFlag()!= suppl.getReadNegativeStrandFlag())
-				.filter(suppl->CoordMath.overlaps(suppl.getStart(), suppl.getEnd(), mateInterval.getStart(), mateInterval.getEnd()))
-				.collect(Collectors.toList())
-				;
 		
-		evt.bnd1.count_split_reads = split_reads.size();
-		evt.bnd1.mean_depth =  meanDepth(reads, evt.bnd1.start,evt.bnd1.end);
-		evt.bnd1.mean_qual =  meanMAPQ(reads, evt.bnd1.start,evt.bnd1.end).orElse(0.0);
+		reads = getReads(sr, mateInterval, null);
 		
-		evt.bnd2=new BreakEnd();
+		suppl_reads.clear();
+		split_reads.clear();
 		
-		
-		reads = getReads(sr, mateInterval,null);
-		
-		rr_ff_reads= reads.stream()
-			.filter(R->is_FF_or_RR_read(R))
-			.filter(R->R.getReadNegativeStrandFlag())
-			.filter(R->CoordMath.overlaps(R.getMateAlignmentStart(),BAMUtils.getMateEnd(R), interval1.getStart(), interval1.getEnd()))
-			.collect(Collectors.toList())
-			;
-		
-		evt.bnd2.count_same_strand_paired_reads =rr_ff_reads.size();
-
-		evt.bnd2.start = (int) new Median().evaluate(
-				rr_ff_reads.stream().mapToDouble(R->R.getStart()).sorted().toArray()
-				);
-		evt.bnd2.end = (int) new Median().evaluate(
-				rr_ff_reads.stream().mapToDouble(R->R.getEnd()).sorted().toArray()
-				);
-		
-		if(evt.bnd2.start > evt.bnd2.end) {
-			int x= evt.bnd2.start;
-			evt.bnd2.start = evt.bnd2.end;
-			evt.bnd2.end = x;
+		for(SAMRecord rec: reads) {
+			if(!SAMRecordDefaultFilter.accept(rec)) continue;
+			if(!rec.getReadNegativeStrandFlag()) continue;
+			if(!rec.getCigar().isLeftClipped()) // expect a clip
+			if(rec.getCigar().getFirstCigarElement().getLength()< min_clip_size) continue;
+			if(!CoordMath.overlaps(
+				rec.getStart(), rec.getEnd(),
+				rec1.getStart(), BAMUtils.getMateEnd(rec1))) continue;
+			boolean has_suppl_read=false;
+			for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec)) {
+				if(!suppl.contigsMatch(rec1)) continue;
+				if(suppl.getReadNegativeStrandFlag()) continue;
+				if(suppl.getStart() > rec1.getEnd()) continue;//we expect a 2nd break-end AFTER the mate
+				suppl_reads.add(suppl);
+				has_suppl_read=true;
+				}
+			if(has_suppl_read) {
+				split_reads.add(rec1);
+				}
 			}
 		
-		evt.bnd2.mean_depth =  meanDepth(reads, evt.bnd2.start,evt.bnd2.end);
-		evt.bnd2.mean_qual =  meanMAPQ(reads, evt.bnd2.start,evt.bnd2.end).orElse(0.0);
-
+		if(split_reads.size() < min_reads) {
+			return null;
+			}
 		
-		split_reads = reads.stream()
-				.filter(R->SAMRecordDefaultFilter.accept(R))
-				.filter(R->R.getReadNegativeStrandFlag())
-				.filter(R->R.getCigar().isLeftClipped())
-				.flatMap(R->SAMUtils.getOtherCanonicalAlignments(R).stream())
-				.filter(suppl->suppl.contigsMatch(rec1))
-				.filter(suppl->rec1.getReadNegativeStrandFlag()!= suppl.getReadNegativeStrandFlag())
-				.filter(suppl->CoordMath.overlaps(suppl.getStart(), suppl.getEnd(), interval1.getStart(), interval1.getEnd()))
-				.collect(Collectors.toList())
-				;
-		
-		evt.bnd2.count_split_reads = split_reads.size();
-		
-		evt.found_in_controls = discordantFoundInControl(controls,interval1,mateInterval);
+		if(suppl_reads.size() < min_reads) {
+			return null;
+			}
+		evt.end = (int) new Median().evaluate(
+				split_reads.stream().mapToDouble(R->R.getStart()).sorted().toArray()
+				);
 		
 		return evt;
 		}
@@ -365,7 +376,6 @@ public class SamInversions extends Launcher
 		if(!rec.getReferenceIndex().equals(rec.getMateReferenceIndex()))return false;
 		// we expect different strand for read and mate
 		if(rec.getReadNegativeStrandFlag() != rec.getMateNegativeStrandFlag()) return false;
-
 		return true;
 		}
 	
@@ -378,8 +388,6 @@ public class SamInversions extends Launcher
 			return -1;
 			}
 		try {
-			final Allele REF = Allele.create("N", true);
-			final Allele INV = Allele.create("<INV>", false);
 			final String input = oneAndOnlyOneFile(args);
 			final Path inputBam = Paths.get(input);
 			final Path referenceFaidx = findReferenceForBam(inputBam);
@@ -425,30 +433,12 @@ public class SamInversions extends Launcher
 					
 					//open a second reader to fetch the mate
 					try(SamReader samReader2= srf.referenceSequence(referenceFaidx).open(inputBam)) {
-						try(VariantContextWriter vcw = this.writingVariants.open(this.outputFile)) {
-
-							final Set<VCFHeaderLine> meta=new HashSet<>();
-							VCFStandardHeaderLines.addStandardFormatLines(meta,true,
-									VCFConstants.GENOTYPE_KEY,
-									VCFConstants.DEPTH_KEY
-									
-									);
-							VCFStandardHeaderLines.addStandardInfoLines(meta,true,
-									VCFConstants.DEPTH_KEY,
-									VCFConstants.END_KEY
-									);
-							meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
-							meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
-							
-							final VCFHeader header=new VCFHeader(meta,Collections.singleton(sampleName));
-							JVarkitVersion.getInstance().addMetaData(this, header);
-
-							header.setSequenceDictionary(dict);
-							vcw.writeHeader(header);
-	
+						try(JsonWriter js = new JsonWriter(super.openPathOrStdoutAsPrintWriter(this.outputFile))) {
+							js.setIndent(" ");
+							js.beginArray();
 							
 							/** loop over eall reads */
-							try(PeekableIterator<SAMRecord> iter1= new PeekableIterator<>( makeIterator(samReader1))) {
+							try(LookForwardIterator iter1= new LookForwardIterator( makeIterator(samReader1))) {
 								while(iter1.hasNext()) {
 									final SAMRecord rec1 = iter1.next();
 									if(!SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) {
@@ -457,26 +447,42 @@ public class SamInversions extends Launcher
 									if(rec1.getReadNegativeStrandFlag()) continue;//we expect forward when scanning from 5' to 3'
 									if(!is_FF_or_RR_read(rec1)) continue;
 									
-									final Event event = challenge(samReader2,rec1,accept_reads,control_readers);
+									final Event event = challenge(iter1,samReader2,rec1,accept_reads,control_readers);
 									
-									if(event.isValid()) {
-										//TODO
-									}
-									
-									
-									while(iter1.hasNext()) {
-										final SAMRecord rec2 = iter1.peek();
-										if(!rec2.contigsMatch(rec1)) break;
-										if(rec2.getStart() >= event.end_position) break;
-										iter1.next();//consumme	
+									if(event!=null ) {
+										js.beginObject();
+										js.name("bam");js.value(String.valueOf(inputBam));
+										js.name("fasta");js.value(String.valueOf(referenceFaidx));
+										js.name("build");js.value(build);
+										js.name("sample");js.value(sampleName);
+										js.name("chromosome");js.value(rec1.getContig());
+										js.name("start");js.value(event.start);
+										js.name("end");js.value(event.end);
+										final Optional<String> href= hyperlink.apply(rec1.getContig(),event.start,event.end);
+										if(href.isPresent()) {
+											js.name("href");js.value(href.get());
+											}
+										js.beginObject();
+										
+										/* consumme remaining data */
+										while(iter1.hasNext()) {
+											final SAMRecord rec2 = iter1.peek();
+											if(rec2==null) break;
+											if(!rec2.contigsMatch(rec1)) break;
+											if(rec2.getStart()> event.start) break;
+											iter1.next();//consumme
+											}
 										}
+									
+									
 									
 									
 									}
 								}
 							
 							
-							
+							js.endArray();
+							js.flush();
 							}//end vcw
 						} // end cram2
 					} //end cram1

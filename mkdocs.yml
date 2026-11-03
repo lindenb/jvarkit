@@ -225,6 +225,7 @@ nav:
         - "samjdk" : SamJdk.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samslop" : SamSlop.md
+        - "samtransloc" : SamTranslocations.md
         - "samviewwithmate" : SamViewWithMate.md
         - "scanlabguru" : ScanLabGuru.md
         - "scanretrocopy" : ScanRetroCopy.md

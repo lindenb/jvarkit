@@ -127,6 +127,7 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
   * Feyza Yilmaz et al. , Reconstruction of the human amylase locus reveals ancient duplications seeding modern-day variation.Science0,eadn0609DOI:10.1126/science.adn0609
   * Yang, F., Ling, S., Yang, R., Wen, F., Gu, W., Hu, X., Lin, L., Wang, Y., Cai, J., Ren, M., Moller, M. and Cai, L. (2025), Phylogenomic reconstruction reveals deep reticulate evolutionary history and polyphyletic genus (Boeica) in the subtribe Leptoboeinae (Gesneriaceae), with description of a novel genus. Cladistics. https://doi.org/10.1111/cla.70010
   * Garcia-Marin, A.M., Torres-Puente, M., Martinez-Priego, L. et al. Complete genomes reveal a refined map of Mycobacterium tuberculosis genetic diversity across evolutionary scales. Nat Commun (2026). https://doi.org/10.1038/s41467-026-73869-5
+  * Abebe, A.M.; Choi, Y.; Park, S.R.; Lyu, J.I.; Cho, Y.; Kang, S.-H. Phylogenetic Assessment of Senna tora and Senna obtusifolia Using Chloroplast Genome and 45S nrDNA Sequences. Genes 2026, 17, 1343. https://doi.org/10.3390/genes17111343
 
 ## Example
 

@@ -471,7 +471,6 @@ public class SamTranslocations extends Launcher {
 				rec.getMateAlignmentStart()+ rec.getReadLength()+ this.fuzzy_distance
 				);
 		
-		
 		if(discordantFoundInControl(controls, rec, mate)) {
 			return evt;
 			}
@@ -482,7 +481,7 @@ public class SamTranslocations extends Launcher {
 		reads_contig = getReads(sr,mate,null);
 		evt.bnd2 = makeBreakEnd(reads_contig , mate, loc);
 		
-		evt.end_position=evt.bnd1.end;
+		evt.end_position = Math.max( evt.bnd1.end,rec.getAlignmentEnd())+1;
 		return evt;
 		}
 	
@@ -642,13 +641,29 @@ public class SamTranslocations extends Launcher {
 										
 										j.endObject();
 										j.flush();
-									
+										
+										
 										while(iter1.hasNext()) {
 											final SAMRecord rec2 = iter1.peek();
+											if(rec2.getReadUnmappedFlag()) {
+												iter1.next();
+												continue;
+												}
+											
 											if(!rec2.contigsMatch(rec)) break;
-											if(rec2.getStart() >= event.end_position) break;
+											
+											if(rec2.getReadNegativeStrandFlag()) {
+												iter1.next();
+												continue;
+												}
+											
+											if(rec2.getStart() > event.end_position) {
+												break;
+												}
+
 											iter1.next();//consumme	
 											}
+										
 										}
 									}
 								j.endArray();

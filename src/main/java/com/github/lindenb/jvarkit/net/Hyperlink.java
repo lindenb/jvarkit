@@ -31,6 +31,7 @@ import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.igv.IgvConstants;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;
@@ -103,6 +104,10 @@ public interface Hyperlink extends Function<Locatable,Optional<String>> {
 		return false;
 		}
 
+	/** convert from contig/start/end */
+	public default Optional<String> apply(final String ctg,int start,int end) {
+		return apply(new SimpleInterval(ctg, start, end));
+		}
 	
 	/** return defaultHyperlink, always return a null url */
 	public static Hyperlink empty() {
