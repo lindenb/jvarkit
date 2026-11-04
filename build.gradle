@@ -1838,6 +1838,10 @@ all2.add( task("jeter22", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	});
 
+all.add( task("jeter23", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.igvserver.IGVServer"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","jetty")
+	});
  
 /** bottom task */
 

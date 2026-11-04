@@ -9,6 +9,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.xml.DocumentWrapper;
@@ -258,6 +259,41 @@ public class HTMLDocument extends DocumentWrapper {
 	public Element header(int level) {
 		return element("h"+level);
 		}
+	
+	public Element ol() {
+		return element("ol");
+		}
+	public Element ul() {
+		return element("ul");
+		}
+	public Element li() {
+		return element("li");
+		}
+	
+	public Element input() {
+		return element("input");
+		}
+	
+	public Element label(Object content) {
+		return element("label",content,null);
+		}
+	public Element label() {
+		return label(null);
+		}
+	
+	public Element script() {
+		return element("script");
+		}
+	public Element scriptUrl(final String url) {
+		final Element e=script();
+		if(!StringUtils.isBlank(url)) {
+			e.setAttribute("src", url);
+			e.appendChild(text(""));
+			}
+		return e;
+		}
+
+	
 	
 	public Element h1() { return header(1); }
 	public Element h1(Object content) { return element("h1",content,null); }

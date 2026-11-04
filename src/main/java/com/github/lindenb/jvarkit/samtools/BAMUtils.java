@@ -59,7 +59,6 @@ public static Set<String> getSampleNames(final SAMFileHeader hdr) {
 			.collect(Collectors.toSet());
 	}
 
-
 /** get mate end position or mate-start, */
 public static int getMateEnd(final SAMRecord rec0) {
 	if(!rec0.getReadPairedFlag() || rec0.getMateUnmappedFlag()) {
@@ -69,4 +68,5 @@ public static int getMateEnd(final SAMRecord rec0) {
     		SAMUtils.getMateAlignmentEnd(rec0):
     		rec0.getMateAlignmentStart();
     }
+
 }

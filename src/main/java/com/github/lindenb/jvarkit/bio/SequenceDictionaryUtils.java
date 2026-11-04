@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -306,5 +308,21 @@ public static Map<String,Long> makeContigToIndexMap(final SAMSequenceDictionary 
 		}
 	return hash;
 	}
+
+
+/** for a given file with a dictionary, find the matching fasta reference */
+public static Optional<Path> findReferenceForBam(final Path source, final Collection<Path> fasta_files) {
+	if(!fasta_files.isEmpty()) {
+		final SAMSequenceDictionary dict = extractRequired(source);
+		for(final Path ref: fasta_files) {
+			final SAMSequenceDictionary dict2 = SequenceDictionaryUtils.extractRequired(ref);
+			if(SequenceUtil.areSequenceDictionariesEqual(dict, dict2)) {
+				return Optional.of(ref);
+				}
+			}
+		}
+	return Optional.empty();
+	}
+
 
 }

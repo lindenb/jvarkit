@@ -32,6 +32,7 @@ public static final ContentType TEXT_PLAIN = of("text/pain");
 public static final ContentType TEXT_HTML = of("text/html");
 public static final ContentType TEXT_XML = of("text/xml");
 public static final ContentType TEXT_CSS = of("text/css");
+public static final ContentType TEXT_XHTML = of("application/xhtml+xml");
 public static final ContentType TEXT_JAVASCRIPT = of("text/javascript");
 public static final ContentType IMAGE_SVG = of("image/svg+xml");
 public static final ContentType APPLICATION_JSON = of("application/json");
@@ -39,9 +40,11 @@ public static final ContentType APPLICATION_OCTECT_STREAM = of("application/octe
 public static final ContentType APPLICATION_ZIP = of("application/zip");
 public static final ContentType APPLICATION_PDF = of("application/pdf");
 
+
 public static Optional<ContentType> fromSuffix(String filename) {
 	filename = filename.toLowerCase();
 	if(filename.endsWith(".html")) return Optional.of(TEXT_HTML);
+	if(filename.endsWith(".xhtml")) return Optional.of(TEXT_XHTML);
 	if(filename.endsWith(".txt")) return Optional.of(TEXT_PLAIN);
 	if(filename.endsWith(".json")) return Optional.of(APPLICATION_JSON);
 	if(filename.endsWith(".xml")) return Optional.of(TEXT_XML);

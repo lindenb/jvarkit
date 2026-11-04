@@ -151,14 +151,8 @@ public class SamInversions extends Launcher
 	}
 	
 	private Path findReferenceForBam(final Path bamPath) {
-		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(bamPath);
-		for(final Path ref: this.faidx_list) {
-			final SAMSequenceDictionary dict2 = SequenceDictionaryUtils.extractRequired(ref);
-			if(SequenceUtil.areSequenceDictionariesEqual(dict, dict2)) {
-				return ref;
-				}
-			}
-		throw new IllegalArgumentException("Cannot find REFerence for "+bamPath+".");
+		final Optional<Path> optFasta= SequenceDictionaryUtils.findReferenceForBam(bamPath, faidx_list);
+		return optFasta.orElseThrow(()-> new IllegalArgumentException("Cannot find REFerence for "+bamPath+"."));
 		}
 	
 	/** get avg depth in the interval */

@@ -30,9 +30,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -119,8 +119,6 @@ public class SamTranslocations extends Launcher {
 	private int min_mapq = 30;
 	@Parameter(names={"--control","--controls"},description="BAM/CRAM file that can be used as a control. I discordand reads are found in any control, the candidate transloc is rejected. A file with the '.list' suffix is interpreted as a file containing the path to the bam files.")
 	private Path controlFiles = null;
-
-	
 	
 	/** open iterator for main SamReader */
 	private CloseableIterator<SAMRecord> makeIterator(final SamReader sr) {
@@ -514,14 +512,8 @@ public class SamTranslocations extends Launcher {
 	
 	
 	private Path findReferenceForBam(final Path bamPath) {
-		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(bamPath);
-		for(final Path ref: this.faidx_list) {
-			final SAMSequenceDictionary dict2 = SequenceDictionaryUtils.extractRequired(ref);
-			if(SequenceUtil.areSequenceDictionariesEqual(dict, dict2)) {
-				return ref;
-				}
-			}
-		throw new IllegalArgumentException("Cannot find REFerence for "+bamPath+".");
+		final Optional<Path> optFasta= SequenceDictionaryUtils.findReferenceForBam(bamPath, faidx_list);
+		return optFasta.orElseThrow(()-> new IllegalArgumentException("Cannot find REFerence for "+bamPath+"."));
 		}
 	
 	@Override
