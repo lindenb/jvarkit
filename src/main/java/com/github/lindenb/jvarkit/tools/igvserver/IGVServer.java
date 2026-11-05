@@ -28,20 +28,25 @@ package com.github.lindenb.jvarkit.tools.igvserver;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -50,47 +55,75 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.BooleanUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
+import com.github.lindenb.jvarkit.net.UrlSupplier.LabelledUrl;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
-import com.github.lindenb.jvarkit.util.Maps;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 
 /**
 BEGIN_DOC
 
+## Input
+
+input is a set of bam/vcf/cram/fasta file. A fasta file compatible with the bam/vcf is required.
+
+
+## Example:
+
+```
+ $ java -jar dist/jvarkit.jar igvserver --bed roi.bed src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam src/test/resources/rotavirus_rf.vcf.gz
+ $ java -jar dist/jvarkit.jar igvserver igv_sessions1.xml igv_sessions2.xml 
+ 
+$ find /path/to -type  f -name "*.cram" -o -name "*.fa" > input.list
+$ java -jar dist/jvarkit.jar igvserver input.list 
+ 
+```
 
 
 END_DOC
  */
 @Program(
 		name="igvserver",
-		description="Web Server displaying SAM/BAM file. A web interface for jvarkit:tview",
+		description="Web Server displaying SAM/BAM/VCF file and using the IGV.js API. ",
 		keywords={"sam","bam","table","visualization","server","web"},
 		creationDate = "20261104",
-		modificationDate = "20261104"
+		modificationDate = "20261104",
+		jvarkit_amalgamion = true,
+		generate_doc = true
 		)
 public class IGVServer extends Launcher {
 		private static final Logger LOG=Logger.of(IGVServer.class);
 		private static final String STATIC_PATH="static";
 		private static final String PARAM_INTERVAL="interval";
-		private static final String PARAM_SHOW_SOFT_CLIP="ssc";
-		private static final String PARAM_SHOW_INSERTIONS="si";
+		private static final String PARAM_TRACK_HEIGHT="th";
+		private static final int MIN_TRACK_HEIGHT = 100;
+		private static boolean FIRST_CALL=true;
 		private static int ID_GENERATOR=0;
 		@Parameter(names={"-P","--port","-port"},description="Server listening port")
 		private int port=8080;	
@@ -98,17 +131,76 @@ public class IGVServer extends Launcher {
 		private String igv_js_url = "https://cdn.jsdelivr.net/npm/igv@3.8.10/dist/igv.min.js";
 		@Parameter(names={"--shutdown-after"},description="Stop the server after 'x' seconds.")
 		private long shutdownAferSeconds=-1L;
+		@Parameter(names={"--bed","--roi"},description="Bed of regions of interest displated as a html 'select' item")
+		private Path roiBedPath=null;
 
+		
+		private static class ConfigParam {
+			final String id;
+			final String name;
+			final String label;
+			ConfigParam(final String id,final String name, final String label) {
+				this.id=id;
+				this.label=label;
+				this.name=name;
+				}
+			}
 
-		public static class MyServlet extends HttpServlet {
+		
+		private static class ConfigFlag extends ConfigParam {
+			final boolean def;
+			ConfigFlag(final String id,final String name, final String label,boolean def) {
+				super(id,name,label);
+				this.def = def;
+				}
+			}
+
+		private static final List<ConfigFlag> CONFIG_FLAGS= Arrays.asList(
+				new ConfigFlag("showcov"," showCoverage"," Show coverage depth track. ",true),
+				new ConfigFlag("showaln"," showAlignments"," Show individual alignments. ",true),
+				new ConfigFlag("aspair"," viewAsPairs"," If true, paired reads are drawn connected with a line. ",false),
+				new ConfigFlag("pairsupp"," pairsSupported"," If false, mate information in paired reads is ignored during downsampling and the 'View as Pairs' option is removed from the alignment track menu.",false),
+				new ConfigFlag("softclip"," showSoftClips"," Show soft-clipped regions ",true),
+				new ConfigFlag("mismatches"," showMismatches"," Highlight alignment bases which do not match the reference. ",true),
+				new ConfigFlag("allbases"," showAllBases"," Show all bases of the read sequence. ",false),
+				new ConfigFlag("instxt"," showInsertionText"," Show number of bases for insertions inline when zoomed in. ",true),
+				new ConfigFlag("deltxt"," showDeletionText"," Show number of bases deleted inline when zoomed in. ",true),
+				new ConfigFlag("qcfail"," vendorFailed"," filter alignments marked as failing vendor quality checks (bit 0x200) ",true),
+				new ConfigFlag("dups"," duplicates"," filter alignments marked as a duplicate (bit 0x400) ",true),
+				new ConfigFlag("second"," secondary"," filter alignments marked secondary (bit 0x100) ",false),
+				new ConfigFlag("suppl"," supplementary"," filter alignments marked as supplmentary (bit 0x800) ",false)
+				);
+
+		
+		private static class ConfigEnum extends ConfigParam {
+			private final List<String> values;
+			ConfigEnum(final String id,final String name, final String label,String values) {
+				super(id,name,label);
+				this.values = Arrays.asList(CharSplitter.COMMA.split(values));
+				}
+			}
+		
+		private static final List<ConfigEnum> CONFIG_ENUMS= Arrays.asList(
+				new ConfigEnum("cb","colorBy","Color alignment by property","none,strand,firstOfPairStrand,pairOrientation,tlen,unexpectedPair,tag:YC"),
+				new ConfigEnum("gb","groupBy","Group alignments by property","none,strand,firstOfPairStrand,pairOrientation,mateChr,chimeric,supplementary,readOrder"),
+				new ConfigEnum("dm","displayMode","Display Mode","EXPANDED,SQUISHED,FULL")
+			);
+
+		
+		public static class IGVServlet extends HttpServlet {
 			private static final long serialVersionUID = 1L;
 			private final List<LocalFile> htsFiles;
 			private final String igv_js_url;
-			MyServlet(
+			private final List<Interval> roi_interval;
+
+			IGVServlet(
 					String igv_js_url,
-					List<LocalFile> htsFiles) {
+					List<LocalFile> htsFiles,
+					List<Interval> roi_interval
+					) {
 				this.igv_js_url=igv_js_url;
 				this.htsFiles = Collections.unmodifiableList(htsFiles);
+				this.roi_interval = Collections.unmodifiableList(roi_interval);
 				}
 			
 			private final boolean parseBoolean(String s) {
@@ -119,48 +211,97 @@ public class IGVServer extends Launcher {
 				return STATIC_PATH+ path.toAbsolutePath().toString();
 				}
 			
-			private String toBamTrack(LocalFile bam,Map<String, Object> params) {
-				return new StringBuilder("{")
-					.append("type:\"alignment\",format:\"")
-					.append(bam.hasSuffix(FileExtensions.BAM)?"bam":"cram")
-					.append("\",url:\"")
-					.append("/"+resolveStatic(bam.path))
-					.append("\",indexURL:\"")
-					.append("/"+resolveStatic(bam.index.path))
-					.append("\",name:\"")
-					.append(bam.getName())
-					.append("\",height:")
-					.append(params.getOrDefault("height",600))
-					.append(",showSoftClips:")
-					.append(parseBoolean(String.valueOf(params.getOrDefault(PARAM_SHOW_SOFT_CLIP,true))))
-					.append(",showInsertions:")
-					.append(parseBoolean(String.valueOf(params.getOrDefault(PARAM_SHOW_INSERTIONS,true))))
-					.append("}")
-					.toString();
+			private String toBamTrack(LocalFile bam,int height,
+					final Map<String,Boolean> configFlags,
+					final Map<String,String> configEnums
+					) {
+				final StringBuilder sb= new StringBuilder("{");
+				if(bam.isBamOrCram()) {
+					sb
+						.append("type:\"alignment\",format:\"")
+						.append(bam.hasSuffix(FileExtensions.BAM)?"bam":"cram")
+						.append("\",url:\"")
+						.append("/"+resolveStatic(bam.path))
+						.append("\",indexURL:\"")
+						.append("/"+resolveStatic(bam.index.path))
+						.append("\",name:\"")
+						.append(bam.getName())
+						.append("\",height:")
+						.append(Math.max(height, MIN_TRACK_HEIGHT))
+						;
+					}
+				else if(bam.isVcf()) {
+					sb
+						.append("type:\"variant\",format:\"vcf\",")
+						.append("url:\"")
+						.append("/"+resolveStatic(bam.path))
+						.append("\",indexURL:\"")
+						.append("/"+resolveStatic(bam.index.path))
+						.append("\",name:\"")
+						.append(bam.getName())
+						.append("\"")
+						;
+					}
+				for(final String k: configFlags.keySet()) {
+					sb.append(",").append(k).append(":").append(configFlags.get(k));
+					}
+			
+				for(final String k: configEnums.keySet()) {
+					sb.append(",").append(k).append(":\"").append(configEnums.get(k)).append("\"");
+					}
+				
+				return sb.append("}").toString();
 				}
 			
+			private Locatable  parseInterval(final SAMSequenceDictionary dict, String interval_str) {
+				if(StringUtils.isBlank(interval_str)) return null;
+				interval_str=interval_str.replaceAll(",", "");
+				if(StringUtils.isBlank(interval_str)) return null;
+				String[] tokens= interval_str.split("\\s+");
+				if(tokens.length==3 && StringUtils.isInteger(tokens[1]) && StringUtils.isInteger(tokens[2])) {
+					parseInterval(dict,tokens[0]+":"+tokens[1]+"-"+tokens[2]);
+					}
+				if(tokens.length==2 && StringUtils.isInteger(tokens[1])) {
+					parseInterval(dict,tokens[0]+":"+tokens[1]+"-"+tokens[1]);
+					}
+						
+				return new IntervalParser(dict).apply(interval_str).orElse(null);
+				}
+			
+			private String toString(Locatable l) {
+				return l.getContig()+":"+l.getStart()+"-"+l.getEnd();
+				}
 			
 			@Override
 			protected void service(final HttpServletRequest req, HttpServletResponse resp)
 					throws ServletException, IOException {
 				final Set<LocalFile> selected=new HashSet<>();
+				final Map<String,Boolean> configFlags = new HashMap<String, Boolean>(CONFIG_FLAGS.size());
+				final Map<String,String> configEnums = new HashMap<String,String>(CONFIG_ENUMS.size());
+				final String interval_str = StringUtils.ifBlank(req.getParameter(PARAM_INTERVAL),
+						this.roi_interval.isEmpty()?
+						"":
+						toString(this.roi_interval.get(0))
+						);
+				for(ConfigFlag flag: CONFIG_FLAGS) {
+					configFlags.put(flag.name, FIRST_CALL?flag.def: parseBoolean(req.getParameter(flag.id)));
+					}
+				for(ConfigEnum cfg: CONFIG_ENUMS) {
+					configEnums.put(cfg.name, FIRST_CALL?cfg.values.get(0): StringUtils.ifBlank(req.getParameter(cfg.id),cfg.values.get(0)));
+					}
 				
-				final String interval_str = StringUtils.ifBlank(req.getParameter(PARAM_INTERVAL),"");
-				final boolean show_soft_clips = parseBoolean(req.getParameter(PARAM_SHOW_SOFT_CLIP));
-				final boolean show_soft_insertions = parseBoolean(req.getParameter(PARAM_SHOW_INSERTIONS));
+				final int track_height = Math.max(StringUtils.parseInt(req.getParameter(PARAM_TRACK_HEIGHT)).orElse(0),MIN_TRACK_HEIGHT);
 				
 				for(LocalFile lf: this.htsFiles) {
-			        	if(!lf.isBamOrCram()) continue;
+			        	if(!lf.isBamOrCramOrVcf()) continue;
 			        	final String sel=req.getParameter("cb"+lf.id);
-			        	System.err.println("cb"+lf.id+"="+sel);
 			        	if(!StringUtils.isBlank(sel) && sel.matches("(true|1|yes)")) {
-			        		System.err.println("adding to sel "+selected);
 			        		selected.add(lf);
 			        		}
 				 		}
-				if(selected.isEmpty()) {
+				if(selected.isEmpty() && FIRST_CALL) {
 					for(LocalFile lf: this.htsFiles) {
-						if(!lf.isBamOrCram()) continue;
+						if(!lf.isBamOrCramOrVcf()) continue;
 						selected.add(lf);
 						break;
 						}
@@ -169,7 +310,6 @@ public class IGVServer extends Launcher {
 				for(LocalFile sel: selected) {
 					references.add(sel.reference);
 					}
-				System.err.println("selected "+selected);
 				
 				
 		         final String charset = StringUtils.ifBlank(req.getCharacterEncoding(), "UTF-8");
@@ -177,14 +317,25 @@ public class IGVServer extends Launcher {
 		         resp.setCharacterEncoding(charset);
 		         
 		         PrintWriter pw = resp.getWriter();
+		         pw.println("<!doctype html>");
     	         try {
     	             final XMLStreamWriter w=XMLOutputFactory.newFactory().createXMLStreamWriter(pw);
+    	             
     	             w.writeStartElement("html");
+    	             w.writeAttribute("xml:lang", "en");
+    	             w.writeAttribute("lang", "en");
+    	             
+    	             
     	             
     	             w.writeStartElement("head");
     	             
+    	             
     	             w.writeEmptyElement("meta");
     	             w.writeAttribute("charset", charset);
+    	             w.writeEmptyElement("meta");
+    	             w.writeAttribute("http-equiv", "author");
+    	             w.writeAttribute("content", "Pierre Lindenbaum");
+
     	             
     	             w.writeStartElement("title");
     	             w.writeCharacters(interval_str);
@@ -192,20 +343,77 @@ public class IGVServer extends Launcher {
 		    	     
     	             w.writeStartElement("script");
     	             w.writeAttribute("src",this.igv_js_url);
-    	             w.writeCharacters("");
     	             w.writeEndElement();//script
     	             
-    	             w.writeEndElement();//read
+    	             
+    	             w.writeCharacters("\n");
+    	             w.writeStartElement("script");
+    	             w.writeAttribute( "type","text/javascript");
+    	             w.writeCharacters("\nwindow.addEventListener('load', function() {\n"
+      	            		+ "  var sel =  document.getElementById(\"roi\");  console.log(sel);\n"
+     	            		+ "  var input1 =  document.getElementById(\""+PARAM_INTERVAL+"\"); console.log(input1);\n"
+     	            		+ "  var form1 =  document.getElementById(\"form\");  console.log(form1);\n"
+    	            		+ "  sel.addEventListener(\"change\", function(event2)  {if(sel.value){ input1.value=sel.value; form1.submit();} });\n"
+    	             		+ "});\n");
+    	             
+    	             
+    	             w.writeEndElement();//script
+    	             
+    	             
+    	             w.writeStartElement("style");
+
+                     w.writeCharacters(
+                             "body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
+                             + "h1 {text-align:center;color:#070707;}"
+                             + ".grid-container {display: grid; grid-template-columns: auto auto auto auto ;grid-gap: 10px;  padding: 10px;}"
+                             + ".comment {background-color:khaki;text-align:center;font-size:14px;}"
+                             + ".highlight {background-color:#DB7093;}"
+                             + ".message {color:red;}"
+                             + "span.small {font-size: smaller;}"
+                             );
+                     w.writeEndElement();//style
+    	             
+    	             w.writeEndElement();//head
     	             
     	             
     	             w.writeStartElement("body");
     	             w.writeStartElement("div");
+    	             
+    	             w.writeStartElement("h1");
+    	             w.writeCharacters(interval_str);
+    	             w.writeEndElement();//h1
+    	             
     	             w.writeStartElement("form");
+			         w.writeAttribute("id", "form");
     	             
     	             {
     	             w.writeStartElement("p");
-			        	
-    	             w.writeStartElement("label");
+    	             
+    	             if(!this.roi_interval.isEmpty()) {
+    	            	w.writeStartElement("label");
+			        	w.writeAttribute("for", "roi");
+			        	w.writeCharacters("ROI:");
+			        	w.writeEndElement();
+    	            	 
+    	            	w.writeStartElement("select");
+    	            	w.writeAttribute("id", "roi");
+			        	for(Interval roi: this.roi_interval) {
+			        		w.writeStartElement("option");
+			        		if(toString(roi).equals(interval_str)) {
+			        			w.writeAttribute("selected", "true");
+			        			}
+			        		w.writeAttribute("value", toString(roi));
+			        		w.writeCharacters(roi.getContig()+":"+StringUtils.niceInt(roi.getStart())+"-"+StringUtils.niceInt(roi.getEnd()));
+			        		w.writeEndElement();
+			        		}
+    	            	w.writeEndElement();
+    	            	
+			        	w.writeCharacters(" ");
+    	             } 
+    	             
+    	             
+			        // INTERVAL
+    	            w.writeStartElement("label");
 		        	w.writeAttribute("for", PARAM_INTERVAL);
 		        	w.writeCharacters("Interval:");
 		        	w.writeEndElement();
@@ -217,6 +425,74 @@ public class IGVServer extends Launcher {
 		        	w.writeAttribute("id", PARAM_INTERVAL);
 		        	w.writeAttribute("value",interval_str);
 		        	
+		        	
+		        	w.writeCharacters(" ");
+		        	
+		        	// TRACK HEIGHT
+		        	
+		        	w.writeStartElement("label");
+		        	w.writeAttribute("for", PARAM_TRACK_HEIGHT);
+		        	w.writeCharacters("Track Height:");
+		        	w.writeEndElement();	
+    	             
+		        	w.writeEmptyElement("input");
+		        	w.writeAttribute("type", "text");
+		        	w.writeAttribute("name", PARAM_TRACK_HEIGHT);
+		        	w.writeAttribute("id", PARAM_TRACK_HEIGHT);
+		        	w.writeAttribute("value",String.valueOf(track_height));
+		        	
+		        	w.writeCharacters(" ");
+		        	
+		        	for(ConfigFlag flag: CONFIG_FLAGS) {
+			        	w.writeStartElement("span");
+			        	w.writeAttribute("class", "small");
+
+			        	w.writeEmptyElement("input");
+			        	w.writeAttribute("type", "checkbox");
+			        	if((FIRST_CALL && flag.def) || parseBoolean(req.getParameter(flag.id))) w.writeAttribute("checked", "true");
+			        	w.writeAttribute("name", flag.id);
+			        	w.writeAttribute("id", flag.id);
+			        	w.writeAttribute("value", "1");
+			        	
+			        	w.writeStartElement("label");
+			        	w.writeAttribute("for",flag.id);
+			        	w.writeCharacters(flag.label);
+			        	w.writeEndElement();
+			        	
+			        	w.writeEndElement();//span
+			        	w.writeCharacters(" ");
+			        	}
+		        	
+		        	for(ConfigEnum flag: CONFIG_ENUMS) {
+			        	w.writeStartElement("span");
+			        	w.writeAttribute("class", "small");
+
+			        	
+			        	w.writeStartElement("label");
+			        	w.writeAttribute("for",flag.id);
+			        	w.writeCharacters(flag.label);
+			        	w.writeEndElement();
+			        	
+			        	
+			        	w.writeStartElement("select");
+			        	w.writeAttribute("name", flag.id);
+			        	w.writeAttribute("id", flag.id);
+			        	for(int x=0;x< flag.values.size();++x) {
+			        		w.writeStartElement("option");
+				        	if((x==0 && FIRST_CALL) || flag.values.get(x).equals(req.getParameter(flag.id))) w.writeAttribute("selected", "true");
+				        	w.writeCharacters(flag.values.get(x));
+				        	w.writeEndElement();//option
+			        		}
+			        	w.writeEndElement();//select
+			        	
+			        	w.writeEndElement();//span
+			        	w.writeCharacters(" ");
+			        	}
+
+		        	
+		        	
+		        	
+		        	w.writeCharacters(" ");
 		        	w.writeEmptyElement("input");
 		        	w.writeAttribute("type", "submit");
 		        	w.writeAttribute("value","Refresh");
@@ -229,14 +505,57 @@ public class IGVServer extends Launcher {
     	             
     	            for(LocalFile ref: references) {
     	            	w.writeStartElement("div");
-    	            	SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(ref.path);
-    	            	SimpleInterval region= new IntervalParser(dict).apply(interval_str).orElse(null);
-    	            	if(region!=null) {
+    	            	final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(ref.path);
+    	            	final Locatable region= parseInterval(dict,interval_str);//
+    	            	if(region==null) {
+    	            		if(!StringUtils.isBlank(interval_str)) {
+	    	            		w.writeStartElement("p");
+	    	            		w.writeAttribute("class", "message");
+	    	            		w.writeCharacters("cannot parse interval "+interval_str);
+	    	            		w.writeEndElement();
+	    	            		}
+    	            		}
+    	            	else {
     	            		w.writeStartElement("div");
     	            		w.writeAttribute("id", "ref"+ref.id);
     	            		w.writeEndElement();
     	            		
     	            	
+    	            		
+    	            		w.writeStartElement("div");
+    	            		w.writeStartElement("table");
+    	            		w.writeStartElement("tr");
+    	            		w.writeStartElement("th");
+    	            		w.writeCharacters("Database");
+    	            		w.writeEndElement();//th
+    	            		w.writeStartElement("th");
+    	            		w.writeCharacters("URL");
+    	            		w.writeEndElement();//th
+
+    	            		
+    	            		w.writeEndElement();//tr
+    	            		for(LabelledUrl url: new UrlSupplier(dict).of(region)) {
+    	            			w.writeStartElement("tr");
+    	            			
+    	            			w.writeStartElement("td");
+        	            		w.writeCharacters(url.getLabel());
+        	            		w.writeEndElement();//td
+        	            		
+    	            			w.writeStartElement("td");
+    	            			w.writeStartElement("a");
+        	            		w.writeAttribute("title", url.getLabel());
+        	            		w.writeAttribute("href", url.getUrl());
+        	            		w.writeAttribute("target", "_blank");
+        	            		w.writeCharacters(url.getUrl());
+        	            		w.writeEndElement();//a
+        	            		w.writeEndElement();//td
+
+        	            		
+    	            			w.writeEndElement();//tr
+    	            			}
+    	            		w.writeEndElement();//table
+    	            		w.writeEndElement();//div
+    	            		
 	    	            	w.writeStartElement("script");
 	    	            	w.writeCharacters("const options_"+ref.id+"={");
 	    	            	w.writeCharacters("reference:{");
@@ -245,35 +564,45 @@ public class IGVServer extends Launcher {
 	    	            	w.writeCharacters("fastaURL:\"/"+resolveStatic(ref.path) +"\",");
 	    	            	w.writeCharacters("indexURL:\"/"+resolveStatic(ref.index.path) +"\"");
 	    	            	w.writeCharacters("}");
-	    	            	w.writeCharacters(",locus:\""+region.toNiceString()+"\"");
+	    	            	w.writeCharacters(",locus:\""+toString(region)+"\"");
 	
 	    	            	
 	    	            	w.writeCharacters(",tracks:[");
 	    	            	w.writeCharacters(selected.stream().
-	    	            		filter(SEL->SEL.reference.equals(ref)).
-	    	            		map(S->toBamTrack(S,Maps.of(PARAM_SHOW_SOFT_CLIP,true) )).collect(Collectors.joining(","))
+	    	            		filter(SEL->SEL.reference.equals(ref))
+	    	            		.map(S->toBamTrack(S,track_height,configFlags,configEnums))
+	    	            		.collect(Collectors.joining(","))
 	    	            		);
 	    	            	
 	    	            	w.writeCharacters("]};\n");
-	    	            	w.writeCharacters("var igvDiv"+ref.id+" = document.getElementById(\"ref"+ref.id+"\");\n");
-	    	            	w.writeCharacters("  igv.createBrowser(igvDiv"+ref.id+", options_"+ref.id+")\n"
+	    	            	w.writeCharacters("var igvDiv"+ref.id+" = document.getElementById(\"ref"+ref.id+"\");\n"
+	    	            			+ "  igv.createBrowser(igvDiv"+ref.id+", options_"+ref.id+")\n"
 	    	            			+ "        .then(function (browser) {\n"
-	    	            			+ "            console.log(\"Created IGV browser\")\n"
+	    	            			+ "            console.log(\"Created IGV browser\");\n"
+	    	            			+ "             browser.on('locuschange', function (referenceFrameIdx) {\n"
+	    	            			+ "                     if(browser.referenceFrameList==undefined || browser.referenceFrameList.length==0) return;\n"
+	    	            			+ "                     var referenceFrame= browser.referenceFrameList[0];"
+	    	            			+ "                    document.getElementById(\""+PARAM_INTERVAL+"\").value=referenceFrame.chr + \":\" + parseInt(referenceFrame.start) + \"-\" + parseInt(referenceFrame.end);\n"
+	    	            			+ "                     });\n"
 	    	            			+ "        });\n");
 	    	            	
 	    	            	
 	    	            	w.writeEndElement();//script
 	    	            	}
+    	            	
     	            	w.writeEndElement();
     	            	}
-    	             
+   	            
+
     	            
     	            w.writeEmptyElement("hr");
     	             
-    	         
-    	             for(LocalFile lf: this.htsFiles) {
-    			        	if(!lf.isBamOrCram()) continue;
-    			        	w.writeStartElement("p");
+    	            
+    	            w.writeStartElement("div");
+    	            w.writeAttribute("class", "grid-container");
+    	            for(LocalFile lf: this.htsFiles) {
+    			        	if(!lf.isBamOrCramOrVcf()) continue;
+    			        	w.writeStartElement("div");
     			        	
     			        	w.writeEmptyElement("input");
     			        	w.writeAttribute("type", "checkbox");
@@ -284,15 +613,32 @@ public class IGVServer extends Launcher {
     			        	
     			        	w.writeStartElement("label");
     			        	w.writeAttribute("for", "cb"+lf.id);
-    			        	w.writeCharacters(lf.path.getFileName().toString());
+    			        	w.writeAttribute("title",lf.path.toString());
+    			        	w.writeCharacters(lf.getName());
     			        	w.writeEndElement();
     			        	
     			        	
-    			        	w.writeEndElement();//p
+    			        	w.writeEndElement();//div
     			        	}
+    	             w.writeEndElement();
+    	             
+    	             
+		        	w.writeEmptyElement("p");
+		        	w.writeEmptyElement("input");
+		        	w.writeAttribute("type", "submit");
+		        	w.writeAttribute("value","Refresh");
+    	             
     	             
     	             w.writeEndElement();//form
     	             w.writeEndElement();//div
+    	             
+                     w.writeEmptyElement("hr");
+                     w.writeStartElement("div");
+                     w.writeCharacters("Author: Pierre Lindenbaum. ");
+                     w.writeCharacters(JVarkitVersion.getInstance().getLabel());
+                     w.writeEndElement();
+
+    	             
     	             w.writeEndElement();//body
     	             w.writeEndElement();//html
     	             w.flush();
@@ -304,8 +650,8 @@ public class IGVServer extends Launcher {
     	         	}
 		        pw.flush();
 		        pw.close();
+				FIRST_CALL=false;
 				}
-			
 			}
 		private static class LocalFile implements HasName{
 			final int id = (++ID_GENERATOR);
@@ -324,9 +670,14 @@ public class IGVServer extends Launcher {
 			boolean isBamOrCram() {
 				return hasSuffix(FileExtensions.CRAM) || hasSuffix(FileExtensions.BAM);
 				}
-			boolean isFasta() {
-				return FileExtensions.FASTA.stream().anyMatch(SFX->hasSuffix(SFX));
+			boolean isVcf() {
+				return hasSuffix(FileExtensions.COMPRESSED_VCF) || hasSuffix(FileExtensions.COMPRESSED_VCF_BGZ);
 				}
+			boolean isBamOrCramOrVcf() {
+				return isVcf() || isBamOrCram();
+				}
+			
+			
 			public String getURI() {
 				return this.path.toAbsolutePath().toString();
 				/*
@@ -337,6 +688,7 @@ public class IGVServer extends Launcher {
 						.append(this.path.getFileName().toString())
 						.toString();*/
 				}
+			
 			@Override
 			public int hashCode() {
 				return path.hashCode();
@@ -367,12 +719,65 @@ public class IGVServer extends Launcher {
 				{
 				final Map<SAMSequenceDictionary,LocalFile> dict2ref=new HashMap<>();
 				final List<LocalFile> hts_files= new ArrayList<>();
-				for(Path htsFile: IOUtils.unrollPaths(args)) {
+				final List<Path> input_files = IOUtils.unrollPaths(args);
+				final List<Interval> roi_intervals = new Vector<>();
+				
+				// input is a set of igv sessions XML file
+				if(input_files.stream().allMatch(F->F.getFileName().toString().endsWith(".xml"))) {
+					final List<Path> input_files2= new ArrayList<Path>();
+					final DocumentBuilder db= DocumentBuilderFactory.newInstance().newDocumentBuilder();
+					for(Path xmlPath: input_files) {
+						// parse igv sessions
+						final Document dom= db.parse(xmlPath.toFile());
+						final Element root = dom.getDocumentElement();
+						if(root==null || !"Session".equals(root.getNodeName())) {
+							LOG.error("expected root <Session> for xml file "+xmlPath);
+							return -1;
+							}
+						// root contains path to fasta
+						if(!StringUtils.isBlank(root.getAttribute("genome"))) {
+							final Path refpath = xmlPath.resolveSibling(root.getAttribute("genome"));
+							if(!StringUtils.isBlank(root.getAttribute("locus"))) {
+								final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(refpath);
+								new IntervalParser(dict).apply(root.getAttribute("locus")).ifPresent(R->roi_intervals.add(new Interval(R)));
+								}
+							
+							
+							input_files2.add(refpath);
+							}
+						// resources/resource/@path contains the path to the hts files
+						for(Node c1=root.getFirstChild(); c1!=null;c1=c1.getNextSibling()) {
+							if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
+							if(!c1.getNodeName().equals("Resources")) continue;
+							for(Node c2=c1.getFirstChild(); c2!=null;c2=c2.getNextSibling()) {
+								if(c2.getNodeType()!=Node.ELEMENT_NODE) continue;
+								final Element e2 = Element.class.cast(c2);
+								if(!e2.getTagName().equals("Resource") || StringUtils.isBlank(e2.getAttribute("path"))) continue;
+								input_files2.add(xmlPath.resolveSibling(e2.getAttribute("path")));
+								}
+							}
+						}
+					input_files.clear();
+					input_files.addAll(input_files2);
+					}
+				
+				for(Path htsFile:input_files) {
 					final String fname = htsFile.getFileName().toString();
 					if(fname.endsWith(FileExtensions.BAM) || fname.endsWith(FileExtensions.CRAM)) {
 						final Path index = SamFiles.findIndex(htsFile);
 						if(index==null) {
 							LOG.error("cannot find index for "+htsFile);
+							return -1;
+							}
+						final LocalFile lf=new LocalFile(htsFile);
+						lf.index=new LocalFile(index);
+						hts_files.add(lf);
+						hts_files.add(lf.index);
+						}
+					else if(fname.endsWith(FileExtensions.COMPRESSED_VCF) || fname.endsWith(FileExtensions.COMPRESSED_VCF_BGZ)) {
+						final Path index = htsFile.resolveSibling(htsFile.getFileName().toString()+ FileExtensions.TABIX_INDEX);
+						if(!Files.exists(index)) {
+							LOG.error("cannot find index "+index+" for vcf "+htsFile);
 							return -1;
 							}
 						final LocalFile lf=new LocalFile(htsFile);
@@ -393,30 +798,49 @@ public class IGVServer extends Launcher {
 						}
 					else
 						{
-						LOG.error("undefined file type "+htsFile);
-						return -1;
+						LOG.warning("Skipping undefined file type "+htsFile);
 						}
 					}
 				
 				for(LocalFile lf1: hts_files) {
-					if(!lf1.isBamOrCram()) continue;
+					if(!lf1.isBamOrCramOrVcf()) continue;
 					final SAMSequenceDictionary dict1 = SequenceDictionaryUtils.extractRequired(lf1.path);
 					lf1.reference=dict2ref.entrySet().stream()
 							.filter(D->SequenceUtil.areSequenceDictionariesEqual(dict1, D.getKey()))
 							.map(D->D.getValue())
 							.findAny().orElse(null);
 					if(lf1.reference==null) {
-						LOG.error("cannot link ref for bam file "+lf1.path+" "+dict2ref+" "+dict1);
+						LOG.error("cannot link ref for hts file "+lf1.path+" "+dict2ref+" "+dict1);
 						return -1;
 						}
 					}
+				
+				
+				if(this.roiBedPath!=null) {
+					SAMSequenceDictionary oneDict=null;
+					if(dict2ref.size()==1) {
+						oneDict = dict2ref.keySet().stream().findFirst().get();
+						};
+					try(BedLineReader blr= BedLineReader.openPath(this.roiBedPath)) {
+						blr.setContigNameConverter(oneDict);
+						while(blr.hasNext()) {
+							final BedLine rec =blr.next();
+							final String name= rec.getOrDefault(3, "");
+							roi_intervals.add(new Interval(rec.getContig(),rec.getStart(),rec.getEnd(),false,name));
+							}
+						}
+					}
+				
+				// sort ROI
+				if(dict2ref.size()==1) {
+					Collections.sort(roi_intervals,new ContigDictComparator(dict2ref.keySet().stream().findFirst().get()).createLocatableComparator());
+					};
 				
 				
 				if(hts_files.isEmpty()) {
 					LOG.error("no file was found");
 					return -1;
 					}
-				System.err.println(hts_files);
 				
 				server = new Server(this.port);
 			
@@ -424,9 +848,10 @@ public class IGVServer extends Launcher {
 		        final ServletContextHandler ctx = new ServletContextHandler();
 		        ctx.setContextPath("/");
 		        ctx.setResourceBase("/");
-				ctx.addServlet(new ServletHolder("my", new MyServlet(
+				ctx.addServlet(new ServletHolder("my", new IGVServlet(
 						this.igv_js_url,
-						hts_files
+						hts_files,
+						roi_intervals
 						)),"/igv/*");
 				
 				
@@ -449,7 +874,7 @@ public class IGVServer extends Launcher {
 				
 				
 				
-		        LOG.info("Starting IGVServer on http://localhost:"+this.port);
+		        LOG.info("Starting IGVServer on http://localhost:"+this.port+"/igv");
 				server.start();
 				if(this.shutdownAferSeconds>0)
 					{

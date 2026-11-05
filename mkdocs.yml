@@ -161,6 +161,7 @@ nav:
         - "howmanybamdict" : HowManyBamDict.md
         - "htsfreemarker" : HtsVelocity.md
         - "ibd2vcf" : IbdToVcf.md
+        - "igvserver" : IGVServer.md
         - "illuminadir" : IlluminaDirectory.md
         - "indexcov2vcf" : IndexCovToVcf.md
         - "jbrowse2" : JBrowse2Server.md
