@@ -56,11 +56,13 @@ import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.BooleanUtils;
+import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.net.ContentType;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.util.Maps;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamFiles;
@@ -69,7 +71,13 @@ import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
+/**
+BEGIN_DOC
 
+
+
+END_DOC
+ */
 @Program(
 		name="igvserver",
 		description="Web Server displaying SAM/BAM file. A web interface for jvarkit:tview",
@@ -79,6 +87,10 @@ import htsjdk.samtools.util.SequenceUtil;
 		)
 public class IGVServer extends Launcher {
 		private static final Logger LOG=Logger.of(IGVServer.class);
+		private static final String STATIC_PATH="static";
+		private static final String PARAM_INTERVAL="interval";
+		private static final String PARAM_SHOW_SOFT_CLIP="ssc";
+		private static final String PARAM_SHOW_INSERTIONS="si";
 		private static int ID_GENERATOR=0;
 		@Parameter(names={"-P","--port","-port"},description="Server listening port")
 		private int port=8080;	
@@ -98,12 +110,44 @@ public class IGVServer extends Launcher {
 				this.igv_js_url=igv_js_url;
 				this.htsFiles = Collections.unmodifiableList(htsFiles);
 				}
+			
+			private final boolean parseBoolean(String s) {
+				return BooleanUtils.parseBoolean(s).orElse(Boolean.FALSE);
+				}
+			
+			private String resolveStatic(final Path path) {
+				return STATIC_PATH+ path.toAbsolutePath().toString();
+				}
+			
+			private String toBamTrack(LocalFile bam,Map<String, Object> params) {
+				return new StringBuilder("{")
+					.append("type:\"alignment\",format:\"")
+					.append(bam.hasSuffix(FileExtensions.BAM)?"bam":"cram")
+					.append("\",url:\"")
+					.append("/"+resolveStatic(bam.path))
+					.append("\",indexURL:\"")
+					.append("/"+resolveStatic(bam.index.path))
+					.append("\",name:\"")
+					.append(bam.getName())
+					.append("\",height:")
+					.append(params.getOrDefault("height",600))
+					.append(",showSoftClips:")
+					.append(parseBoolean(String.valueOf(params.getOrDefault(PARAM_SHOW_SOFT_CLIP,true))))
+					.append(",showInsertions:")
+					.append(parseBoolean(String.valueOf(params.getOrDefault(PARAM_SHOW_INSERTIONS,true))))
+					.append("}")
+					.toString();
+				}
+			
+			
 			@Override
-			protected void service(HttpServletRequest req, HttpServletResponse resp)
+			protected void service(final HttpServletRequest req, HttpServletResponse resp)
 					throws ServletException, IOException {
 				final Set<LocalFile> selected=new HashSet<>();
 				
-				final String interval_str = StringUtils.ifBlank(req.getParameter("interval"),"");
+				final String interval_str = StringUtils.ifBlank(req.getParameter(PARAM_INTERVAL),"");
+				final boolean show_soft_clips = parseBoolean(req.getParameter(PARAM_SHOW_SOFT_CLIP));
+				final boolean show_soft_insertions = parseBoolean(req.getParameter(PARAM_SHOW_INSERTIONS));
 				
 				for(LocalFile lf: this.htsFiles) {
 			        	if(!lf.isBamOrCram()) continue;
@@ -162,15 +206,15 @@ public class IGVServer extends Launcher {
     	             w.writeStartElement("p");
 			        	
     	             w.writeStartElement("label");
-		        	w.writeAttribute("for", "interval");
+		        	w.writeAttribute("for", PARAM_INTERVAL);
 		        	w.writeCharacters("Interval:");
 		        	w.writeEndElement();
 			        	
     	             
 		        	w.writeEmptyElement("input");
 		        	w.writeAttribute("type", "text");
-		        	w.writeAttribute("name", "interval");
-		        	w.writeAttribute("id", "interval");
+		        	w.writeAttribute("name", PARAM_INTERVAL);
+		        	w.writeAttribute("id", PARAM_INTERVAL);
 		        	w.writeAttribute("value",interval_str);
 		        	
 		        	w.writeEmptyElement("input");
@@ -198,8 +242,8 @@ public class IGVServer extends Launcher {
 	    	            	w.writeCharacters("reference:{");
 	    	            	w.writeCharacters("id:\"ref"+ref.id+"\",");
 	    	            	w.writeCharacters("name:\""+SequenceDictionaryUtils.getBuildName(dict).orElse("genome") +"\",");
-	    	            	w.writeCharacters("fastaURL:\"/files"+ref.path.toAbsolutePath().toString() +"\",");
-	    	            	w.writeCharacters("indexURL:\"/files"+ref.index.path.toAbsolutePath().toString() +"\"");
+	    	            	w.writeCharacters("fastaURL:\"/"+resolveStatic(ref.path) +"\",");
+	    	            	w.writeCharacters("indexURL:\"/"+resolveStatic(ref.index.path) +"\"");
 	    	            	w.writeCharacters("}");
 	    	            	w.writeCharacters(",locus:\""+region.toNiceString()+"\"");
 	
@@ -207,7 +251,7 @@ public class IGVServer extends Launcher {
 	    	            	w.writeCharacters(",tracks:[");
 	    	            	w.writeCharacters(selected.stream().
 	    	            		filter(SEL->SEL.reference.equals(ref)).
-	    	            		map(S->S.toTrack()).collect(Collectors.joining(","))
+	    	            		map(S->toBamTrack(S,Maps.of(PARAM_SHOW_SOFT_CLIP,true) )).collect(Collectors.joining(","))
 	    	            		);
 	    	            	
 	    	            	w.writeCharacters("]};\n");
@@ -263,10 +307,12 @@ public class IGVServer extends Launcher {
 				}
 			
 			}
-		private static class LocalFile {
+		private static class LocalFile implements HasName{
 			final int id = (++ID_GENERATOR);
 			final Path path;
+			/** optional index */
 			LocalFile index=null;
+			/** optional reference */
 			LocalFile reference=null;
 			LocalFile(final Path path) {
 				IOUtil.assertFileIsReadable(path);
@@ -295,21 +341,11 @@ public class IGVServer extends Launcher {
 			public int hashCode() {
 				return path.hashCode();
 				}
-			String toTrack() {
-				return new StringBuilder("{")
-					.append("type:\"alignment\",format:\"")
-					.append(hasSuffix(FileExtensions.BAM)?"bam":"cram")
-					.append("\",url:\"")
-					.append("/files"+this.path.toAbsolutePath().toString())
-					.append("\",indexURL:\"")
-					.append("/files"+this.index.path.toAbsolutePath().toString())
-					.append("\",name:\"")
-					.append(IOUtils.getFilenameWithoutCommonSuffixes(this.path))
-					.append("\",height:600")
-					.append("}")
-					.toString();
-				}
 			
+			@Override
+			public String getName() {
+				return IOUtils.getFilenameWithoutCommonSuffixes(this.path);
+				}
 			@Override
 			public boolean equals(Object obj) {
 				if(obj==this) return true;
@@ -400,7 +436,7 @@ public class IGVServer extends Launcher {
 		        files.setInitParameter("dirAllowed", "true");   // directory listing; set to false to disable
 		        files.setInitParameter("welcomeServlets", "false");
 		        files.setInitParameter("pathInfoOnly", "true");
-		        ctx.addServlet(files, "/files/*");
+		        ctx.addServlet(files, "/"+STATIC_PATH+"/*");
 
 		        
 		        
