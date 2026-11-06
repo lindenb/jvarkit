@@ -24,13 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.saminversions;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.function.Predicate;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
@@ -40,21 +41,19 @@ import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.Progress;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.BAMUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.google.gson.stream.JsonWriter;
 
-import htsjdk.samtools.AlignmentBlock;
-import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -65,10 +64,8 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.SequenceUtil;
 
 /**
 BEGIN_DOC
@@ -100,124 +97,96 @@ public class SamInversions extends Launcher
 	@Parameter(names={"--exclude-bed","--exclude"},description="skip reads pverlapping that bed file")
 	private Path excludeBedFile = null;
 	@Parameter(names={"--mapq"},description="min mapping quality.")
-	private int min_mapq = 30;
+	private int min_mapq = 10;
 	@Parameter(names={"--control","--controls"},description="BAM/CRAM file that can be used as a control. I discordand reads are found in any control, the candidate inversion is rejected. A file with the '.list' suffix is interpreted as a file containing the path to the bam files.")
 	private Path controlFiles = null;
+	private final int min_clip_size=1;
+	private final int min_insert_size=1_000;
 	
-	private class LookForwardIterator extends AbstractCloseableIterator<SAMRecord> {
-		private final List<SAMRecord> buffer = new ArrayList<>(100_000);
-		final CloseableIterator<SAMRecord> delegate;
-		LookForwardIterator(final CloseableIterator<SAMRecord> delegate) {
-			this.delegate = delegate;
+	private static class BreakEnd {
+		int start;
+		int end;
+		boolean negativeStrand;
+		}
+	
+	private static class JunctionCount {
+		int count_split_read_proof=0;
+		int count_overlap_properly_paired = 0;
+		int count_overlap_inversion = 0;
+		int count_overlap_other=0;
+		boolean isValid() {
+			return true;
+			}
+		void json(JsonWriter j) throws IOException {
+			j.beginObject();
+			j.name("valid");j.value(isValid());
+			j.name("split_read");j.value(count_split_read_proof);
+			j.name("overlap_properly_paired");j.value(count_overlap_properly_paired);
+			j.name("overlap_inversion");j.value(count_overlap_inversion);
+			j.name("overlap_other");j.value(count_overlap_other);
+			j.endObject();
+			}
+		}
+	
+	private static class Inversion extends AbstractLocatable {
+		String contig;
+		int start;
+		int end;
+		JunctionCount bnd1=new JunctionCount();
+		JunctionCount bnd2=new JunctionCount();
+		public String getContig() {
+			return contig;
 			}
 		@Override
-		public SAMRecord peek() {
-			return at(0);
-			}
-		
-		
-		SAMRecord at(int i) {
-			while(i>=this.buffer.size() && delegate.hasNext()) {
-				final SAMRecord rec = delegate.next();
-				if(!SAMRecordDefaultFilter.accept(rec)) continue;
-				this.buffer.add(rec);
-				}
-			return i<this.buffer.size()?buffer.get(i):null;
+		public int getStart() {
+			return start;
 			}
 		@Override
-		protected SAMRecord advance() {
-			if(!buffer.isEmpty()) {
-				return buffer.remove(0);
-				}
-			while(delegate.hasNext()) {
-				final SAMRecord rec = delegate.next();
-				if(!SAMRecordDefaultFilter.accept(rec)) continue;
-				return rec;
-				}
-			return null;
+		public int getEnd() {
+			return end;
 			}
-		@Override
-		public void close() {
-			delegate.close();
-			this.buffer.clear();
+		boolean isValid() {
+			return bnd1.isValid() && bnd2.isValid();
 			}
 		}
 	
 	
-	private static class Event {
-		int start;
-		int end;
-		
-	}
+	private static class ControlBam implements Closeable {
+		private final SamReader sr;
+		private final SAMFileHeader hdr;
+		private final SAMSequenceDictionary dict;
+		private final ContigNameConverter converter;
+		ControlBam(final SamReader sr) {
+			this.sr = sr;
+			this.hdr=sr.getFileHeader();
+			this.dict = SequenceDictionaryUtils.extractRequired(hdr);
+			this.converter= ContigNameConverter.fromOneDictionary(dict);
+			}
+		@Override
+		public void close() throws IOException {
+			sr.close();
+			}
+		}
+	
+	
 	
 	private Path findReferenceForBam(final Path bamPath) {
 		final Optional<Path> optFasta= SequenceDictionaryUtils.findReferenceForBam(bamPath, faidx_list);
 		return optFasta.orElseThrow(()-> new IllegalArgumentException("Cannot find REFerence for "+bamPath+"."));
 		}
 	
-	/** get avg depth in the interval */
-	private double meanDepth(final List<SAMRecord> records,int start,int end) {
-		double total=0.0;
-		for(SAMRecord rec:records) {
-			if(rec.getReadUnmappedFlag()) continue;
-			if(rec.isSecondaryOrSupplementary()) continue;
-			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-			if(rec.getDuplicateReadFlag()) continue;
-			if(rec.getMappingQuality()<= this.min_mapq) continue;
-			if(!CoordMath.overlaps(start, end, rec.getStart(), rec.getEnd())) continue;
-			for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
-				for(int x=0;x<ab.getLength();x++) {
-					int pos1 = ab.getReferenceStart()+x;
-					if(pos1<start) continue;
-					if(pos1>end) break;
-					total++;
-					}
-				}
-			}
-		return total/CoordMath.getLength(start, end);
-		}
-	
-	/** get avg MAPQ in the interval */
-	private OptionalDouble meanMAPQ(final List<SAMRecord> records,int start,int end) {
-		double total=0.0;
-		int n=0;
-		for(SAMRecord rec:records) {
-			if(rec.getReadUnmappedFlag()) continue;
-			if(rec.isSecondaryOrSupplementary()) continue;
-			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-			if(rec.getDuplicateReadFlag()) continue;
-			if(!CoordMath.overlaps(start, end, rec.getStart(), rec.getEnd())) continue;
-			total+=rec.getMappingQuality();
-			n++;
-			}
 		
-		return n==0L?OptionalDouble.empty():OptionalDouble.of(total/n);
-		}
-	
-	
-	private boolean discordantFoundInControl(final List<SamReader> ctrls,final Locatable loc,final Locatable mateLoc) {
-		for(SamReader sr:ctrls) {
-			final SAMFileHeader hdr=sr.getFileHeader();
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(hdr);
-			final ContigNameConverter converter= ContigNameConverter.fromOneDictionary(dict);
-			final String ctg = converter.apply(loc.getContig());
+	private boolean discordantFoundInControl(final List<ControlBam> ctrls,final Inversion inv) {
+		for(ControlBam control:ctrls) {
+			final String ctg = control.converter.apply(inv.getContig());
 			if(StringUtils.isBlank(ctg)) continue;
-			int tid = dict.getSequenceIndex(ctg);
-			final QueryInterval[] intervals= new QueryInterval[] {
-					new QueryInterval(tid,loc.getStart(),loc.getEnd()),
-					new QueryInterval(tid,mateLoc.getStart(),mateLoc.getEnd())
-				};
-			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(QueryInterval.optimizeIntervals(intervals))) {
-				while(iter.hasNext()) {
-					final SAMRecord rec=iter.next();
-					if(!is_FF_or_RR_read(rec)) continue;
-					if(!CoordMath.overlaps(
-							loc.getStart(), loc.getEnd(),
-							mateLoc.getStart(), mateLoc.getEnd())) continue;
-
-					if(!CoordMath.overlaps(
-						loc.getStart(), loc.getEnd(),
-						mateLoc.getStart(), mateLoc.getEnd())) continue;
+			for(int side=0;side<2;side++) {
+				final int pos = (side==0?inv.start:inv.end);
+				try(CloseableIterator<SAMRecord> iter = control.sr.queryOverlapping(ctg,Math.max(1, pos-min_insert_size),pos+min_insert_size)) {
+					while(iter.hasNext()) {
+						final SAMRecord rec=iter.next();
+						
+						}
 					}
 				}
 			}
@@ -244,138 +213,113 @@ public class SamInversions extends Launcher
 	
 
 	/** fetch reads in a given region */
-	private List<SAMRecord> getReads(final SamReader sr,final Locatable loc,Predicate<SAMRecord> accept) {
-		try(CloseableIterator<SAMRecord> r= sr.queryOverlapping(loc.getContig(), loc.getStart(), loc.getEnd())) {
-			final List<SAMRecord> L= new ArrayList<SAMRecord>(loc.getLengthOnReference()*40);
-			while(r.hasNext()) {
-				final SAMRecord rec=r.next();
-				if(accept!=null && !accept.test(rec)) continue;
-				L.add(rec);
-				}
-			return L;
-			}
-		}
-	
-	
-	
-	private Event challenge(final LookForwardIterator srcIter,final SamReader sr,SAMRecord rec1,Predicate<Locatable> accept,List<SamReader> controls) {
-		int idx=0;
-		final int min_clip_size = 10;
+	private void countOverlappingReads(final SamReader sr,final Inversion inv) {
+		for(int side=0;side< 2;++side) {
+			final int pos = (side==0?inv.start:inv.end);
+			try(CloseableIterator<SAMRecord> r= sr.queryOverlapping(inv.getContig(), Math.max(1, pos-min_insert_size),pos+min_insert_size)) {
+				while(r.hasNext()) {
+					final SAMRecord rec=r.next();
+					if(!SAMRecordDefaultFilter.accept(rec)) continue;
+					if(!rec.getReadPairedFlag()) continue;
+					if(rec.getMateUnmappedFlag()) continue;
+					if(!rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) continue;
+					
+					if(rec.getMateAlignmentStart()<=pos) continue;
+					if(rec.getMateAlignmentStart()<=rec.getEnd()) continue;
 
-		/* for reads for breakend 1 */
-		List<SAMRecord> reads = new ArrayList<SAMRecord>(this.max_distance*50);
-		reads.add(rec1);
-		for(;;) {
-			final SAMRecord reci = srcIter.at(idx);
-			if(reci==null || !rec1.contigsMatch(reci)) break;
-			if(!reci.withinDistanceOf(rec1, this.max_distance)) break;
-			reads.add(reci);
-			idx++;
-			}
-		
-		List<SAMRecord> suppl_reads = new ArrayList<SAMRecord>();
-		List<SAMRecord> split_reads = new ArrayList<SAMRecord>();
-		
-		for(SAMRecord rec: reads) {
-			if(!SAMRecordDefaultFilter.accept(rec)) continue;
-			if(rec.getReadNegativeStrandFlag()) continue;
-			if(!rec.getCigar().isRightClipped()) // expect a clip
-			if(rec.getCigar().getLastCigarElement().getLength()< min_clip_size) continue;
-			if(!CoordMath.overlaps(
-				rec.getStart(), rec.getEnd(),
-				rec1.getStart(), rec1.getMateAlignmentStart())) continue;
-			boolean has_suppl_read=false;
-			for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec)) {
-				if(!suppl.contigsMatch(rec1)) continue;
-				if(!suppl.getReadNegativeStrandFlag()) continue;
-				if(suppl.getStart() < rec1.getMateAlignmentStart()) continue;//we expect a 2nd break-end AFTER the mate
-				suppl_reads.add(suppl);
-				has_suppl_read=true;
-				}
-			if(has_suppl_read) {
-				split_reads.add(rec1);
+					//read must be before pos
+					if(rec.getEnd()>= pos) continue;
+					// mate must be after pos
+					if(rec.getMateAlignmentStart()<=pos) continue;
+
+					final JunctionCount bnd = (side==0?inv.bnd1:inv.bnd2);
+					
+					if(!rec.getReadNegativeStrandFlag() &&  rec.getMateNegativeStrandFlag()) {
+						bnd.count_overlap_properly_paired++;
+						}
+					else if(side==0 && !rec.getReadNegativeStrandFlag() && !rec.getMateNegativeStrandFlag()) {
+						bnd.count_overlap_inversion++;
+						}
+					else if(side==1 && rec.getReadNegativeStrandFlag() && rec.getMateNegativeStrandFlag()) {
+						bnd.count_overlap_inversion++;
+						}
+					else
+						{
+						bnd.count_overlap_other++;
+						}
+					}
 				}
 			}
-		
-		final int min_reads = 5;
-		if(split_reads.size() < min_reads) {
-			return null;
-			}
-		
-		if(suppl_reads.size() < min_reads) {
-			return null;
-			}
-		
-		final Event evt=new Event();
-		evt.start = (int) new Median().evaluate(
-				split_reads.stream().mapToDouble(R->R.getEnd()).sorted().toArray()
-				);
-		
-		
-		
-		final Locatable mateInterval = new SimpleInterval(
-				rec1.getContig(),
-				suppl_reads.stream().mapToInt(R->R.getStart()).min().getAsInt(),
-				suppl_reads.stream().mapToInt(R->R.getEnd()).max().getAsInt()
-				);
-		if(mateInterval.getLengthOnReference()> this.max_distance) {
-			return null;
-			}
-		
-		
-		reads = getReads(sr, mateInterval, null);
-		
-		suppl_reads.clear();
-		split_reads.clear();
-		
-		for(SAMRecord rec: reads) {
-			if(!SAMRecordDefaultFilter.accept(rec)) continue;
-			if(!rec.getReadNegativeStrandFlag()) continue;
-			if(!rec.getCigar().isLeftClipped()) // expect a clip
-			if(rec.getCigar().getFirstCigarElement().getLength()< min_clip_size) continue;
-			if(!CoordMath.overlaps(
-				rec.getStart(), rec.getEnd(),
-				rec1.getStart(), BAMUtils.getMateEnd(rec1))) continue;
-			boolean has_suppl_read=false;
-			for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec)) {
-				if(!suppl.contigsMatch(rec1)) continue;
-				if(suppl.getReadNegativeStrandFlag()) continue;
-				if(suppl.getStart() > rec1.getEnd()) continue;//we expect a 2nd break-end AFTER the mate
-				suppl_reads.add(suppl);
-				has_suppl_read=true;
-				}
-			if(has_suppl_read) {
-				split_reads.add(rec1);
-				}
-			}
-		
-		if(split_reads.size() < min_reads) {
-			return null;
-			}
-		
-		if(suppl_reads.size() < min_reads) {
-			return null;
-			}
-		evt.end = (int) new Median().evaluate(
-				split_reads.stream().mapToDouble(R->R.getStart()).sorted().toArray()
-				);
-		
-		return evt;
 		}
 	
-	private static boolean is_FF_or_RR_read(SAMRecord rec) {
-		if(!SAMRecordDefaultFilter.accept(rec)) return false;
-		if(!rec.getReadPairedFlag()) return false;
-		if(rec.getMateUnmappedFlag()) return false;
-		if(!rec.getReferenceIndex().equals(rec.getMateReferenceIndex()))return false;
-		// we expect different strand for read and mate
-		if(rec.getReadNegativeStrandFlag() != rec.getMateNegativeStrandFlag()) return false;
+	private boolean is_ff_rr_read(final SAMRecord rec1) {
+		if(!SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) return false;
+		if(!rec1.getReadPairedFlag()) return false;
+		if(!rec1.getMateUnmappedFlag()) return false;
+		if(!rec1.getReferenceIndex().equals(rec1.getMateReferenceIndex())) return false;
 		return true;
+		}
+	
+	private void fillForwardCandidates(SAMRecord rec1,final List<BreakEnd> candidates) {
+		if(!is_ff_rr_read(rec1)) return ;
+		if(rec1.getReadNegativeStrandFlag()) return;
+	
+		if(!(rec1.getEnd() <rec1.getMateAlignmentStart())) return;
+
+	
+		System.err.println("A0 ! "+rec1);
+		
+		if(!rec1.getCigar().isRightClipped()) return; // expect a clip
+		if(rec1.getCigar().getLastCigarElement().getLength()< min_clip_size) return;
+		for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec1)) {
+			
+			if(!suppl.contigsMatch(rec1)) continue;
+			System.err.println("A1 ! "+rec1+" "+suppl);
+			if(!suppl.getReadNegativeStrandFlag()) continue;
+			System.err.println("A2 ! "+rec1+" "+suppl);
+			if(!(rec1.getEnd() < suppl.getStart() &&  BAMUtils.getMateEnd(rec1)< suppl.getStart())) continue;
+			
+			final BreakEnd bnd=new BreakEnd();
+			bnd.start = rec1.getAlignmentEnd()+1;
+			bnd.end = suppl.getAlignmentStart()-1;
+			bnd.negativeStrand=false;
+			System.err.println("OK ! ");
+			candidates.add(bnd);
+			}
+		}
+	
+	private void fillReverseCandidates(final SAMRecord rec1,final List<BreakEnd> candidates) {
+		if(!is_ff_rr_read(rec1)) return ;
+		if(!rec1.getReadNegativeStrandFlag()) return;
+
+		if(!rec1.getCigar().isLeftClipped()) return ; // expect a clip
+		if(rec1.getCigar().getFirstCigarElement().getLength()< min_clip_size) return;
+		if(!rec1.getMateUnmappedFlag()) return ;
+		if(!rec1.getReferenceIndex().equals(rec1.getMateReferenceIndex()))return;
+		if(!rec1.getMateNegativeStrandFlag()) return;
+		if(!(BAMUtils.getMateEnd(rec1) < rec1.getStart())) return ;
+
+		
+		for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec1)) {
+			if(!suppl.contigsMatch(rec1)) continue;
+			if(suppl.getReadNegativeStrandFlag()) continue;
+			if(!(suppl.getAlignmentEnd() < rec1.getMateAlignmentStart() && suppl.getAlignmentEnd() < rec1.getStart())) continue;
+			final BreakEnd bnd=new BreakEnd();
+			bnd.start = suppl.getAlignmentEnd()+1;
+			bnd.end = rec1.getStart()-1;
+			bnd.negativeStrand=true;
+			
+			candidates.add(bnd);
+			}
+		}
+
+	private boolean are_close(int pos1,int pos2) {
+		return Math.abs(pos1-pos2)<=this.max_distance;
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
-		final List<SamReader> control_readers = new ArrayList<>()  ;
+		final List<ControlBam> control_readers = new ArrayList<>()  ;
 
 		if(this.max_distance<100) {
 			LOG.error("max size inversion must be >=100");
@@ -392,10 +336,10 @@ public class SamInversions extends Launcher
 			
 			if(this.controlFiles!=null) {
 				for(Path path: IOUtils.unrollPath(this.controlFiles)) {
-					control_readers.add(srf
+					control_readers.add(new ControlBam(srf
 							.referenceSequence(findReferenceForBam(path))
 							.open(path)
-							);
+							));
 					}
 				}
 			
@@ -409,7 +353,7 @@ public class SamInversions extends Launcher
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samHeader);
 					final String sampleName= BAMUtils.getSampleName(samHeader, inputBam);
 					final Hyperlink hyperlink = Hyperlink.compile(dict);
-					final String build =  SequenceDictionaryUtils.getBuildName(dict).orElse(null);
+					final String buildName =  SequenceDictionaryUtils.getBuildName(dict).orElse(null);
 
 					
 					final Predicate<Locatable> accept_reads;
@@ -431,53 +375,98 @@ public class SamInversions extends Launcher
 							js.setIndent(" ");
 							js.beginArray();
 							
-							/** loop over eall reads */
-							try(LookForwardIterator iter1= new LookForwardIterator( makeIterator(samReader1))) {
-								while(iter1.hasNext()) {
-									final SAMRecord rec1 = iter1.next();
-									if(!SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) {
-										continue;
+							String prevContig = null;
+							final List<BreakEnd> candidates = new ArrayList<>(100_000);
+							/** loop over all reads */
+							try(CloseableIterator<SAMRecord> iter1=  makeIterator(samReader1)) {
+								for(;;) {
+									final SAMRecord rec1 = iter1.hasNext()?iter1.next():null;
+									if(rec1!=null && !SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) continue;
+									
+									if(rec1==null || (prevContig!=null && !rec1.getContig().equals(prevContig))) {
+										if(!candidates.isEmpty()) {
+											System.err.println(candidates.size());
+											Collections.sort(candidates,(A,B)->Integer.compare(A.start, B.start));
+											
+											int i=0;
+											while(i< candidates.size()) {
+												final BreakEnd bnd1 = candidates.remove(0);
+												final Inversion inv = new Inversion();
+												inv.contig = prevContig;
+												
+												final JunctionCount count_i = bnd1.negativeStrand?inv.bnd2:inv.bnd1;
+												count_i.count_split_read_proof++;
+												final List<Integer> starts = new ArrayList<>();
+												starts.add(bnd1.start);
+												final List<Integer> ends = new ArrayList<>();
+												ends.add(bnd1.end);
+												int j=0;
+												while(j< candidates.size()) {
+													final BreakEnd bnd2 = candidates.get(j);
+													if(inv.start+this.max_distance < bnd2.start) break;
+													if(are_close(bnd1.start, bnd2.start) && are_close(bnd1.start, bnd2.start) ) {
+														starts.add(bnd2.start);
+														ends.add(bnd2.end);
+														final JunctionCount count_j = bnd2.negativeStrand?inv.bnd2:inv.bnd1;
+														count_j.count_split_read_proof++;
+														candidates.remove(j);
+														}
+													else
+														{
+														++j;
+														}
+													}
+												inv.start =(int) new Median().evaluate(starts.stream().mapToDouble(P->P.doubleValue()).sorted().toArray());
+												inv.end = (int)new Median().evaluate(ends.stream().mapToDouble(P->P.doubleValue()).sorted().toArray());
+												
+												countOverlappingReads(samReader2,inv);
+												
+												if(discordantFoundInControl(null,inv)) continue;
+												if(!inv.isValid()) continue;
+												js.beginObject();
+												js.name("sample"); js.value(sampleName);
+												js.name("bam"); js.value(String.valueOf(inputBam));
+												js.name("reference");js.value(String.valueOf(referenceFaidx));
+													
+												if(buildName!=null) {
+													js.name("build");js.value(buildName);
+													}
+												
+												final String url = hyperlink.apply(inv).orElse(null);
+												if(url!=null) {
+													js.name("href");js.value(url);
+													}
+												
+												js.name("left"); inv.bnd1.json(js);
+												js.name("right"); inv.bnd2.json(js);
+												
+												js.endObject();
+												js.flush();
+
+												}
+											
+											candidates.clear();
+											} //end candidates empty
+										if(rec1==null) break;
+										prevContig =rec1.getContig();
+										} //end of contig==null
+									
+									
+									if(!rec1.getReadNegativeStrandFlag()) {
+										fillForwardCandidates(rec1,candidates);
 										}
-									if(rec1.getReadNegativeStrandFlag()) continue;//we expect forward when scanning from 5' to 3'
-									if(!is_FF_or_RR_read(rec1)) continue;
-									
-									final Event event = challenge(iter1,samReader2,rec1,accept_reads,control_readers);
-									
-									if(event!=null ) {
-										js.beginObject();
-										js.name("bam");js.value(String.valueOf(inputBam));
-										js.name("fasta");js.value(String.valueOf(referenceFaidx));
-										js.name("build");js.value(build);
-										js.name("sample");js.value(sampleName);
-										js.name("chromosome");js.value(rec1.getContig());
-										js.name("start");js.value(event.start);
-										js.name("end");js.value(event.end);
-										final Optional<String> href= hyperlink.apply(rec1.getContig(),event.start,event.end);
-										if(href.isPresent()) {
-											js.name("href");js.value(href.get());
-											}
-										js.beginObject();
-										
-										/* consumme remaining data */
-										while(iter1.hasNext()) {
-											final SAMRecord rec2 = iter1.peek();
-											if(rec2==null) break;
-											if(!rec2.contigsMatch(rec1)) break;
-											if(rec2.getStart()> event.start) break;
-											iter1.next();//consumme
-											}
+									else if(rec1.getReadNegativeStrandFlag()) {
+										fillReverseCandidates(rec1,candidates);
 										}
-									
-									
-									
-									
-									}
-								}
+									}//end for(;;
+								
+								} // end iterator
 							
 							
 							js.endArray();
 							js.flush();
-							}//end vcw
+					
+							}//end js writer
 						} // end cram2
 					} //end cram1
 				} // end fasta
@@ -488,7 +477,7 @@ public class SamInversions extends Launcher
 			return -1;
 			}
 		finally {
-			for(SamReader sr:control_readers) {
+			for(ControlBam sr:control_readers) {
 				try {sr.close(); } catch(IOException err2) {}
 				}
 			}

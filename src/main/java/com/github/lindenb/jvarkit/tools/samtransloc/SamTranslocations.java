@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.samtransloc;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -71,7 +72,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
-import htsjdk.samtools.util.SequenceUtil;
 /**
 
 BEGIN_DOC
@@ -94,7 +94,7 @@ END_DOC
 	keywords={"sam","bam","sv","translocation"},
 	jvarkit_hidden = false,
 	creationDate="20171130",
-	modificationDate="20261101",
+	modificationDate="20261106",
 	menu="BAM Manipulation"
 	)
 public class SamTranslocations extends Launcher {
@@ -119,6 +119,24 @@ public class SamTranslocations extends Launcher {
 	private int min_mapq = 30;
 	@Parameter(names={"--control","--controls"},description="BAM/CRAM file that can be used as a control. I discordand reads are found in any control, the candidate transloc is rejected. A file with the '.list' suffix is interpreted as a file containing the path to the bam files.")
 	private Path controlFiles = null;
+	
+	private static class ControlBam implements Closeable {
+		private final SamReader sr;
+		private final SAMFileHeader hdr;
+		private final SAMSequenceDictionary dict;
+		private final ContigNameConverter converter;
+		ControlBam(final SamReader sr) {
+			this.sr = sr;
+			this.hdr=sr.getFileHeader();
+			this.dict = SequenceDictionaryUtils.extractRequired(hdr);
+			this.converter= ContigNameConverter.fromOneDictionary(dict);
+			}
+		@Override
+		public void close() throws IOException {
+			sr.close();
+			}
+		}
+	
 	
 	/** open iterator for main SamReader */
 	private CloseableIterator<SAMRecord> makeIterator(final SamReader sr) {
@@ -453,7 +471,7 @@ public class SamTranslocations extends Launcher {
 		return evt;
 		}
 	
-	private Event challenge(final SamReader sr,final SAMRecord rec,final List<SamReader> controls) {
+	private Event challenge(final SamReader sr,final SAMRecord rec,final List<ControlBam> controls) {
 		final Event evt=new Event();
 		evt.end_position=rec.getAlignmentEnd();
 		
@@ -483,27 +501,55 @@ public class SamTranslocations extends Launcher {
 		return evt;
 		}
 	
-	private boolean discordantFoundInControl(final List<SamReader> ctrls,final Locatable loc,final Locatable mateLoc) {
-		for(SamReader sr:ctrls) {
-			final SAMFileHeader hdr=sr.getFileHeader();
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(hdr);
-			final ContigNameConverter converter= ContigNameConverter.fromOneDictionary(dict);
-			final String ctg = converter.apply(loc.getContig());
+	private boolean discordantFoundInControl(
+			final List<ControlBam> ctrls,
+			final Locatable loc,
+			final Locatable mateLoc
+			) {
+		for(ControlBam control :ctrls) {
+			final String ctg = control.converter.apply(loc.getContig());
 			if(StringUtils.isBlank(ctg)) continue;
-			final String mateCtg2  = converter.apply(mateLoc.getContig());
+			final String mateCtg2  = control.converter.apply(mateLoc.getContig());
 			if(StringUtils.isBlank(mateCtg2)) continue;
-			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctg,loc.getStart(),loc.getEnd())) {
+			try(CloseableIterator<SAMRecord> iter = control.sr.queryOverlapping(
+					ctg,
+					Math.max(1,loc.getStart()-this.fuzzy_distance),
+					loc.getEnd()+this.fuzzy_distance)
+					) {
 				while(iter.hasNext()) {
 					final SAMRecord rec=iter.next();
 					if(rec.getReadUnmappedFlag())  continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(!rec.getReadPairedFlag()) continue;
-					if(!rec.contigsMatch(loc)) continue;
-					if(rec.getMateUnmappedFlag()) continue;
+					if(!rec.getContig().equals(ctg)) continue;
 					if(rec.isSecondaryOrSupplementary())continue;
+					
+					for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec)) {
+						if(!suppl.getContig().equals(mateCtg2)) continue;
+						if(CoordMath.overlaps(
+								Math.max(1,suppl.getStart()-this.fuzzy_distance),
+								suppl.getEnd()+this.fuzzy_distance,
+								mateLoc.getStart(),
+								mateLoc.getEnd()
+								)
+							) {
+							return true;
+							}
+						}
+					if(rec.getMateUnmappedFlag()) continue;
+
 					if(!rec.getMateReferenceName().equals(mateCtg2)) continue;
-					if(CoordMath.overlaps(loc.getStart(), loc.getEnd(),
-						mateLoc.getStart(), mateLoc.getEnd())) return true;
+					/* got a read where the mate overlap at the same position */
+					if(CoordMath.overlaps(
+							rec.getMateAlignmentStart(),
+							BAMUtils.getMateEnd(rec),
+							mateLoc.getStart(),
+							mateLoc.getEnd()
+							)
+						) {
+						return true;
+						}
+					
 					}
 				}
 			}
@@ -518,7 +564,7 @@ public class SamTranslocations extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		final List<SamReader> control_readers = new ArrayList<>()  ;
+		final List<ControlBam> control_readers = new ArrayList<>()  ;
 
 		if(this.fuzzy_distance<=0) {
 			LOG.error("fuzzy_distance <=0 ("+fuzzy_distance+")");
@@ -538,10 +584,10 @@ public class SamTranslocations extends Launcher {
 			
 			if(this.controlFiles!=null) {
 				for(Path path: IOUtils.unrollPath(this.controlFiles)) {
-					control_readers.add(srf
+					control_readers.add(new ControlBam(srf
 							.referenceSequence(findReferenceForBam(path))
 							.open(path)
-							);
+							));
 					}
 				}
 			
@@ -674,7 +720,7 @@ public class SamTranslocations extends Launcher {
 			return -1;
 			}
 		finally {
-			for(SamReader sr:control_readers) {
+			for(ControlBam sr:control_readers) {
 				try {sr.close(); } catch(IOException err2) {}
 				}
 			}

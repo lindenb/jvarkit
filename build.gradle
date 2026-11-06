@@ -1077,8 +1077,8 @@ all2.add( task("samshortinvert", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("saminversions", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamInversions"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	mainClass = "com.github.lindenb.jvarkit.tools.saminversions.SamInversions"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","math")
 	});
 all2.add( task("svneg", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamStructVarNeg"
