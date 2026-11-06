@@ -46,10 +46,11 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.Progress;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.BAMUtils;
+import com.github.lindenb.jvarkit.samtools.Read;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.SAMRecordRead;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.google.gson.stream.JsonWriter;
@@ -132,8 +133,8 @@ public class SamInversions extends Launcher
 		String contig;
 		int start;
 		int end;
-		JunctionCount bnd1=new JunctionCount();
-		JunctionCount bnd2=new JunctionCount();
+		final JunctionCount bnd1=new JunctionCount();
+		final JunctionCount bnd2=new JunctionCount();
 		public String getContig() {
 			return contig;
 			}
@@ -184,7 +185,7 @@ public class SamInversions extends Launcher
 				final int pos = (side==0?inv.start:inv.end);
 				try(CloseableIterator<SAMRecord> iter = control.sr.queryOverlapping(ctg,Math.max(1, pos-min_insert_size),pos+min_insert_size)) {
 					while(iter.hasNext()) {
-						final SAMRecord rec=iter.next();
+						final Read rec= new SAMRecordRead(iter.next());
 						
 						}
 					}
@@ -218,15 +219,15 @@ public class SamInversions extends Launcher
 			final int pos = (side==0?inv.start:inv.end);
 			try(CloseableIterator<SAMRecord> r= sr.queryOverlapping(inv.getContig(), Math.max(1, pos-min_insert_size),pos+min_insert_size)) {
 				while(r.hasNext()) {
-					final SAMRecord rec=r.next();
-					if(!SAMRecordDefaultFilter.accept(rec)) continue;
-					if(!rec.getReadPairedFlag()) continue;
-					if(rec.getMateUnmappedFlag()) continue;
-					if(!rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) continue;
+					final Read rec= new SAMRecordRead(r.next());
+					if(rec.isIgnorable()) continue;
+					if(!rec.isPairedRead()) continue;
+					if(rec.isMateUnmapped()) continue;
+					if(!rec.isReadAndMateMappedOnSameChromosome()) continue;
 					
 					if(rec.getMateAlignmentStart()<=pos) continue;
 					if(rec.getMateAlignmentStart()<=rec.getEnd()) continue;
-
+					
 					//read must be before pos
 					if(rec.getEnd()>= pos) continue;
 					// mate must be after pos
@@ -234,13 +235,13 @@ public class SamInversions extends Launcher
 
 					final JunctionCount bnd = (side==0?inv.bnd1:inv.bnd2);
 					
-					if(!rec.getReadNegativeStrandFlag() &&  rec.getMateNegativeStrandFlag()) {
+					if(rec.isPlusStrand() &&  rec.isMinusStrand()) {
 						bnd.count_overlap_properly_paired++;
 						}
-					else if(side==0 && !rec.getReadNegativeStrandFlag() && !rec.getMateNegativeStrandFlag()) {
+					else if(side==0 && rec.isPlusStrand() && rec.isMatePlusStrand()) {
 						bnd.count_overlap_inversion++;
 						}
-					else if(side==1 && rec.getReadNegativeStrandFlag() && rec.getMateNegativeStrandFlag()) {
+					else if(side==1 && rec.isMinusStrand() && rec.isMateMinusStrand()) {
 						bnd.count_overlap_inversion++;
 						}
 					else
@@ -252,17 +253,17 @@ public class SamInversions extends Launcher
 			}
 		}
 	
-	private boolean is_ff_rr_read(final SAMRecord rec1) {
-		if(!SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) return false;
-		if(!rec1.getReadPairedFlag()) return false;
-		if(!rec1.getMateUnmappedFlag()) return false;
-		if(!rec1.getReferenceIndex().equals(rec1.getMateReferenceIndex())) return false;
+	private boolean is_ff_rr_read(final Read rec1) {
+		if(rec1.isIgnorable(this.min_mapq)) return false;
+		if(!rec1.isPairedRead()) return false;
+		if(rec1.isMateUnmapped()) return false;
+		if(rec1.getMateReferenceIndex()!=rec1.getReferenceIndex()) return false;
 		return true;
 		}
 	
-	private void fillForwardCandidates(SAMRecord rec1,final List<BreakEnd> candidates) {
+	private void fillForwardCandidates(final Read rec1,final List<BreakEnd> candidates) {
 		if(!is_ff_rr_read(rec1)) return ;
-		if(rec1.getReadNegativeStrandFlag()) return;
+		if(rec1.isMinusStrand()) return;
 	
 		if(!(rec1.getEnd() <rec1.getMateAlignmentStart())) return;
 
@@ -271,41 +272,41 @@ public class SamInversions extends Launcher
 		
 		if(!rec1.getCigar().isRightClipped()) return; // expect a clip
 		if(rec1.getCigar().getLastCigarElement().getLength()< min_clip_size) return;
-		for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec1)) {
+		for(Read suppl: rec1.getOtherCanonicalAlignments()) {
 			
 			if(!suppl.contigsMatch(rec1)) continue;
 			System.err.println("A1 ! "+rec1+" "+suppl);
-			if(!suppl.getReadNegativeStrandFlag()) continue;
+			if(suppl.isPlusStrand()) continue;
 			System.err.println("A2 ! "+rec1+" "+suppl);
-			if(!(rec1.getEnd() < suppl.getStart() &&  BAMUtils.getMateEnd(rec1)< suppl.getStart())) continue;
+			if(!(rec1.getEnd() < suppl.getStart() &&  rec1.getMateAlignmentEnd()< suppl.getStart())) continue;
 			
 			final BreakEnd bnd=new BreakEnd();
-			bnd.start = rec1.getAlignmentEnd()+1;
-			bnd.end = suppl.getAlignmentStart()-1;
+			bnd.start = rec1.getEnd()+1;
+			bnd.end = suppl.getStart()-1;
 			bnd.negativeStrand=false;
 			System.err.println("OK ! ");
 			candidates.add(bnd);
 			}
 		}
 	
-	private void fillReverseCandidates(final SAMRecord rec1,final List<BreakEnd> candidates) {
+	private void fillReverseCandidates(final Read rec1,final List<BreakEnd> candidates) {
 		if(!is_ff_rr_read(rec1)) return ;
-		if(!rec1.getReadNegativeStrandFlag()) return;
+		if(rec1.isPlusStrand()) return;
 
 		if(!rec1.getCigar().isLeftClipped()) return ; // expect a clip
 		if(rec1.getCigar().getFirstCigarElement().getLength()< min_clip_size) return;
-		if(!rec1.getMateUnmappedFlag()) return ;
-		if(!rec1.getReferenceIndex().equals(rec1.getMateReferenceIndex()))return;
-		if(!rec1.getMateNegativeStrandFlag()) return;
-		if(!(BAMUtils.getMateEnd(rec1) < rec1.getStart())) return ;
+		if(!rec1.isMateMapped()) return ;
+		if(rec1.getReferenceIndex()!=rec1.getMateReferenceIndex())return;
+		if(!rec1.isMateMinusStrand()) return;
+		if(!(rec1.getMateAlignmentEnd() < rec1.getStart())) return ;
 
 		
-		for(SAMRecord suppl: SAMUtils.getOtherCanonicalAlignments(rec1)) {
+		for(Read suppl: rec1.getOtherCanonicalAlignments()) {
 			if(!suppl.contigsMatch(rec1)) continue;
-			if(suppl.getReadNegativeStrandFlag()) continue;
-			if(!(suppl.getAlignmentEnd() < rec1.getMateAlignmentStart() && suppl.getAlignmentEnd() < rec1.getStart())) continue;
+			if(suppl.isMinusStrand()) continue;
+			if(!(suppl.getEnd() < rec1.getMateAlignmentStart() && suppl.getEnd() < rec1.getStart())) continue;
 			final BreakEnd bnd=new BreakEnd();
-			bnd.start = suppl.getAlignmentEnd()+1;
+			bnd.start = suppl.getEnd()+1;
 			bnd.end = rec1.getStart()-1;
 			bnd.negativeStrand=true;
 			
@@ -380,12 +381,11 @@ public class SamInversions extends Launcher
 							/** loop over all reads */
 							try(CloseableIterator<SAMRecord> iter1=  makeIterator(samReader1)) {
 								for(;;) {
-									final SAMRecord rec1 = iter1.hasNext()?iter1.next():null;
-									if(rec1!=null && !SAMRecordDefaultFilter.accept(rec1,this.min_mapq)) continue;
+									final Read rec1 = iter1.hasNext()?new SAMRecordRead(iter1.next()):null;
+									if(rec1!=null && rec1.isIgnorable(this.min_mapq)) continue;
 									
 									if(rec1==null || (prevContig!=null && !rec1.getContig().equals(prevContig))) {
 										if(!candidates.isEmpty()) {
-											System.err.println(candidates.size());
 											Collections.sort(candidates,(A,B)->Integer.compare(A.start, B.start));
 											
 											int i=0;
@@ -448,14 +448,14 @@ public class SamInversions extends Launcher
 											candidates.clear();
 											} //end candidates empty
 										if(rec1==null) break;
-										prevContig =rec1.getContig();
+										prevContig = rec1.getContig();
 										} //end of contig==null
 									
 									
-									if(!rec1.getReadNegativeStrandFlag()) {
+									if(rec1.isPlusStrand()) {
 										fillForwardCandidates(rec1,candidates);
 										}
-									else if(rec1.getReadNegativeStrandFlag()) {
+									else if(rec1.isMinusStrand()) {
 										fillReverseCandidates(rec1,candidates);
 										}
 									}//end for(;;
