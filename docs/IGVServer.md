@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Web Server displaying SAM/BAM/VCF file and using the IGV.js API. 
+Web Server displaying SAM/BAM/VCF file and using the IGV.js API.
 
 
 ## Usage
@@ -17,7 +17,7 @@ Usage: java -jar dist/jvarkit.jar igvserver  [options] Files
 Usage: igvserver [options] Files
   Options:
     --bed, --roi
-      Bed of regions of interest displated as a html 'select' item
+      Optional Bed of regions of interest displated as a html 'select' item
     -h, --help
       print help and exit
     --helpFormat
@@ -76,6 +76,11 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Motivation
+
+creates a IGV.js browser that is able to visualize multiple BAM/vcf files
 
 
 ## Input

@@ -71,6 +71,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.net.ContentType;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.net.UrlSupplier.LabelledUrl;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
@@ -88,6 +89,11 @@ import htsjdk.samtools.util.SequenceUtil;
 
 /**
 BEGIN_DOC
+
+## Motivation
+
+creates a IGV.js browser that is able to visualize multiple BAM/vcf files
+
 
 ## Input
 
@@ -110,10 +116,10 @@ END_DOC
  */
 @Program(
 		name="igvserver",
-		description="Web Server displaying SAM/BAM/VCF file and using the IGV.js API. ",
+		description="Web Server displaying SAM/BAM/VCF file and using the IGV.js API.",
 		keywords={"sam","bam","table","visualization","server","web"},
 		creationDate = "20261104",
-		modificationDate = "20261104",
+		modificationDate = "20261106",
 		jvarkit_amalgamion = true,
 		generate_doc = true
 		)
@@ -131,7 +137,7 @@ public class IGVServer extends Launcher {
 		private String igv_js_url = "https://cdn.jsdelivr.net/npm/igv@3.8.10/dist/igv.min.js";
 		@Parameter(names={"--shutdown-after"},description="Stop the server after 'x' seconds.")
 		private long shutdownAferSeconds=-1L;
-		@Parameter(names={"--bed","--roi"},description="Bed of regions of interest displated as a html 'select' item")
+		@Parameter(names={"--bed","--roi"},description="Optional Bed of regions of interest displated as a html 'select' item")
 		private Path roiBedPath=null;
 
 		
@@ -181,7 +187,7 @@ public class IGVServer extends Launcher {
 			}
 		
 		private static final List<ConfigEnum> CONFIG_ENUMS= Arrays.asList(
-				new ConfigEnum("cb","colorBy","Color alignment by property","none,strand,firstOfPairStrand,pairOrientation,tlen,unexpectedPair,tag:YC"),
+				new ConfigEnum("co","colorBy","Color alignment by property","none,strand,firstOfPairStrand,pairOrientation,tlen,unexpectedPair,tag:YC"),
 				new ConfigEnum("gb","groupBy","Group alignments by property","none,strand,firstOfPairStrand,pairOrientation,mateChr,chimeric,supplementary,readOrder"),
 				new ConfigEnum("dm","displayMode","Display Mode","EXPANDED,SQUISHED,FULL")
 			);
@@ -271,10 +277,17 @@ public class IGVServer extends Launcher {
 			private String toString(Locatable l) {
 				return l.getContig()+":"+l.getStart()+"-"+l.getEnd();
 				}
-			
+			private String toNiceString(Locatable l) {
+				return l.getContig()+":"+StringUtils.niceInt(l.getStart())+"-"+StringUtils.niceInt(l.getEnd());
+				}
 			@Override
 			protected void service(final HttpServletRequest req, HttpServletResponse resp)
 					throws ServletException, IOException {
+				final List<LocalFile> bam_vcf_files = this.htsFiles
+						.stream()
+						.filter(F->F.isBamOrCramOrVcf())
+						.collect(Collectors.toList());
+				final int n_random = 10;//number of random files we can choose
 				final Set<LocalFile> selected=new HashSet<>();
 				final Map<String,Boolean> configFlags = new HashMap<String, Boolean>(CONFIG_FLAGS.size());
 				final Map<String,String> configEnums = new HashMap<String,String>(CONFIG_ENUMS.size());
@@ -290,18 +303,16 @@ public class IGVServer extends Launcher {
 					configEnums.put(cfg.name, FIRST_CALL?cfg.values.get(0): StringUtils.ifBlank(req.getParameter(cfg.id),cfg.values.get(0)));
 					}
 				
-				final int track_height = Math.max(StringUtils.parseInt(req.getParameter(PARAM_TRACK_HEIGHT)).orElse(0),MIN_TRACK_HEIGHT);
+				final int track_height = (FIRST_CALL?300:Math.max(StringUtils.parseInt(req.getParameter(PARAM_TRACK_HEIGHT)).orElse(0),MIN_TRACK_HEIGHT));
 				
-				for(LocalFile lf: this.htsFiles) {
-			        	if(!lf.isBamOrCramOrVcf()) continue;
-			        	final String sel=req.getParameter("cb"+lf.id);
+				for(LocalFile lf: bam_vcf_files) {
+			        	final String sel=req.getParameter(lf.getAttribute());
 			        	if(!StringUtils.isBlank(sel) && sel.matches("(true|1|yes)")) {
 			        		selected.add(lf);
 			        		}
 				 		}
 				if(selected.isEmpty() && FIRST_CALL) {
-					for(LocalFile lf: this.htsFiles) {
-						if(!lf.isBamOrCramOrVcf()) continue;
+					for(LocalFile lf: bam_vcf_files) {
 						selected.add(lf);
 						break;
 						}
@@ -313,18 +324,18 @@ public class IGVServer extends Launcher {
 				
 				
 		         final String charset = StringUtils.ifBlank(req.getCharacterEncoding(), "UTF-8");
-		         resp.setContentType("text/html; charset="+charset.toLowerCase());
+		         resp.setContentType( ContentType.TEXT_XHTML.getMimeType()+"; charset="+charset.toLowerCase());
 		         resp.setCharacterEncoding(charset);
 		         
-		         PrintWriter pw = resp.getWriter();
-		         pw.println("<!doctype html>");
+		         final PrintWriter pw = resp.getWriter();
     	         try {
     	             final XMLStreamWriter w=XMLOutputFactory.newFactory().createXMLStreamWriter(pw);
-    	             
+    	             //w.writeStartDocument(charset, "1.0");
+    	             w.writeDTD("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">");
     	             w.writeStartElement("html");
     	             w.writeAttribute("xml:lang", "en");
     	             w.writeAttribute("lang", "en");
-    	             
+    	             w.writeAttribute("xmlns", "http://www.w3.org/1999/xhtml");
     	             
     	             
     	             w.writeStartElement("head");
@@ -349,10 +360,24 @@ public class IGVServer extends Launcher {
     	             w.writeCharacters("\n");
     	             w.writeStartElement("script");
     	             w.writeAttribute( "type","text/javascript");
+    	             // list of all sample IDs
+    	             w.writeCharacters("var hts_ids=["+bam_vcf_files.stream().map(F->"\""+F.getAttribute()+"\"").collect(Collectors.joining(","))+"];\n");
+    	             // function to toggle the samples
+    	             w.writeCharacters(
+    	            		"function toggle_checkboxes(a,b) {\n"
+     	             		+ "for (let i = 0; i < a.length; i++)  {document.getElementById(a[i]).checked=b;}\n"
+     	             		+ "}\n");
+    	             // select sample by name and choose n_random samples
+    	             w.writeCharacters("function sel_random(name) {\n"
+    	             		+ " toggle_checkboxes(hts_ids,false);\nvar a=[];\nif(name!=null) a.push(name);\n"
+    	            		+ " for(var i=0; i< "+n_random+" && i< hts_ids.length ;i++) { a.push( hts_ids[ Math.floor( Math.random()*hts_ids.length ) ] ); }\n"
+    	            		+ " toggle_checkboxes(a,true);\n"
+    	             		+ "}\n");
+    	             
     	             w.writeCharacters("\nwindow.addEventListener('load', function() {\n"
-      	            		+ "  var sel =  document.getElementById(\"roi\");  console.log(sel);\n"
-     	            		+ "  var input1 =  document.getElementById(\""+PARAM_INTERVAL+"\"); console.log(input1);\n"
-     	            		+ "  var form1 =  document.getElementById(\"form\");  console.log(form1);\n"
+      	            		+ "  var sel =  document.getElementById(\"roi\"); \n"
+     	            		+ "  var input1 =  document.getElementById(\""+PARAM_INTERVAL+"\"); \n"
+     	            		+ "  var form1 =  document.getElementById(\"form\"); \n"
     	            		+ "  sel.addEventListener(\"change\", function(event2)  {if(sel.value){ input1.value=sel.value; form1.submit();} });\n"
     	             		+ "});\n");
     	             
@@ -365,7 +390,7 @@ public class IGVServer extends Launcher {
                      w.writeCharacters(
                              "body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
                              + "h1 {text-align:center;color:#070707;}"
-                             + ".grid-container {display: grid; grid-template-columns: auto auto auto auto ;grid-gap: 10px;  padding: 10px;}"
+                             + ".grid-container {display: grid; grid-template-columns: auto auto auto auto auto auto;grid-gap: 10px;  padding: 10px;}"
                              + ".comment {background-color:khaki;text-align:center;font-size:14px;}"
                              + ".highlight {background-color:#DB7093;}"
                              + ".message {color:red;}"
@@ -385,6 +410,10 @@ public class IGVServer extends Launcher {
     	             
     	             w.writeStartElement("form");
 			         w.writeAttribute("id", "form");
+			         //too many files to handle GET, use POST
+			         if(bam_vcf_files.size()>100) {
+			        	w.writeAttribute("method", "POST"); 
+			         	}
     	             
     	             {
     	             w.writeStartElement("p");
@@ -403,7 +432,7 @@ public class IGVServer extends Launcher {
 			        			w.writeAttribute("selected", "true");
 			        			}
 			        		w.writeAttribute("value", toString(roi));
-			        		w.writeCharacters(roi.getContig()+":"+StringUtils.niceInt(roi.getStart())+"-"+StringUtils.niceInt(roi.getEnd()));
+			        		w.writeCharacters(toNiceString(roi));
 			        		w.writeEndElement();
 			        		}
     	            	w.writeEndElement();
@@ -582,7 +611,7 @@ public class IGVServer extends Launcher {
 	    	            			+ "             browser.on('locuschange', function (referenceFrameIdx) {\n"
 	    	            			+ "                     if(browser.referenceFrameList==undefined || browser.referenceFrameList.length==0) return;\n"
 	    	            			+ "                     var referenceFrame= browser.referenceFrameList[0];"
-	    	            			+ "                    document.getElementById(\""+PARAM_INTERVAL+"\").value=referenceFrame.chr + \":\" + parseInt(referenceFrame.start) + \"-\" + parseInt(referenceFrame.end);\n"
+	    	            			+ "                     document.getElementById(\""+PARAM_INTERVAL+"\").value=referenceFrame.chr + \":\" + parseInt(referenceFrame.start) + \"-\" + parseInt(referenceFrame.end);\n"
 	    	            			+ "                     });\n"
 	    	            			+ "        });\n");
 	    	            	
@@ -597,26 +626,69 @@ public class IGVServer extends Launcher {
     	            
     	            w.writeEmptyElement("hr");
     	             
+    	            // button to select ALL
+		        	w.writeStartElement("button");
+		        	w.writeAttribute("type", "button");
+		        	w.writeAttribute("title", "Select all Samples");
+		        	w.writeAttribute("onclick", "toggle_checkboxes(hts_ids,true)");
+		        	w.writeCharacters("Select All");
+		        	w.writeEndElement();
+		        	w.writeCharacters(" ");
+    	            
+    	            // button to select None
+		        	w.writeStartElement("button");
+		        	w.writeAttribute("type", "button");
+		        	w.writeAttribute("title", "Select no Samples");
+		        	w.writeAttribute("onclick", "toggle_checkboxes(hts_ids,false)");
+		        	w.writeCharacters("Select None");
+		        	w.writeEndElement();
+		        	w.writeCharacters(" ");
+		        	
+    	            // button to select Random
+		        	w.writeStartElement("button");
+		        	w.writeAttribute("type", "button");
+		        	w.writeAttribute("title", "Select "+n_random+" Samples");
+		        	w.writeAttribute("onclick", "sel_random(null)");
+		        	w.writeEntityRef("#x1F3B2");
+		        	w.writeCharacters(" ");
+		        	w.writeCharacters("Random "+n_random);
+		        	w.writeEndElement();
+		        	w.writeCharacters(" ");
+ 	
+		        	 // button to submit
+		        	w.writeEmptyElement("input");
+		        	w.writeAttribute("type", "submit");
+		        	w.writeAttribute("value","Refresh");
     	            
     	            w.writeStartElement("div");
     	            w.writeAttribute("class", "grid-container");
-    	            for(LocalFile lf: this.htsFiles) {
-    			        	if(!lf.isBamOrCramOrVcf()) continue;
+    	            for(LocalFile lf: bam_vcf_files) {
     			        	w.writeStartElement("div");
     			        	
     			        	w.writeEmptyElement("input");
     			        	w.writeAttribute("type", "checkbox");
     			        	if(selected.contains(lf)) w.writeAttribute("checked", "true");
-    			        	w.writeAttribute("name", "cb"+lf.id);
-    			        	w.writeAttribute("id", "cb"+lf.id);
+    			        	w.writeAttribute("name", lf.getAttribute());
+    			        	w.writeAttribute("id", lf.getAttribute());
     			        	w.writeAttribute("value", "1");
     			        	
     			        	w.writeStartElement("label");
-    			        	w.writeAttribute("for", "cb"+lf.id);
+    			        	w.writeAttribute("for",lf.getAttribute());
     			        	w.writeAttribute("title",lf.path.toString());
     			        	w.writeCharacters(lf.getName());
     			        	w.writeEndElement();
     			        	
+    			        	if(bam_vcf_files.size()  > n_random) {
+	    			        	w.writeCharacters(" ");
+	    			        	w.writeStartElement("button");
+	    			        	w.writeAttribute("type", "button");
+	    			        	w.writeAttribute("title", "choose "+n_random+" files");
+	    			        	w.writeAttribute("onclick", "sel_random(\""+lf.getAttribute()+"\")");
+	    			        	w.writeEntityRef("#x1F3B2");
+	    			        	w.writeCharacters(" ");
+	    			        	w.writeCharacters(String.valueOf(n_random));
+	    			        	w.writeEndElement();
+	    			        	}
     			        	
     			        	w.writeEndElement();//div
     			        	}
@@ -641,6 +713,7 @@ public class IGVServer extends Launcher {
     	             
     	             w.writeEndElement();//body
     	             w.writeEndElement();//html
+    	             //w.writeEndDocument();
     	             w.flush();
     	             w.close();
     	         	}
@@ -678,21 +751,14 @@ public class IGVServer extends Launcher {
 				}
 			
 			
-			public String getURI() {
-				return this.path.toAbsolutePath().toString();
-				/*
-				return  new StringBuilder(RAW_PATH)
-						.append("/")
-						.append(StringUtils.md5(path.toString()))
-						.append("/")
-						.append(this.path.getFileName().toString())
-						.toString();*/
-				}
-			
 			@Override
 			public int hashCode() {
 				return path.hashCode();
 				}
+			
+			public String getAttribute() {
+				return "cb"+this.id;
+			}
 			
 			@Override
 			public String getName() {
@@ -706,7 +772,7 @@ public class IGVServer extends Launcher {
  				}
 			@Override
 			public String toString() {
-				return getURI()+" = " +this.path;
+				return String.valueOf(this.path);
 				}
 			}
 		
@@ -874,7 +940,7 @@ public class IGVServer extends Launcher {
 				
 				
 				
-		        LOG.info("Starting IGVServer on http://localhost:"+this.port+"/igv");
+		        LOG.info("Starting IGVServer on http://localhost:"+this.port+"/igv  . Open your browser at this URL. Press CTRL+C to stop the server.");
 				server.start();
 				if(this.shutdownAferSeconds>0)
 					{
