@@ -167,6 +167,7 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Janzekovic, Franc & al . "The enigma of the Oltenia blind mole-rat (Spalax istricus) within the collapsing steppe biome" Mammalia. https://doi.org/10.1515/mammalia-2026-0024
  * Sawaswong & al. Genetic diversity of clinical Mycobacterium bovis BCG isolates from an immunocompromised patient with BCG infection https://doi.org/10.1016/j.meegid.2026.106014 **WGSCoveragePlotter**
  * Mandal, K., Malar C, M., Upadhyay, A. et al. Three-dimensional genome architecture of the pathogenic oomycete Phytophthora capsici provides insights into its chromatin architecture and regulatory complexity. Commun Biol (2026). https://doi.org/10.1038/s42003-026-10760-5
+ * Redondo-Rio, A., Gabaldon, T. An inter-species hybrid in the emerging fungal pathogen Rhodosporidiobolus fluvialis. npj Fungal Sci. 1, 8 (2026).
 
 ## Screenshot
 

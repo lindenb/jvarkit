@@ -1147,4 +1147,26 @@ public class IOUtils {
    public static String escapePath(final String filename) {
 	return filename.replaceAll("[^A-Za-z0-9\\._\\-]+", "_");
    	}
+   
+   /** try to convert path to absolute path, otherwise return original path */
+   public static Path toAbsolutePath(final Path srcPath) {
+		   try {
+	   		final Path abs = srcPath.toAbsolutePath();
+	   		return abs;
+	   		}
+	   	catch (Throwable err) {
+			return srcPath;
+			}
+   		}
+   /** try to convert path to real path, otherwise return original path */
+   public static Path toRealPath(final Path srcPath) {
+		   try {
+	   		final Path abs = srcPath.toRealPath();
+	   		return abs;
+	   		}
+	   	catch (Throwable err) {
+			return srcPath;
+			}
+   		}
+
 	}

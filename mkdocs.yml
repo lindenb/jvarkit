@@ -223,6 +223,7 @@ nav:
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samfixcigar" : SamFixCigar.md
         - "samgrep" : SamGrep.md
+        - "saminversions" : SamInversions.md
         - "samjdk" : SamJdk.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samslop" : SamSlop.md

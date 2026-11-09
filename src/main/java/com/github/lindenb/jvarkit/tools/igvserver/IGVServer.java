@@ -187,7 +187,7 @@ public class IGVServer extends Launcher {
 			}
 		
 		private static final List<ConfigEnum> CONFIG_ENUMS= Arrays.asList(
-				new ConfigEnum("co","colorBy","Color alignment by property","none,strand,firstOfPairStrand,pairOrientation,tlen,unexpectedPair,tag:YC"),
+				new ConfigEnum("co","colorBy","Color alignment by property","unexpectedPair,none,strand,firstOfPairStrand,pairOrientation,tlen,tag:YC"),
 				new ConfigEnum("gb","groupBy","Group alignments by property","none,strand,firstOfPairStrand,pairOrientation,mateChr,chimeric,supplementary,readOrder"),
 				new ConfigEnum("dm","displayMode","Display Mode","EXPANDED,SQUISHED,FULL")
 			);
@@ -235,6 +235,15 @@ public class IGVServer extends Launcher {
 						.append("\",height:")
 						.append(Math.max(height, MIN_TRACK_HEIGHT))
 						;
+					
+					for(final String k: configFlags.keySet()) {
+						sb.append(",").append(k).append(":").append(configFlags.get(k));
+						}
+				
+					for(final String k: configEnums.keySet()) {
+						sb.append(",").append(k).append(":\"").append(configEnums.get(k)).append("\"");
+						}
+					
 					}
 				else if(bam.isVcf()) {
 					sb
@@ -248,13 +257,7 @@ public class IGVServer extends Launcher {
 						.append("\"")
 						;
 					}
-				for(final String k: configFlags.keySet()) {
-					sb.append(",").append(k).append(":").append(configFlags.get(k));
-					}
 			
-				for(final String k: configEnums.keySet()) {
-					sb.append(",").append(k).append(":\"").append(configEnums.get(k)).append("\"");
-					}
 				
 				return sb.append("}").toString();
 				}
@@ -340,6 +343,9 @@ public class IGVServer extends Launcher {
     	             
     	             w.writeStartElement("head");
     	             
+    	             w.writeEmptyElement("link");
+    	             w.writeAttribute("rel", "icon");
+    	             w.writeAttribute("href", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAAxJREFUCNdj8NttCgACmQE/IckioQAAAABJRU5ErkJggg==");
     	             
     	             w.writeEmptyElement("meta");
     	             w.writeAttribute("charset", charset);
@@ -353,6 +359,7 @@ public class IGVServer extends Launcher {
     	             w.writeEndElement();//title
 		    	     
     	             w.writeStartElement("script");
+    	             w.writeAttribute( "type","text/javascript");
     	             w.writeAttribute("src",this.igv_js_url);
     	             w.writeEndElement();//script
     	             
@@ -374,20 +381,22 @@ public class IGVServer extends Launcher {
     	            		+ " toggle_checkboxes(a,true);\n"
     	             		+ "}\n");
     	             
-    	             w.writeCharacters("\nwindow.addEventListener('load', function() {\n"
-      	            		+ "  var sel =  document.getElementById(\"roi\"); \n"
-     	            		+ "  var input1 =  document.getElementById(\""+PARAM_INTERVAL+"\"); \n"
-     	            		+ "  var form1 =  document.getElementById(\"form\"); \n"
-    	            		+ "  sel.addEventListener(\"change\", function(event2)  {if(sel.value){ input1.value=sel.value; form1.submit();} });\n"
-    	             		+ "});\n");
-    	             
+    	             if(!this.roi_interval.isEmpty()) {
+	    	             w.writeCharacters("\nwindow.addEventListener('load', function() {\n"
+	      	            		+ "  var sel =  document.getElementById(\"roi\"); \n"
+	     	            		+ "  var input1 =  document.getElementById(\""+PARAM_INTERVAL+"\"); \n"
+	     	            		+ "  var form1 =  document.getElementById(\"form\"); \n"
+	    	            		+ "  sel.addEventListener(\"change\", function(event2)  {if(sel.value){ input1.value=sel.value; form1.submit();} });\n"
+	    	             		+ "});\n");
+	    	             }
     	             
     	             w.writeEndElement();//script
     	             
     	             
     	             w.writeStartElement("style");
-
-                     w.writeCharacters(
+    	             w.writeAttribute("type", "text/css");
+    	             
+    	             w.writeCharacters(
                              "body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
                              + "h1 {text-align:center;color:#070707;}"
                              + ".grid-container {display: grid; grid-template-columns: auto auto auto auto auto auto;grid-gap: 10px;  padding: 10px;}"
@@ -586,14 +595,15 @@ public class IGVServer extends Launcher {
     	            		w.writeEndElement();//div
     	            		
 	    	            	w.writeStartElement("script");
-	    	            	w.writeCharacters("const options_"+ref.id+"={");
-	    	            	w.writeCharacters("reference:{");
-	    	            	w.writeCharacters("id:\"ref"+ref.id+"\",");
-	    	            	w.writeCharacters("name:\""+SequenceDictionaryUtils.getBuildName(dict).orElse("genome") +"\",");
-	    	            	w.writeCharacters("fastaURL:\"/"+resolveStatic(ref.path) +"\",");
-	    	            	w.writeCharacters("indexURL:\"/"+resolveStatic(ref.index.path) +"\"");
-	    	            	w.writeCharacters("}");
-	    	            	w.writeCharacters(",locus:\""+toString(region)+"\"");
+	    	            	w.writeCharacters("const options_"+ref.id+"={\n");
+	    	            	w.writeCharacters("reference:{\n");
+	    	            	w.writeCharacters("id:\"ref"+ref.id+"\",\n");
+	    	            	w.writeCharacters("name:\""+SequenceDictionaryUtils.getBuildName(dict).orElse("genome") +"\",\n");
+	    	            	w.writeCharacters("fastaURL:\"/"+resolveStatic(ref.path) +"\",\n");
+	    	            	w.writeCharacters("indexURL:\"/"+resolveStatic(ref.index.path) +"\"\n");
+	    	            	w.writeCharacters("}\n");
+	    	            	w.writeCharacters(",showNavigation:true,\nsupportQueryParameters:false,\n");
+	    	            	w.writeCharacters("locus:\""+toString(region)+"\"\n");
 	
 	    	            	
 	    	            	w.writeCharacters(",tracks:[");
@@ -606,16 +616,22 @@ public class IGVServer extends Launcher {
 	    	            	w.writeCharacters("]};\n");
 	    	            	w.writeCharacters("var igvDiv"+ref.id+" = document.getElementById(\"ref"+ref.id+"\");\n"
 	    	            			+ "  igv.createBrowser(igvDiv"+ref.id+", options_"+ref.id+")\n"
-	    	            			+ "        .then(function (browser) {\n"
-	    	            			+ "            console.log(\"Created IGV browser\");\n"
-	    	            			+ "             browser.on('locuschange', function (referenceFrameIdx) {\n"
-	    	            			+ "                     if(browser.referenceFrameList==undefined || browser.referenceFrameList.length==0) return;\n"
-	    	            			+ "                     var referenceFrame= browser.referenceFrameList[0];"
-	    	            			+ "                     document.getElementById(\""+PARAM_INTERVAL+"\").value=referenceFrame.chr + \":\" + parseInt(referenceFrame.start) + \"-\" + parseInt(referenceFrame.end);\n"
-	    	            			+ "                     });\n"
-	    	            			+ "        });\n");
-	    	            	
-	    	            	
+						);
+						boolean add_callback=true;
+						if(!add_callback) {
+							 w.writeCharacters(";");
+						} else {
+							  w.writeCharacters(""
+			    	            			+ "        .then(browser => {\n"
+			    	            			+ "            console.log(\"Created IGV browser\");\n"
+			    	            			+ "            browser.on('locuschange', (referenceFrameIdx) => {\n"
+			    	            			+ "                     if(browser.referenceFrameList==undefined || browser.referenceFrameList.length==0) return;\n"
+			    	            			+ "                     var referenceFrame= browser.referenceFrameList[0];"
+			    	            			+ "                     document.getElementById(\""+PARAM_INTERVAL+"\").value=referenceFrame.chr + \":\" + parseInt(referenceFrame.start) + \"-\" + parseInt(referenceFrame.end);\n"
+			    	            			+ "                     return true;\n" 
+			    	            			+ "                     });\n"
+			    	            			+ "        });\n");
+								}
 	    	            	w.writeEndElement();//script
 	    	            	}
     	            	
@@ -625,7 +641,8 @@ public class IGVServer extends Launcher {
 
     	            
     	            w.writeEmptyElement("hr");
-    	             
+    	            w.writeStartElement("div"); 
+    	           
     	            // button to select ALL
 		        	w.writeStartElement("button");
 		        	w.writeAttribute("type", "button");
@@ -660,6 +677,8 @@ public class IGVServer extends Launcher {
 		        	w.writeAttribute("type", "submit");
 		        	w.writeAttribute("value","Refresh");
     	            
+		        	w.writeEndElement();//end div
+		        	
     	            w.writeStartElement("div");
     	            w.writeAttribute("class", "grid-container");
     	            for(LocalFile lf: bam_vcf_files) {

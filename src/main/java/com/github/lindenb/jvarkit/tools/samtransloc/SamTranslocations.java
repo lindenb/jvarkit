@@ -666,10 +666,10 @@ public class SamTranslocations extends Launcher {
 									if(event.isValid()) {
 										j.beginObject();
 										j.name("sample"); j.value(sampleName);
-										j.name("bam"); j.value(String.valueOf(bamInput));
+										j.name("bam"); j.value(String.valueOf(IOUtils.toRealPath(bamInput)));
 										j.name("high_qual"); j.value(event.isHighQual());
 										if(faidx_reference!=null) {
-											j.name("reference");j.value(String.valueOf(faidx_reference));
+											j.name("reference");j.value(String.valueOf(IOUtils.toRealPath(faidx_reference)));
 											}
 										if(build!=null) {
 											j.name("build");j.value(build);

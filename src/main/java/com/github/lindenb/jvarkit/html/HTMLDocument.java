@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.html;
 
 import java.util.HashMap;
@@ -14,6 +38,11 @@ import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.xml.DocumentWrapper;
 
+/**
+ *
+ *  DocumentWrapper for HTMLDocument
+ *
+ */
 public class HTMLDocument extends DocumentWrapper {
 	public final Document document;
 	public final Element htmlElement;
@@ -51,7 +80,6 @@ public class HTMLDocument extends DocumentWrapper {
 		this.htmlElement.appendChild(bodyElement);
 	}
 	
-	
 	protected Map<String,String> getDefaultCsstyle() {
 		final Map<String,String> h = new HashMap<>();
 		h.put("table","border-collapse: collapse;");
@@ -81,7 +109,6 @@ public class HTMLDocument extends DocumentWrapper {
 		return document;
 		}
 	
-	
 	public Element bold(Object content) { return element("b",content,null);}
 	public Element italic(Object content) { return element("i",content,null);}
 	public Element code(Object content) { return element("code",content,null);}
@@ -99,13 +126,11 @@ public class HTMLDocument extends DocumentWrapper {
 	public void setTitle(final String s) {
 		removeAllChildren(this.titleElement).appendChild(text(s));
 		}
-
 	
 	@Override
 	public String getDefaultNamespace() {
 		return "http://www.w3.org/1999/xhtml";
 		}
-	
 	
 	public class Table {
 		public Element table;
@@ -132,9 +157,7 @@ public class HTMLDocument extends DocumentWrapper {
 				col2index.put(label, col2index.size());
 				th.appendChild(lblNode);
 				}
-				
 			}
-		
 		
 		public int getColumnCount() {
 			return nCols;
@@ -294,7 +317,6 @@ public class HTMLDocument extends DocumentWrapper {
 		}
 
 	
-	
 	public Element h1() { return header(1); }
 	public Element h1(Object content) { return element("h1",content,null); }
 	public Element h2() { return header(2); }
@@ -303,7 +325,7 @@ public class HTMLDocument extends DocumentWrapper {
 	public Element h4() { return header(4); }
 	
 	public Element span(Object content,Map<String,Object> atts) {
-		Element  b = element("span",atts);
+		final Element  b = element("span",atts);
 		if(content!=null) b.appendChild(toNode(content));
 		return b;
 		}
@@ -311,19 +333,17 @@ public class HTMLDocument extends DocumentWrapper {
 		return span(null,null);
 		}
 	
-	public Element button(Object content,Map<String,Object> atts) {
-		Element  b = element("button",atts);
+	public Element button(final Object content, final Map<String,Object> atts) {
+		final Element  b = element("button",atts);
 		if(content!=null) b.appendChild(toNode(content));
 		return b;
 		}
 	
-	public Element textarea(String content,Map<String,Object> atts) {
+	public Element textarea(final String content,final Map<String,Object> atts) {
 		return  element("textarea",content,atts);
 		}
 	
-	public Table createTable(List<Object> header) {
+	public Table createTable(final List<Object> header) {
 		return new Table(header);
 	}
-	
-	
 }

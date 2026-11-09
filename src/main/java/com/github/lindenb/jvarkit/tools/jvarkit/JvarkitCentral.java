@@ -272,6 +272,7 @@ import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samedict.SameDict;
 import com.github.lindenb.jvarkit.tools.samfixcigar.SamFixCigar;
 import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
+import com.github.lindenb.jvarkit.tools.saminversions.SamInversions;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames;
 import com.github.lindenb.jvarkit.tools.samslop.SamSlop;
@@ -925,6 +926,7 @@ public class JvarkitCentral {
 		command(StructuralVariantToFasta.class);
 		command(SVCasesControls.class);
 		command(SAM4WebLogo.class);
+		command(SamInversions.class);
 		command(SamAddPI.class);
 		command(SamToPsl.class);
 		command(SamFindClippedRegions.class);
