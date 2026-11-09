@@ -51,6 +51,7 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -526,6 +527,7 @@ private class ViewVcfHandler extends AbstractHandler
 				this.writer.writeStartElement("html");
 				this.writer.writeComment("BEGIN-VCF-SERVER");
 				this.writer.writeStartElement("head");
+				Favicon.make().write(this.writer);
 				this.writer.writeEmptyElement("meta");
 				this.writer.writeAttribute("charset", encoding);
 				this.writer.writeEmptyElement("meta");

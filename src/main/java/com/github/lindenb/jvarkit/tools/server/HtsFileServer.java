@@ -59,6 +59,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.gtf.GTFLine;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -543,7 +544,7 @@ public  class HtsFileServer extends Launcher {
 			w.writeStartElement("html");
 			
 			w.writeStartElement("head");
-			
+			Favicon.make().write(w);
 			w.writeEmptyElement("meta");
 			w.writeAttribute("charset", charset);
 			

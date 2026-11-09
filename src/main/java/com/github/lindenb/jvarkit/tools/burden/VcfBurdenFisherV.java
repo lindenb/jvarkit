@@ -42,6 +42,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -271,6 +272,7 @@ public class VcfBurdenFisherV
 					w.writeStartDocument("UTF-8", "1.0");
 					w.writeStartElement("html");
 					w.writeStartElement("head");
+					Favicon.make().write(w);
 					w.writeStartElement("title");
 					w.writeCharacters(getClass().getSimpleName()+":"+inputName);
 					w.writeEndElement();

@@ -62,6 +62,8 @@ public class HTMLDocument extends DocumentWrapper {
 		this.headElement = element("head");
 		this.htmlElement.appendChild(headElement);
 		
+		Favicon.make().appendToHead(this.headElement);
+		
 		this.headElement.appendChild(element("meta",Maps.of("charset", "utf-8")));
 		
 		this.titleElement = element("title","untitled");

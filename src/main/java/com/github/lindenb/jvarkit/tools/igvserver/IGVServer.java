@@ -63,6 +63,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLine;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -164,17 +165,17 @@ public class IGVServer extends Launcher {
 		private static final List<ConfigFlag> CONFIG_FLAGS= Arrays.asList(
 				new ConfigFlag("showcov"," showCoverage"," Show coverage depth track. ",true),
 				new ConfigFlag("showaln"," showAlignments"," Show individual alignments. ",true),
-				new ConfigFlag("aspair"," viewAsPairs"," If true, paired reads are drawn connected with a line. ",false),
-				new ConfigFlag("pairsupp"," pairsSupported"," If false, mate information in paired reads is ignored during downsampling and the 'View as Pairs' option is removed from the alignment track menu.",false),
-				new ConfigFlag("softclip"," showSoftClips"," Show soft-clipped regions ",true),
+				new ConfigFlag("aspair"," viewAsPairs","Show paired reads connected with a line.",false),
+				new ConfigFlag("pairsupp"," pairsSupported"," Use mate information in paired reads  during downsampling.",false),
+				new ConfigFlag("softclip"," showSoftClips"," Show soft-clipped regions.",true),
 				new ConfigFlag("mismatches"," showMismatches"," Highlight alignment bases which do not match the reference. ",true),
 				new ConfigFlag("allbases"," showAllBases"," Show all bases of the read sequence. ",false),
 				new ConfigFlag("instxt"," showInsertionText"," Show number of bases for insertions inline when zoomed in. ",true),
 				new ConfigFlag("deltxt"," showDeletionText"," Show number of bases deleted inline when zoomed in. ",true),
-				new ConfigFlag("qcfail"," vendorFailed"," filter alignments marked as failing vendor quality checks (bit 0x200) ",true),
-				new ConfigFlag("dups"," duplicates"," filter alignments marked as a duplicate (bit 0x400) ",true),
-				new ConfigFlag("second"," secondary"," filter alignments marked secondary (bit 0x100) ",false),
-				new ConfigFlag("suppl"," supplementary"," filter alignments marked as supplmentary (bit 0x800) ",false)
+				new ConfigFlag("qcfail"," vendorFailed","Hide alignments marked as failing vendor quality checks (bit 0x200) ",true),
+				new ConfigFlag("dups"," duplicates","Hide alignments marked as a duplicate (bit 0x400) ",true),
+				new ConfigFlag("second"," secondary","Hide alignments marked secondary (bit 0x100) ",true),
+				new ConfigFlag("suppl"," supplementary","Hide alignments marked as supplmentary (bit 0x800) ",true)
 				);
 
 		
@@ -343,9 +344,7 @@ public class IGVServer extends Launcher {
     	             
     	             w.writeStartElement("head");
     	             
-    	             w.writeEmptyElement("link");
-    	             w.writeAttribute("rel", "icon");
-    	             w.writeAttribute("href", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAAxJREFUCNdj8NttCgACmQE/IckioQAAAABJRU5ErkJggg==");
+    	             Favicon.make().write(w);
     	             
     	             w.writeEmptyElement("meta");
     	             w.writeAttribute("charset", charset);

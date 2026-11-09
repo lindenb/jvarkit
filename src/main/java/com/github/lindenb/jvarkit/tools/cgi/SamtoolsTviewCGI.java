@@ -10,6 +10,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 
@@ -226,7 +227,7 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 			w=xof.createXMLStreamWriter(System.out,"UTF-8");
 			w.writeStartElement("html");
 			w.writeStartElement("head");
-			
+			Favicon.make().write(w);
 			w.writeStartElement("style");
 			w.writeAttribute("type", "text/css");
 			w.writeCharacters(

@@ -38,6 +38,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
@@ -159,6 +160,7 @@ public class VcfBraiding extends Launcher {
 				w.writeAttribute("lang","en");
 				w.writeCharacters("\n");
 				w.writeStartElement("head");
+					Favicon.make().write(w);
 					w.writeStartElement("title");
 						w.writeCharacters(StringUtil.isBlank(title)?(input==null?"Sequence Braiding":input):title);
 					w.writeEndElement();//title

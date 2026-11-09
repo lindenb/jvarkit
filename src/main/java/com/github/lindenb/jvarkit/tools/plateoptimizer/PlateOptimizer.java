@@ -47,6 +47,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -605,6 +606,7 @@ public class PlateOptimizer extends Launcher {
 					w.writeStartElement("html");
 					
 					w.writeStartElement("head");
+					Favicon.make().write(w);
 					w.writeStartElement("title");
 					w.writeCharacters("Iteration :"+this.id);
 					w.writeEndElement();//title

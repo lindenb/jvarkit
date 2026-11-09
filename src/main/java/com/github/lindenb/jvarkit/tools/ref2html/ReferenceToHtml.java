@@ -39,6 +39,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -151,6 +152,7 @@ public class ReferenceToHtml extends Launcher {
 						index_html.writeStartElement("html");
 						
 						index_html.writeStartElement("head");
+						Favicon.make().write(index_html);
 						writeMeta(index_html);											
 						index_html.writeStartElement("title");
 						index_html.writeCharacters(this.getProgramName());
@@ -219,6 +221,7 @@ public class ReferenceToHtml extends Launcher {
 							out.writeStartDocument("UTF-8", "1.0");
 							out.writeStartElement("html");
 							out.writeStartElement("head");
+							Favicon.make().write(out);
 							writeMeta(out);
 							out.writeStartElement("script");
 							out.writeCharacters(sw.toString());	

@@ -54,6 +54,7 @@ import javax.xml.transform.stream.StreamResult;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
@@ -1662,7 +1663,7 @@ public class VcfToTable extends Launcher {
 					if(!getOwner().hideHtmlHeader) {
 						out.writeStartElement("html");
 						out.writeStartElement("head");
-						
+						Favicon.make().write(out);
 						out.writeStartElement("title");
 						out.writeCharacters("VcfToTable");
 						out.writeEndElement();//title

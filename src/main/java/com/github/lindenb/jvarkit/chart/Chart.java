@@ -34,6 +34,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.html.Favicon;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.google.gson.Gson;
@@ -104,6 +105,9 @@ public abstract class Chart {
 	public void savePlotly(final XMLStreamWriter w,final Charset charset) throws IOException,XMLStreamException {
 		w.writeStartElement("html");
 		w.writeStartElement("head");
+		
+		Favicon.make().write(w);
+		
 		w.writeStartElement("title");
 		w.writeCharacters(getTitle());
 		w.writeEndElement();
