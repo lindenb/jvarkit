@@ -172,10 +172,10 @@ public class IGVServer extends Launcher {
 				new ConfigFlag("allbases"," showAllBases"," Show all bases of the read sequence. ",false),
 				new ConfigFlag("instxt"," showInsertionText"," Show number of bases for insertions inline when zoomed in. ",true),
 				new ConfigFlag("deltxt"," showDeletionText"," Show number of bases deleted inline when zoomed in. ",true),
-				new ConfigFlag("qcfail"," vendorFailed","Hide alignments marked as failing vendor quality checks (bit 0x200) ",true),
-				new ConfigFlag("dups"," duplicates","Hide alignments marked as a duplicate (bit 0x400) ",true),
-				new ConfigFlag("second"," secondary","Hide alignments marked secondary (bit 0x100) ",true),
-				new ConfigFlag("suppl"," supplementary","Hide alignments marked as supplmentary (bit 0x800) ",true)
+				new ConfigFlag("qcfail"," vendorFailed","Hide alignments marked as failing vendor quality checks",true),
+				new ConfigFlag("dups"," duplicates","Hide duplicates",true),
+				new ConfigFlag("second"," secondary","Hide  secondary alignments",true),
+				new ConfigFlag("suppl"," supplementary","Hide supplementary (bit 0x800) ",true)
 				);
 
 		
@@ -595,13 +595,18 @@ public class IGVServer extends Launcher {
     	            		
 	    	            	w.writeStartElement("script");
 	    	            	w.writeCharacters("const options_"+ref.id+"={\n");
+	    	            	
 	    	            	w.writeCharacters("reference:{\n");
 	    	            	w.writeCharacters("id:\"ref"+ref.id+"\",\n");
+	    	            	w.writeCharacters("wholeGenomeView:false,\n");
 	    	            	w.writeCharacters("name:\""+SequenceDictionaryUtils.getBuildName(dict).orElse("genome") +"\",\n");
 	    	            	w.writeCharacters("fastaURL:\"/"+resolveStatic(ref.path) +"\",\n");
 	    	            	w.writeCharacters("indexURL:\"/"+resolveStatic(ref.index.path) +"\"\n");
-	    	            	w.writeCharacters("}\n");
-	    	            	w.writeCharacters(",showNavigation:true,\nsupportQueryParameters:false,\n");
+	    	            	w.writeCharacters("},\n");
+	    	            	
+	    	            	
+	    	            	w.writeCharacters("loadDefaultGenomes:false,\n");
+	    	            	w.writeCharacters("showNavigation:true,\nsupportQueryParameters:false,\n");
 	    	            	w.writeCharacters("locus:\""+toString(region)+"\"\n");
 	
 	    	            	
