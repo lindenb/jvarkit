@@ -47,6 +47,7 @@ nav:
         - "bed2xml" : BedToXml.md
         - "bedcluster" : BedCluster.md
         - "bedclustername" : BedClusterName.md
+        - "bedgtf" : BedFilterGtf.md
         - "bedindextabix" : BedIndexTabix.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md

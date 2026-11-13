@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.tests;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -95,6 +96,23 @@ public class TestSupport {
 	}
 
 	
+	public Path createTmpBed(final Path dictSource) throws IOException {
+		final Path bed=createTmpPath(".bed");
+		try(BufferedWriter w= Files.newBufferedWriter(bed)) {
+			for(Interval r:randomIntervalsFromDict(dictSource, 1, 100)) {
+				w.append(r.getContig());
+				w.append("\t");
+				w.append(String.valueOf(r.getStart()-1));
+				w.append("\t");
+				w.append(String.valueOf(r.getEnd()));
+				w.append("\t");
+				w.append("v"+random.nextInt());
+				w.append("\n");
+				}
+			w.flush();
+			}
+		return bed;
+		}
 	
 	public synchronized Path deleteOnExit(final Path f) {
 		if(f!=null) this.deletePathsAtExit.add(f);

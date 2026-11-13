@@ -68,6 +68,7 @@ import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
 import com.github.lindenb.jvarkit.tools.bed2xml.BedToXml;
 import com.github.lindenb.jvarkit.tools.bedcluster.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedclustername.BedClusterName;
+import com.github.lindenb.jvarkit.tools.bedgtf.BedFilterGtf;
 import com.github.lindenb.jvarkit.tools.bedrenamechr.BedRenameChromosomes;
 import com.github.lindenb.jvarkit.tools.bedstats.BedStats;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
@@ -713,6 +714,7 @@ public class JvarkitCentral {
 		command(BedCluster.class);
 		command(BedClusterName.class);
 		command(BedIndexTabix.class);
+		command(BedFilterGtf.class);
 		command(BedNonOverlappingSet.class);
 		command(BedRemoveBed.class);
 		command(BedStats.class);

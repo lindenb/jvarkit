@@ -23,6 +23,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bed;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -37,6 +38,7 @@ import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 
 /** codec reading any BED line */
@@ -62,6 +64,10 @@ public class BedLineCodec
 	public BedLineCodec setContigNameConverter(final UnaryOperator<String> chromosomeConverter) {
 		this.chromosomeConverter = chromosomeConverter;
 		return this;
+		}
+	
+	public BedLineCodec setContigNameConverter(final SAMSequenceDictionary dict) {
+		return setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 		}
 	
 	@Override

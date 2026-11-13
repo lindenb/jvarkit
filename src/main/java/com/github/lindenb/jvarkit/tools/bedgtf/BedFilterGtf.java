@@ -36,10 +36,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
@@ -49,11 +52,11 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -61,9 +64,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
 /**
 BEGIN_DOC
@@ -117,7 +117,7 @@ java -jar jvarkit.jar bedgtf \
 
 END_DOC
 */
-@Program(name="bedfgtf",
+@Program(name="bedgtf",
 	description="Filter/Annotate BED using a GTF file",
 	keywords={"vcf","gtf"},
 	creationDate="20261113",
@@ -131,7 +131,9 @@ public class BedFilterGtf extends Launcher
 	@Parameter(names={"-gtf","--gtf"},description="GTF file",required = true)
 	private Path gtfPath;
 	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE,required = true)
-	private Path dictSource;
+	private Path dictSource = null;
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
 	@Parameter(names={"--biotype"},description="What feature biotype 'x'  should be used.")
 	private Coding codingType = Coding.all;
 	@Parameter(names={"--bed"},description="only use GTF lines overlaping that bed file. " + BedLineReader.OPT_DESC)
@@ -156,7 +158,21 @@ public class BedFilterGtf extends Launcher
 	private boolean show_proteins_id = false;
 	@Parameter(names={"--cut"},description="The GTF feature should not enclose the variant. This is interesting for the SV like the DUP or the INV where  we want that the variant 'cut' a genomic feature. Features where the whole Variant is contained will be ignored.")
 	private boolean cut_flag = false;
-
+	@Parameter(names={"--header-type"},description="Input bed header type. 0 : auto detect ; 1 : the first line is always the header; 2: there is no header.")
+	private int input_header_type=0;
+	
+	private static class Context {
+		String line;
+		BedLine rec;
+		List<GTFInterval> intervals;
+		}
+	
+	private static interface ColumnExtractor extends HasName,Function<Context, String> {
+		
+		}
+	
+	
+	
 	private static class GTFInterval extends LocatableDelegate<GTFLine> {
 		protected final int extend;
 		GTFInterval(final GTFLine line,final int extend) {
@@ -176,6 +192,12 @@ public class BedFilterGtf extends Launcher
 			}
 		public String getTag() {
 			return "in_"+getDelegate().getType()+ xSuffix(this.extend);
+			}
+		public String getLabel() {
+			String s = getDelegate().getGeneName();
+			if(isBlank(s)) s= getDelegate().getTranscriptId();
+			if(isBlank(s)) s= getDelegate().getType()+"_"+getContig()+"_"+getStart()+"_"+getEnd();
+			return s;
 			}
 		}
 	
@@ -245,6 +267,9 @@ public class BedFilterGtf extends Launcher
 			}
 		}
 	
+	private static boolean isBlank(final String s)  {
+		return StringUtils.isBlank(s) || s.equals(".");
+	}
 	
 	private static String xSuffix(int extend) {
 		return  (extend==0?"":"_extended_"+extend);
@@ -297,7 +322,7 @@ public class BedFilterGtf extends Launcher
 		L.add(r);
 		}
 	
-	private boolean testOverlap(final VariantContext ctx, GTFInterval feature) {
+	private boolean testOverlap(final BedLine ctx, GTFInterval feature) {
 		if(!ctx.overlaps(feature)) throw new IllegalStateException();
 		if(this.cut_flag) {
 			/* example : a large DUP enclose the variant: reject the variant */
@@ -313,6 +338,8 @@ public class BedFilterGtf extends Launcher
 	
 	private int run(final String inputName, final BufferedReader br,final SAMSequenceDictionary dict) {
 		try {
+			final String BLANK=".";
+			final String INTERNAL_DELIM=",";
 			String first_line=br.readLine();
 			if(first_line==null) {
 				LOG.warn("file "+inputName+" is empty.");
@@ -323,12 +350,12 @@ public class BedFilterGtf extends Launcher
 				throw new JvarkitException.TokenErrors(3, tokens);
 				}
 			final List<String> columns=new ArrayList<>();
-			if(dict.getSequence(tokens[0])!=null && 
+			if(this.input_header_type==2 || (this.input_header_type==0 && (dict.getSequence(tokens[0])!=null && 
 					StringUtils.isInteger(tokens[1]) &&
 					StringUtils.isInteger(tokens[2]) &&
 					StringUtils.parseInt(tokens[1]).getAsInt() >=0 && 
 					StringUtils.parseInt(tokens[2]).getAsInt() >= StringUtils.parseInt(tokens[1]).getAsInt()
-					) {
+					))) {
 				columns.add("chrom");
 				columns.add("start");
 				columns.add("end");
@@ -341,7 +368,7 @@ public class BedFilterGtf extends Launcher
 				for(String h:tokens) columns.add(h);
 				first_line = null;
 				}
-			
+			final List<ColumnExtractor> column_extractors = new ArrayList<>();
 			
 			
 			final Set<Integer> all_extends= CharSplitter.COMMA.stream(this.extendStr)
@@ -384,7 +411,7 @@ public class BedFilterGtf extends Launcher
  				bedIntervalMap = null;
  				}
 			/* load GTF file if needed */
-			final GTFCodec codec = new GTFCodec();
+			final GTFCodec gtfCodec = new GTFCodec();
 			
 			try(BufferedReader br2 = IOUtils.openPathForBufferedReading(this.gtfPath)) {
 				String line;
@@ -395,7 +422,7 @@ public class BedFilterGtf extends Launcher
 					if(StringUtils.isBlank(ctg)) continue;
 					tokens[0]=ctg;
 					
-					final GTFLine feat = codec.decode(tokens);
+					final GTFLine feat = gtfCodec.decode(tokens);
 					if(feat==null) continue;
 					// not in bed
 					if(bedIntervalMap!=null && !bedIntervalMap.containsOverlapping(feat)) {
@@ -460,152 +487,170 @@ public class BedFilterGtf extends Launcher
 	 				}
 				}
 		
+			final Set<String> found_tags = intervalTreeMap.values().stream()
+					.flatMap(L->L.stream())
+					.map(F->F.getTag())
+					.collect(Collectors.toSet());
+
+			
 			for(final String s:allowed_features) {
-				for(Integer extend: all_extends) {
-					final VCFInfoHeaderLine h=new VCFInfoHeaderLine(
-							"in_" + s +  xSuffix(extend),
-							0,VCFHeaderLineType.Flag,
-							"Variant overlap feature "+s+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
-					header.addMetaDataLine(h);
+				for(final Integer extend: all_extends) {
+					final ColumnExtractor c=new ColumnExtractor() {
+						public String getName() {
+							return "in_" + s +  xSuffix(extend);
+							}
+						public String apply(final Context ctx) {
+							final Set<String> set= ctx.intervals.stream()
+								.filter(R->R.getTag().equals(this.getName()))
+								.map(R->R.getLabel())
+								.collect(Collectors.toSet());
+							return set.isEmpty()?BLANK:String.join(INTERNAL_DELIM, set);
+							}
+						};
+					if(found_tags.contains(c.getName())) {
+						column_extractors.add(c);
+						}
 					}
 				}
 			
-			for(Integer extend: all_extends) {
-				VCFInfoHeaderLine h=new VCFInfoHeaderLine(
-						"in_exon_boundaries"+xSuffix(extend),
-						0,VCFHeaderLineType.Flag,
-						"Variant overlap exon boundaries "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
-				header.addMetaDataLine(h);
-				
-				if(extend.intValue()>0) {
-					h=new VCFInfoHeaderLine(
-							"in_gene_downstream"+xSuffix(extend),
-							0,VCFHeaderLineType.Flag,
-							"Variant downstream gene "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
-					header.addMetaDataLine(h);
-					
-					h=new VCFInfoHeaderLine(
-							"in_gene_upstream"+xSuffix(extend),
-							0,VCFHeaderLineType.Flag,
-							"Variant upstream gene "+(extend==0?"":" extended by "+extend+" bases")+" in "+this.gtfPath);
-					header.addMetaDataLine(h);
-					}
-				}
 			
-			final VCFInfoHeaderLine infoGeneNames=new VCFInfoHeaderLine(
-					"gene_names",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Gene Names from "+this.gtfPath);
-			if(!this.hide_gene_names)  {
-				header.addMetaDataLine(infoGeneNames);
-				}
+
 			
-			final VCFInfoHeaderLine infoGeneIds =new VCFInfoHeaderLine(
-					"gene_ids",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Gene ids from "+this.gtfPath);
-			if(!this.hide_gene_ids)  {
-				header.addMetaDataLine(infoGeneIds);
+			/* add gene name in BED */
+			if(!this.hide_gene_names) {
+				column_extractors.add(new ColumnExtractor() {
+					public String getName() {
+						return "gene_name";
+						}
+					public String apply(final Context ctx) {
+						final Set<String> set = ctx.intervals.stream().map(R->R.getDelegate().getGeneName())
+								.filter(S->!isBlank(S))
+								.collect(Collectors.toCollection(TreeSet::new));
+						return set.isEmpty() ? BLANK : String.join(INTERNAL_DELIM, set);	
+						}
+					});
+			}
+			
+			/* add gene ids in BED */
+			if(!this.hide_gene_ids) {
+				column_extractors.add(new ColumnExtractor() {
+					public String getName() {
+						return "gene_id";
+						}
+					public String apply(final Context ctx) {
+						final Set<String> set = ctx.intervals.stream().map(R->R.getDelegate().getGeneId())
+								.map(S->removeVersion(S))
+								.filter(S->!isBlank(S))
+								.collect(Collectors.toCollection(TreeSet::new));
+						return set.isEmpty() ? BLANK : String.join(INTERNAL_DELIM, set);	
+						}
+					});
 				}
 
-			final VCFInfoHeaderLine infoGeneBioTypes =new VCFInfoHeaderLine(
-					"biotypes",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Gene/transcripts biotypes from "+this.gtfPath);
+			
+
+			/* add biotypes in VCF */
 			if(!this.hide_biotypes) {
-				header.addMetaDataLine(infoGeneBioTypes);
+				column_extractors.add(new ColumnExtractor() {
+					public String getName() {
+						return "biotype";
+						}
+					public String apply(final Context ctx) {
+						final Set<String> set = ctx.intervals.stream().flatMap(R->R.getDelegate().getBioTypes().stream())
+								.filter(S->!isBlank(S))
+								.collect(Collectors.toCollection(TreeSet::new));
+						return set.isEmpty() ? BLANK : String.join(INTERNAL_DELIM, set);	
+						}
+					});
 				}
 			
-			final VCFInfoHeaderLine infoTranscriptIds =new VCFInfoHeaderLine(
-					"transcript_ids",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Transcripts IDs from "+this.gtfPath);
+			
+			/* add transcript ids in BED */
 			if(this.show_transcripts_id) {
-				header.addMetaDataLine(infoTranscriptIds);
+				column_extractors.add(new ColumnExtractor() {
+					public String getName() {
+						return "transcript_id";
+						}
+					public String apply(final Context ctx) {
+						final Set<String> set = ctx.intervals.stream().map(R->R.getDelegate().getTranscriptId())
+								.map(S->removeVersion(S))
+								.filter(S->!isBlank(S))
+								.collect(Collectors.toCollection(TreeSet::new));
+						return set.isEmpty() ? BLANK : String.join(INTERNAL_DELIM, set);	
+						}
+					});
 				}
-			
-			final VCFInfoHeaderLine infoProteinIds =new VCFInfoHeaderLine(
-					"protein_ids",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Proteins IDs from "+this.gtfPath);
+			/* add protein ids in VCF */
 			if(this.show_proteins_id) {
-				header.addMetaDataLine(infoProteinIds);
+				column_extractors.add(new ColumnExtractor() {
+					public String getName() {
+						return "protein_id";
+						}
+					public String apply(final Context ctx) {
+						final Set<String> set = ctx.intervals.stream().map(R->R.getDelegate().getProteinId())
+								.map(S->removeVersion(S))
+								.filter(S->!isBlank(S))
+								.collect(Collectors.toCollection(TreeSet::new));
+						return set.isEmpty() ? BLANK : String.join(INTERNAL_DELIM, set);	
+						}
+					});
 				}
 			
-				try(PrintWriter out=super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				out.writeHeader(header);
-				while(iterin.hasNext()) {
-					final VariantContext ctx = iterin.next();
-					final List<GTFInterval> intervals = intervalTreeMap
-							.getOverlapping(ctx)
+			final BedLineCodec codec = new BedLineCodec();
+			final Context context = new Context();
+			codec.setContigNameConverter(dict);
+			
+			try(PrintWriter out=super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				for(int i=0;i< columns.size();i++) {
+					if(i>0) out.print("\t");
+					out.print(columns.get(i));
+					}
+				for(int i=0;i< column_extractors.size();i++) {
+					out.print("\t");
+					out.print(column_extractors.get(i).getName());
+					}
+				out.println();
+				for(;;) {
+					if(first_line!=null) {
+						context.line = first_line;
+						first_line=null;
+						}
+					else
+						{
+						context.line = br.readLine();
+						}
+					if(context.line==null) break;
+					if(StringUtils.isBlank(context.line)) continue;
+					tokens = CharSplitter.TAB.split(context.line);
+					if(tokens.length > columns.size()) {
+						throw new JvarkitException.TokenErrors(columns.size(), tokens);
+						}
+					context.rec = codec.decode(context.line);
+					if(context.rec==null) {
+						LOG.warn("skipping  "+context.line);
+						continue;
+						}
+					context.intervals = intervalTreeMap
+							.getOverlapping(context.rec)
 							.stream()
 							.flatMap(L->L.stream())
-							.filter(feat->testOverlap(ctx,feat))
+							.filter(feat->testOverlap(context.rec,feat))
 							.collect(Collectors.toList());
 					
-					if(intervals.isEmpty()) {
-						if(this.hide_no_overlap_flag) continue;
-						out.add(ctx);
+					if(context.intervals.isEmpty() && this.hide_no_overlap_flag) {
 						continue;
 						}
 					
-					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-					Set<String> set = intervals.stream().map(R->R.getTag()).collect(Collectors.toSet());
-					
-					/* add feature flags VCF */
-					for(String tag:set) {
-						vcb.attribute(tag, Boolean.TRUE);
+					out.print(context.rec.toBed3());
+					for(int i=3;i< columns.size();i++) {
+						out.print("\t");
+						out.print(context.rec.getOrDefault(i, ""));
 						}
-					
-					/* add gene names in VCF */
-					if(!this.hide_gene_names) {
-						set = intervals.stream().map(R->R.getDelegate().getGeneName())
-								.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
-								.collect(Collectors.toCollection(TreeSet::new));
-						if(!set.isEmpty()) {
-							vcb.attribute(infoGeneNames.getID(),new ArrayList<>(set));
-							}
+					for(int i=0;i< column_extractors.size();i++) {
+						out.print("\t");
+						out.print(column_extractors.get(i).apply(context));
 						}
-					
-					/* add gene ids in VCF */
-					if(!this.hide_gene_ids) {
-						set = intervals.stream().map(R->R.getDelegate().getGeneId())
-								.map(S->removeVersion(S))
-								.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
-								.collect(Collectors.toCollection(TreeSet::new));
-						if(!set.isEmpty()) {
-							vcb.attribute(infoGeneIds.getID(),new ArrayList<>(set));
-							}
-						}
-					/* add biotypes in VCF */
-					if(!this.hide_biotypes) {
-						set = intervals.stream()
-								.flatMap(R->R.getDelegate().getBioTypes().stream())
-								.collect(Collectors.toCollection(TreeSet::new));
-						
-						if(!set.isEmpty()) {
-							vcb.attribute(infoGeneBioTypes.getID(),new ArrayList<>(set));
-							}
-						}
-					
-					/* add transcript ids in VCF */
-					if(this.show_transcripts_id) {
-						set = intervals.stream().map(R->R.getDelegate().getTranscriptId())
-								.map(S->removeVersion(S))
-								.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
-								.collect(Collectors.toCollection(TreeSet::new));
-						if(!set.isEmpty()) {
-							vcb.attribute(infoTranscriptIds.getID(),new ArrayList<>(set));
-							}
-						}
-					/* add protein ids in VCF */
-					if(this.show_proteins_id) {
-						set = intervals.stream().map(R->R.getDelegate().getProteinId())
-								.map(S->removeVersion(S))
-								.filter(S->!StringUtils.isBlank(S) && !S.equals("."))
-								.collect(Collectors.toCollection(TreeSet::new));
-						if(!set.isEmpty()) {
-							vcb.attribute(infoProteinIds.getID(),new ArrayList<>(set));
-							}
-						}
-					
-					
-					out.add(vcb.make());
+					out.println();					
 					}
 				out.flush();
 				}
@@ -620,6 +665,10 @@ public class BedFilterGtf extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			if(this.input_header_type<0 || this.input_header_type>2) {
+				LOG.error("bad value for --header-type (0|1|2) but got "+this.input_header_type);
+				return -1;
+				}
 			final String input = oneAndOnlyOneFile(args);
 			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.dictSource);
 			try(BufferedReader br= input==null?

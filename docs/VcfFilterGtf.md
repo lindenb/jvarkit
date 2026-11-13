@@ -138,6 +138,7 @@ filter/annotate a VCF with a GTF. I'm fed up to filter a  GTF, convert the GTF t
 Filter to protein-coding genes only
 
 ```
+bcftools view in.bcf |\
 java -jar jvarkit.jar vcfgtf \
     --gtf annotations.gtf.gz \
     --biotype protein_coding \
@@ -149,6 +150,7 @@ java -jar jvarkit.jar vcfgtf \
 Annotate structural variants with cut-mode
 
 ```
+bcftools view in.bcf |\
 java -jar jvarkit.jar vcfgtf \
     --gtf gencode.v44.gtf \
     --cut \
@@ -162,6 +164,7 @@ Filter to a subset of genes via file
 
 ```
 # genes.txt contains one gene name per line
+bcftools view in.bcf |\
 java -jar jvarkit.jar vcfgtf \
     --gtf ref.gtf \
     --gene-name genes.txt \
